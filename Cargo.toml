@@ -4,7 +4,7 @@ version = "0.0.1"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
-description = "Virtual File System"
+description = "Foundational Rust utilities"
 repository = "https://github.com/phR0ze/rivia"
 exclude = [
   "docs",
