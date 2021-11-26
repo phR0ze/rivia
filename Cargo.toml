@@ -1,10 +1,10 @@
 [package]
 name = "rivia"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
-description = "Foundational Rust utilities"
+description = "Rust utilities to reduce code verbosity"
 repository = "https://github.com/phR0ze/rivia"
 exclude = [
   "docs",

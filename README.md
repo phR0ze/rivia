@@ -1,2 +1,2 @@
 # rivia
-Foundational tooling in Rust
+Rust utilities to reduce code verbosity

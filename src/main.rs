@@ -1,6 +1,6 @@
 use rivia_vfs as vfs;
 
-pub const APP_NAME: &str = "rivia-vfs";
+pub const APP_NAME: &str = "Rivia";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const APP_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 pub const APP_GIT_COMMIT: &str = env!("APP_GIT_COMMIT");
