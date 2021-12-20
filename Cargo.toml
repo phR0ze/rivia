@@ -1,13 +1,14 @@
 [package]
 name = "rivia"
-version = "0.0.3"
-edition = "2018"
+version = "0.0.4"
+edition = "2021"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
 description = "Rust utilities to reduce code verbosity"
 repository = "https://github.com/phR0ze/rivia"
 exclude = [
   "docs",
+  "config",
   "examples",
   ".git",
   ".githooks",
@@ -27,6 +28,7 @@ exclude = [
 [profile.release]
 opt-level = 3   # Optimize for speed over size
 lto = true      # Futher assist in optimization
+debug = false   # Provide debug symbols for Witcher
 
 [profile.dev]
 opt-level = 0   # Default no optimization
