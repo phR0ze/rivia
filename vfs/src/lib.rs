@@ -76,12 +76,7 @@ pub fn vfs(vfs: impl Vfs) -> RvResult<()> {
 pub trait Vfs: Debug+Send+Sync+'static {
 
     // Pathing
-    fn abs(&self, path: &Path) -> RvResult<PathBuf>;
     fn expand(&self, path: &Path) -> RvResult<PathBuf>;
-
-    // File io
-    fn read(&self, path: &Path) -> RvResult<String>;
-    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>;
 }
 
 pub fn test() {
