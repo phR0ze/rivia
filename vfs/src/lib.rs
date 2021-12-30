@@ -19,7 +19,7 @@
 //! ```
 mod stdfs;
 mod path;
-use stdfs::Stdfs;
+use stdfs::*;
 
 use rivia_core::*;
 use lazy_static::lazy_static;
@@ -35,7 +35,9 @@ use std::{
 /// ```
 /// use rivia_vfs::prelude::*;
 /// ```
-pub mod prelude {
+pub mod prelude
+{
+    pub use crate::*;
     pub use rivia_core::*;
 
     // Nest global vfs functions for ergonomics
@@ -44,7 +46,8 @@ pub mod prelude {
     }
 }
 
-lazy_static! {
+lazy_static!
+{
     /// VFS is a virtual filesystem singleton providing an implementation of Vfs that defaults to
     /// Stdfs but can be changed dynamically to any implementation of the Vfs trait.
     ///
@@ -68,7 +71,8 @@ lazy_static! {
 ///
 /// vfs::set(Stdfs::new()).unwrap();
 /// ```
-pub fn set(vfs: impl Vfs) -> RvResult<()> {
+pub fn set(vfs: impl Vfs) -> RvResult<()>
+{
     *VFS.write().map_err(|_| VfsError::Unavailable)? = Arc::new(vfs);
     Ok(())
 }
@@ -77,8 +81,8 @@ pub fn set(vfs: impl Vfs) -> RvResult<()> {
 /// For example [`Stdfs`] implements a pass through to the sRust std::fs library that operates
 /// against disk as per usual and [`Memfs`] in memory implementation providing the same
 /// functionality only purely in memory.
-pub trait Vfs: Debug+Send+Sync+'static {
-
+pub trait Vfs: Debug+Send+Sync+'static
+{
     // Pathing
     fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 }
@@ -95,11 +99,13 @@ pub trait Vfs: Debug+Send+Sync+'static {
 /// let home = sys::home_dir().unwrap();
 /// assert_eq!(PathBuf::from(&home).join("foo"), vfs::expand(PathBuf::from("~/foo")).unwrap());
 /// ```
-pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+{
     VFS.read().map_err(|_| VfsError::Unavailable)?.clone().expand(path.as_ref())
 }
 
-pub fn test() {
+pub fn test()
+{
     println!("\nvfs lib here");
     println!("home: {}", sys::home_dir().unwrap().to_string().unwrap());
 }
@@ -111,7 +117,8 @@ mod tests
     use std::path::PathBuf;
 
     #[test]
-    fn it_works() {
+    fn it_works()
+    {
         let home = sys::home_dir().unwrap();
         assert_eq!(PathBuf::from(&home).join("foo"), vfs::expand(PathBuf::from("~/foo")).unwrap());
     }

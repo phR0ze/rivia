@@ -2,7 +2,7 @@
 //!
 //! ### Example
 /// ```no_run
-/// use rivia-vfs::prelude::*;
+/// use rivia_vfs::prelude::*;
 /// ```
 use crate::{path::VfsPath, Vfs};
 use rivia_core::*;
@@ -34,13 +34,31 @@ impl Vfs for Stdfs
     ///
     /// ### Examples
     /// ```
-    /// use rivia_core::*;
+    /// use rivia_vfs::prelude::*;
     /// 
+    /// let stdfs = vfs::Stdfs::new();
     /// let home = sys::home_dir().unwrap();
-    /// assert_eq!(PathBuf::from(&home), PathBuf::from("~/foo").expand().unwrap());
+    /// assert_eq!(PathBuf::from(&home).join("foo"), stdfs.expand(Path::new("~/foo")).unwrap());
     /// ```
     fn expand(&self, path: &Path) -> RvResult<PathBuf>
     {
         sys::expand(path)
+    }
+}
+
+
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests
+{
+    use crate::prelude::*;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn test_expand() {
+        let stdfs = vfs::Stdfs::new();
+        let home = sys::home_dir().unwrap();
+        assert_eq!(PathBuf::from(&home).join("foo"), stdfs.expand(Path::new("~/foo")).unwrap());
     }
 }
