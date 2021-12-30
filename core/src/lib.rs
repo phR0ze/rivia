@@ -12,6 +12,7 @@ mod path;
 mod path_error;
 mod string;
 mod string_error;
+mod vfs_error;
 
 // Export module directly
 pub mod sys;
@@ -25,3 +26,4 @@ pub use path::*;
 pub use path_error::*;
 pub use string::*;
 pub use string_error::*;
+pub use vfs_error::*;

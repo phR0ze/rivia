@@ -13,14 +13,13 @@
 //!
 //! ### Example
 //! ```no_run
-//! use rivia::prelude::*;
+//! use rivia_vfs::prelude::*;
 //!
 //! sys::vfs(Stdfs::new()).unwrap();
 //! ```
 mod stdfs;
 mod path;
 use stdfs::Stdfs;
-use path::VfsPath;
 
 use rivia_core::*;
 use lazy_static::lazy_static;
@@ -34,10 +33,15 @@ use std::{
 ///
 /// ### Examples
 /// ```
-/// use rivia-vfs::prelude::*;
+/// use rivia_vfs::prelude::*;
 /// ```
 pub mod prelude {
     pub use rivia_core::*;
+
+    // Nest global vfs functions for ergonomics
+    pub mod vfs {
+        pub use crate::*;
+    }
 }
 
 lazy_static! {
@@ -60,12 +64,12 @@ lazy_static! {
 ///
 /// ### Examples
 /// ```
-/// use fungus::prelude::*;
+/// use rivia_vfs::prelude::*;
 ///
-/// Vfs::vfs(Stdfs::new()).unwrap();
+/// vfs::set(Stdfs::new()).unwrap();
 /// ```
-pub fn vfs(vfs: impl Vfs) -> RvResult<()> {
-    // *VFS.write().map_err(|_| Error::Unavailable)? = Arc::new(vfs);
+pub fn set(vfs: impl Vfs) -> RvResult<()> {
+    *VFS.write().map_err(|_| VfsError::Unavailable)? = Arc::new(vfs);
     Ok(())
 }
 
@@ -79,14 +83,36 @@ pub trait Vfs: Debug+Send+Sync+'static {
     fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 }
 
+/// Expand all environment variables in the path as well as the home directory.
+///
+/// WARNING: Does not expand partials e.g. "/foo${BAR}ing/blah" only complete components
+/// e.g. "/foo/${BAR}/blah"
+///
+/// ### Examples
+/// ```
+/// use rivia_vfs::prelude::*;
+///
+/// let home = sys::home_dir().unwrap();
+/// assert_eq!(PathBuf::from(&home).join("foo"), vfs::expand(PathBuf::from("~/foo")).unwrap());
+/// ```
+pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    VFS.read().map_err(|_| VfsError::Unavailable)?.clone().expand(path.as_ref())
+}
+
 pub fn test() {
     println!("\nvfs lib here");
+    println!("home: {}", sys::home_dir().unwrap().to_string().unwrap());
 }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
+    use crate::prelude::*;
+    use std::path::PathBuf;
+
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        let home = sys::home_dir().unwrap();
+        assert_eq!(PathBuf::from(&home).join("foo"), vfs::expand(PathBuf::from("~/foo")).unwrap());
     }
 }

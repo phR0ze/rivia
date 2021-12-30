@@ -206,7 +206,7 @@ pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 /// ```
 /// use rivia_core::*;
 ///
-/// let home = user::home_dir().unwrap();
+/// let home = sys::home_dir().unwrap();
 /// assert_eq!(PathBuf::from(&home).mash("foo"), sys::expand(PathBuf::from("~/foo")).unwrap());
 /// ```
 pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
@@ -393,7 +393,7 @@ pub fn home_dir() -> RvResult<PathBuf> {
 /// ```
 /// use rivia_core::*;
 ///
-/// assert_eq!(sys::is_empty(PathBuf::from("")), true);
+/// assert_eq!(sys::is_empty(""), true);
 /// ```
 fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
     path.into() == PathBuf::new()
@@ -535,7 +535,9 @@ fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 /// assert_eq!(sys::mash(Path::new("/foo"), "/bar"), PathBuf::from("/foo/bar"));
 /// ```
 fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
-    trim_prefix(dir.as_ref().join(base.as_ref()), "/").components().collect::<PathBuf>()
+    let base = trim_prefix(base, "/");
+    let path = dir.as_ref().join(base);
+    path.components().collect::<PathBuf>()
 }
 
 // /// Returns the Mode of the `Path` if it exists else and error
@@ -789,7 +791,7 @@ pub fn trim_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> PathBu
 /// ```
 /// use rivia_core::*;
 ///
-/// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
+/// assert_eq!(sys::trim_protocol(PathBuf::from("ftp://foo")), PathBuf::from("foo"));
 /// ```
 pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf {
     let path = path.as_ref();
@@ -842,3 +844,157 @@ pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf {
 // pub fn uid(&self) -> RvResult<u32> {
 //     sys::uid(&self)
 // }
+
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests
+{
+    use crate::*;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn test_clean() {
+        let tests = vec![
+            // Root
+            ("/", "/"),
+            // Remove trailing slashes
+            ("/", "//"),
+            ("/", "///"),
+            (".", ".//"),
+            // Remove duplicates and handle rooted parent ref
+            ("/", "//.."),
+            ("..", "..//"),
+            ("/", "/..//"),
+            ("foo/bar/blah", "foo//bar///blah"),
+            ("/foo/bar/blah", "/foo//bar///blah"),
+            // Unneeded current dirs and duplicates
+            ("/", "/.//./"),
+            (".", "././/./"),
+            (".", "./"),
+            ("/", "/./"),
+            ("foo", "./foo"),
+            ("foo/bar", "./foo/./bar"),
+            ("/foo/bar", "/foo/./bar"),
+            ("foo/bar", "foo/bar/."),
+            // Handle parent references
+            ("/", "/.."),
+            ("/foo", "/../foo"),
+            (".", "foo/.."),
+            ("../foo", "../foo"),
+            ("/bar", "/foo/../bar"),
+            ("foo", "foo/bar/.."),
+            ("bar", "foo/../bar"),
+            ("/bar", "/foo/../bar"),
+            (".", "foo/bar/../../"),
+            ("..", "foo/bar/../../.."),
+            ("/", "/foo/bar/../../.."),
+            ("/", "/foo/bar/../../../.."),
+            ("../..", "foo/bar/../../../.."),
+            ("blah/bar", "foo/bar/../../blah/bar"),
+            ("blah", "foo/bar/../../blah/bar/.."),
+            ("../foo", "../foo"),
+            ("../foo", "../foo/"),
+            ("../foo/bar", "../foo/bar"),
+            ("..", "../foo/.."),
+            ("~/foo", "~/foo"),
+        ];
+        for test in tests {
+            assert_eq!(PathBuf::from(test.0), sys::clean(PathBuf::from(test.1)).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_expand()
+    {
+        let home = sys::home_dir().unwrap();
+
+        // Tilda only
+        assert_eq!(PathBuf::from(&home), sys::expand(PathBuf::from("~")).unwrap());
+
+        // Part of path
+        assert_eq!(PathBuf::from(&home).join("foo"), sys::expand(PathBuf::from("~/foo")).unwrap());
+    }
+
+    #[test]
+    fn test_has_prefix() {
+        let path = PathBuf::from("/foo/bar");
+        assert_eq!(sys::has_prefix(&path, "/foo"), true);
+        assert_eq!(sys::has_prefix(&path, "foo"), false);
+    }
+
+    #[test]
+    fn test_home_dir()
+    {
+        let home = sys::home_dir().unwrap();
+        assert!(home != PathBuf::new());
+        assert!(home.starts_with("/"));
+        assert_eq!(PathBuf::from(&home).join("foo"), home.join("foo"));
+    }
+
+    #[test]
+    fn test_is_empty()
+    {
+        assert_eq!(sys::is_empty(""), true);
+        assert_eq!(sys::is_empty(Path::new("")), true);
+        assert_eq!(sys::is_empty("/"), false);
+    }
+
+    #[test]
+    fn test_mash()
+    {
+        // mashing nothing should yield no change
+        assert_eq!(sys::mash(Path::new(""), ""), PathBuf::from(""));
+        assert_eq!(sys::mash(Path::new("/foo"), ""), PathBuf::from("/foo"));
+
+        // strips off root on path
+        assert_eq!(sys::mash(Path::new("/foo"), "/bar"), PathBuf::from("/foo/bar"));
+
+        // strips off trailing slashes
+        assert_eq!(sys::mash(Path::new("/foo"), "bar/"), PathBuf::from("/foo/bar"));
+    }
+
+    #[test]
+    fn test_trim_prefix()
+    {
+        // drop root
+        assert_eq!(sys::trim_prefix(PathBuf::from("/"), "/"), PathBuf::new());
+
+        // drop start
+        assert_eq!(sys::trim_prefix(PathBuf::from("/foo/bar"), "/foo"), PathBuf::from("/bar"));
+
+        // no change
+        assert_eq!(sys::trim_prefix(PathBuf::from("/"), ""), PathBuf::from("/"));
+        assert_eq!(sys::trim_prefix(PathBuf::from("/foo"), "blah"), PathBuf::from("/foo"));
+    }
+
+    #[test]
+    fn test_trim_protocol()
+    {
+        // no change
+        assert_eq!(PathBuf::from("/foo"), sys::trim_protocol(PathBuf::from("/foo")));
+
+        // file://
+        assert_eq!(PathBuf::from("/foo"), sys::trim_protocol(PathBuf::from("file:///foo")));
+
+        // ftp://
+        assert_eq!(PathBuf::from("foo"), sys::trim_protocol(PathBuf::from("ftp://foo")));
+
+        // http://
+        assert_eq!(PathBuf::from("foo"), sys::trim_protocol(PathBuf::from("http://foo")));
+
+        // https://
+        assert_eq!(PathBuf::from("foo"), sys::trim_protocol(PathBuf::from("https://foo")));
+
+        // Check case is being considered
+        assert_eq!(PathBuf::from("Foo"), sys::trim_protocol(PathBuf::from("HTTPS://Foo")));
+        assert_eq!(PathBuf::from("Foo"), sys::trim_protocol(PathBuf::from("Https://Foo")));
+        assert_eq!(PathBuf::from("FoO"), sys::trim_protocol(PathBuf::from("HttpS://FoO")));
+
+        // Check non protocol matches are ignored
+        assert_eq!(PathBuf::from("foo"), sys::trim_protocol(PathBuf::from("foo")));
+        assert_eq!(PathBuf::from("foo/bar"), sys::trim_protocol(PathBuf::from("foo/bar")));
+        assert_eq!(PathBuf::from("foo//bar"), sys::trim_protocol(PathBuf::from("foo//bar")));
+        assert_eq!(PathBuf::from("ntp:://foo"), sys::trim_protocol(PathBuf::from("ntp:://foo")));
+    }
+}

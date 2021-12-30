@@ -1,7 +1,8 @@
 use crate::{
     iter_error::*,
     path_error::*,
-    string_error::*
+    string_error::*,
+    vfs_error::*,
 };
 use std::{error::Error as StdError, fmt};
 
@@ -26,6 +27,9 @@ pub enum RvError
 
     /// Environment variable error
     Var(std::env::VarError),
+
+    /// Virtul File System errror
+    Vfs(VfsError),
 }
 
 impl RvError
@@ -67,6 +71,7 @@ impl fmt::Display for RvError
             RvError::String(ref err) => write!(f, "{}", err),
             RvError::Utf8(ref err) => write!(f, "{}", err),
             RvError::Var(ref err) => write!(f, "{}", err),
+            RvError::Vfs(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -81,6 +86,7 @@ impl AsRef<dyn StdError> for RvError
             RvError::String(ref err) => err,
             RvError::Utf8(ref err) => err,
             RvError::Var(ref err) => err,
+            RvError::Vfs(ref err) => err,
         }
     }
 }
@@ -95,6 +101,7 @@ impl AsMut<dyn StdError> for RvError
             RvError::String(ref mut err) => err,
             RvError::Utf8(ref mut err) => err,
             RvError::Var(ref mut err) => err,
+            RvError::Vfs(ref mut err) => err,
         }
     }
 }
@@ -128,6 +135,12 @@ impl From<std::str::Utf8Error> for RvError
 impl From<std::env::VarError> for RvError {
     fn from(err: std::env::VarError) -> RvError {
         RvError::Var(err)
+    }
+}
+
+impl From<VfsError> for RvError {
+    fn from(err: VfsError) -> RvError {
+        RvError::Vfs(err)
     }
 }
 

@@ -34,9 +34,13 @@ impl Vfs for Stdfs
     ///
     /// ### Examples
     /// ```
+    /// use rivia_core::*;
+    /// 
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(PathBuf::from(&home), PathBuf::from("~/foo").expand().unwrap());
     /// ```
     fn expand(&self, path: &Path) -> RvResult<PathBuf>
     {
-        Ok(path.to_path_buf())
+        sys::expand(path)
     }
 }
