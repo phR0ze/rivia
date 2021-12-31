@@ -10,6 +10,7 @@ mod iter_error;
 mod option;
 mod path;
 mod path_error;
+mod peekable;
 mod string;
 mod string_error;
 mod vfs_error;
@@ -24,6 +25,10 @@ pub use iter_error::*;
 pub use option::*;
 pub use path::*;
 pub use path_error::*;
+pub use peekable::*;
 pub use string::*;
 pub use string_error::*;
 pub use vfs_error::*;
+
+// Re-exports
+pub use std::path::{Path, PathBuf};

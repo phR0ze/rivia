@@ -2,6 +2,7 @@ use crate::{error::*, string_error::*, path_error::*};
 use std::{ffi::OsStr, path::Path, str};
 
 pub trait StringExt {
+
     /// Returns the length in characters rather than bytes i.e. this is a human understandable
     /// value. However it is more costly to perform.
     ///

@@ -29,16 +29,15 @@ impl Vfs for Stdfs
 {
     /// Expand all environment variables in the path as well as the home directory.
     ///
-    /// WARNING: Does not expand partials e.g. "/foo${BAR}ing/blah" only complete components
-    /// e.g. "/foo/${BAR}/blah"
-    ///
     /// ### Examples
     /// ```
     /// use rivia_vfs::prelude::*;
-    /// 
+    ///
     /// let stdfs = vfs::Stdfs::new();
     /// let home = sys::home_dir().unwrap();
-    /// assert_eq!(PathBuf::from(&home).join("foo"), stdfs.expand(Path::new("~/foo")).unwrap());
+    /// assert_eq!(stdfs.expand(Path::new("~/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+    /// assert_eq!(stdfs.expand(Path::new("$HOME/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+    /// assert_eq!(stdfs.expand(Path::new("${HOME}/foo")).unwrap(), PathBuf::from(&home).join("foo"));
     /// ```
     fn expand(&self, path: &Path) -> RvResult<PathBuf>
     {
@@ -56,9 +55,9 @@ mod tests
     use std::path::{Path, PathBuf};
 
     #[test]
-    fn test_expand() {
+    fn test_expand() -> RvResult<()> {
         let stdfs = vfs::Stdfs::new();
-        let home = sys::home_dir().unwrap();
-        assert_eq!(PathBuf::from(&home).join("foo"), stdfs.expand(Path::new("~/foo")).unwrap());
+        assert_eq!(stdfs.expand(Path::new("~/foo"))?, sys::home_dir()?.join("foo"));
+        Ok(())
     }
 }

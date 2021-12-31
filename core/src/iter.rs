@@ -45,7 +45,8 @@ where
 }
 
 /// Iterator adaptors to simplify some operations
-pub trait IteratorExt: Iterator {
+pub trait IteratorExt: Iterator
+{
     /// Consume the entire iterator eagerly up until but not including the last call to
     /// get None. Allows caller to then call next and get None.
     ///

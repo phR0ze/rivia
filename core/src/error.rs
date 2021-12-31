@@ -10,7 +10,7 @@ use std::{error::Error as StdError, fmt};
 pub type RvResult<T> = std::result::Result<T, RvError>;
 
 /// RiviaError wraps all the internal errors that might occur in one common error type
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RvError
 {
     /// A interator error

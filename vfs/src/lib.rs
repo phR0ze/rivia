@@ -19,7 +19,7 @@
 //! ```
 mod stdfs;
 mod path;
-use stdfs::*;
+pub use stdfs::*;
 
 use rivia_core::*;
 use lazy_static::lazy_static;
@@ -59,6 +59,23 @@ lazy_static!
     pub static ref VFS: RwLock<Arc<dyn Vfs>> = RwLock::new(Arc::new(Stdfs::new()));
 }
 
+// Vfs trait
+// -------------------------------------------------------------------------------------------------
+
+/// Vfs provides a set of functions that are implemented by various backend filesystem providers.
+/// For example [`Stdfs`] implements a pass through to the sRust std::fs library that operates
+/// against disk as per usual and [`Memfs`] is an in memory implementation providing the same
+/// functionality only purely in memory.
+pub trait Vfs: Debug+Send+Sync+'static
+{
+    // Pathing
+    fn expand(&self, path: &Path) -> RvResult<PathBuf>;
+}
+
+
+// Vfs convenience functions
+// -------------------------------------------------------------------------------------------------
+
 /// Set the current vfs backend being used.
 ///
 /// Following the promoting pattern we can switch the Vfs backend for the given implementation
@@ -77,49 +94,40 @@ pub fn set(vfs: impl Vfs) -> RvResult<()>
     Ok(())
 }
 
-/// Vfs provides a set of functions that are implemented by various backend filesystem providers.
-/// For example [`Stdfs`] implements a pass through to the sRust std::fs library that operates
-/// against disk as per usual and [`Memfs`] in memory implementation providing the same
-/// functionality only purely in memory.
-pub trait Vfs: Debug+Send+Sync+'static
-{
-    // Pathing
-    fn expand(&self, path: &Path) -> RvResult<PathBuf>;
-}
-
 /// Expand all environment variables in the path as well as the home directory.
-///
-/// WARNING: Does not expand partials e.g. "/foo${BAR}ing/blah" only complete components
-/// e.g. "/foo/${BAR}/blah"
 ///
 /// ### Examples
 /// ```
 /// use rivia_vfs::prelude::*;
 ///
 /// let home = sys::home_dir().unwrap();
-/// assert_eq!(PathBuf::from(&home).join("foo"), vfs::expand(PathBuf::from("~/foo")).unwrap());
+/// assert_eq!(vfs::expand(Path::new("~/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+/// assert_eq!(vfs::expand(Path::new("$HOME/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+/// assert_eq!(vfs::expand(Path::new("${HOME}/foo")).unwrap(), PathBuf::from(&home).join("foo"));
 /// ```
 pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
 {
     VFS.read().map_err(|_| VfsError::Unavailable)?.clone().expand(path.as_ref())
 }
 
-pub fn test()
+pub fn test() -> RvResult<()>
 {
     println!("\nvfs lib here");
-    println!("home: {}", sys::home_dir().unwrap().to_string().unwrap());
+    println!("home: {}", expand("~")?.to_string()?);
+    Ok(())
 }
 
+// Unit tests
+// -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests
 {
     use crate::prelude::*;
-    use std::path::PathBuf;
 
     #[test]
-    fn it_works()
+    fn test_expand() -> RvResult<()>
     {
-        let home = sys::home_dir().unwrap();
-        assert_eq!(PathBuf::from(&home).join("foo"), vfs::expand(PathBuf::from("~/foo")).unwrap());
+        assert_eq!(vfs::expand("~/foo")?, sys::home_dir()?.join("foo"));
+        Ok(())
     }
 }
