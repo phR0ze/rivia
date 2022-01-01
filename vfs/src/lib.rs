@@ -17,8 +17,10 @@
 //!
 //! sys::vfs(Stdfs::new()).unwrap();
 //! ```
+mod memfs;
 mod stdfs;
 mod path;
+pub use memfs::*;
 pub use stdfs::*;
 
 use rivia_core::*;
@@ -69,6 +71,7 @@ lazy_static!
 pub trait Vfs: Debug+Send+Sync+'static
 {
     // Pathing
+    fn abs(&self, path: &Path) -> RvResult<PathBuf>;
     fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 }
 
@@ -92,6 +95,19 @@ pub fn set(vfs: impl Vfs) -> RvResult<()>
 {
     *VFS.write().map_err(|_| VfsError::Unavailable)? = Arc::new(vfs);
     Ok(())
+}
+
+/// Return the path in an absolute clean form
+///
+/// ### Examples
+/// ```
+/// use rivia_vfs::prelude::*;
+///
+/// let home = sys::home_dir().unwrap();
+/// assert_eq!(sys::abs("~").unwrap(), PathBuf::from(&home));
+/// ```
+pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    VFS.read().map_err(|_| VfsError::Unavailable)?.clone().abs(path.as_ref())
 }
 
 /// Expand all environment variables in the path as well as the home directory.

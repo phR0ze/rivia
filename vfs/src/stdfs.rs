@@ -27,6 +27,21 @@ impl Stdfs
 
 impl Vfs for Stdfs
 {
+    /// Return the path in an absolute clean form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia_vfs::prelude::*;
+    ///
+    /// let stdfs = vfs::Stdfs::new();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(stdfs.abs(Path::new("~")).unwrap(), PathBuf::from(&home));
+    /// ```
+    fn abs(&self, path: &Path) -> RvResult<PathBuf>
+    {
+        sys::abs(path)
+    }
+
     /// Expand all environment variables in the path as well as the home directory.
     ///
     /// ### Examples

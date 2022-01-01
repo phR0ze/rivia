@@ -2,7 +2,6 @@ use crate::{
     error::*,
     iter::*,
     option::*,
-    path::*,
     path_error::*,
     peekable::*,
     string::*,
@@ -11,52 +10,55 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-// /// Return the path in an absolute clean form
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// let home = user::home_dir().unwrap();
-// /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
-// /// ```
-// pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
-//     let path = path.as_ref();
+/// Return the path in an absolute clean form
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// let home = sys::home_dir().unwrap();
+/// assert_eq!(sys::abs("~").unwrap(), PathBuf::from(&home));
+/// ```
+pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    let path = path.as_ref();
 
-//     // Check for empty string
-//     if is_empty(path) {
-//         return Err(PathError::Empty.into());
-//     }
+    // Check for empty string
+    if is_empty(path) {
+        return Err(PathError::Empty.into());
+    }
 
-//     // Expand home directory
-//     let mut path_buf = expand(path)?;
+    // Expand home directory
+    let mut path_buf = expand(path)?;
 
-//     // Trim protocol prefix if needed
-//     path_buf = trim_protocol(path_buf);
+    // Trim protocol prefix if needed
+    path_buf = trim_protocol(path_buf);
 
-//     // Clean the resulting path
-//     path_buf = clean(path_buf)?;
+    // Clean the resulting path
+    path_buf = clean(path_buf)?;
 
-//     // Expand relative directories if needed
-//     if !path_buf.is_absolute() {
-//         let mut curr = cwd()?;
-//         while let Ok(path) = path_buf.first() {
-//             match path {
-//                 Component::CurDir => {
-//                     path_buf = path_buf.trim_first();
-//                 },
-//                 Component::ParentDir => {
-//                     curr = curr.dir()?;
-//                     path_buf = path_buf.trim_first();
-//                 },
-//                 _ => return Ok(curr.mash(path_buf)),
-//             };
-//         }
-//         return Ok(curr);
-//     }
+    // Expand relative directories if needed
+    if !path_buf.is_absolute() {
+        let mut curr = cwd()?;
+        while let Ok(path) = path_buf.components().first_result() {
+            match path {
+                Component::CurDir => {
+                    path_buf = trim_first(path_buf);
+                },
+                Component::ParentDir => {
+                    if curr.to_string()? == "/" {
+                       return Err(PathError::ParentNotFound(curr).into());
+                    }
+                    curr = dir(curr)?;
+                    path_buf = trim_first(path_buf);
+                },
+                _ => return Ok(mash(curr, path_buf))
+            };
+        }
+        return Ok(curr);
+    }
 
-//     Ok(path_buf)
-// }
+    Ok(path_buf)
+}
 
 // /// Returns the final component of the `Path`, if there is one.
 // ///
@@ -111,7 +113,7 @@ use std::{
 /// ```
 /// use rivia_core::*;
 ///
-/// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
+/// assert_eq!(sys::clean("./foo/./bar").unwrap(), PathBuf::from("foo/bar"));
 /// ```
 pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     // Components already handles the following cases:
@@ -175,19 +177,41 @@ pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 //     Ok(PathBuf::from(format!("{}{}", self.to_string()?, val.as_ref())))
 // }
 
-// /// Returns the `Path` without its final component, if there is one.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
-// /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
-// /// ```
-// pub fn dir(&self) -> RvResult<PathBuf> {
-//     let dir = self.parent().ok_or_else(|| PathError::parent_not_found(self))?;
-//     Ok(dir.to_path_buf())
-// }
+/// Returns the current working directory as a [`PathBuf`].
+/// Wraps std::env::current_dir
+///
+/// # Errors
+///
+/// Returns an [`Err`] if the current working directory value is invalid.
+/// Possible cases:
+///
+/// * Current directory does not exist.
+/// * There are insufficient permissions to access the current directory.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// println!("current working directory: {:?}", sys::cwd().unwrap());
+/// ```
+pub fn cwd() -> RvResult<PathBuf> {
+    let path = std::env::current_dir()?;
+    Ok(path)
+}
+
+/// Returns the `Path` without its final component, if there is one.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_eq!(sys::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
+/// ```
+pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    let path = path.as_ref();
+    let dir = path.parent().ok_or_else(|| PathError::parent_not_found(path))?;
+    Ok(dir.to_path_buf())
+}
 
 // /// Returns true if the `Path` exists. Handles path expansion.
 // ///
@@ -292,20 +316,6 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 //         Some(val) => val.to_string(),
 //         None => Err(PathError::extension_not_found(self).into()),
 //     }
-// }
-
-// /// Returns the first path component.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// /// use std::path::Component;
-// ///
-// /// let first = Component::Normal(OsStr::new("foo"));
-// /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
-// /// ```
-// pub fn first(&self) -> RvResult<Component> {
-//     self.components().first_result()
 // }
 
 // /// Returns the group ID of the owner of this file.
@@ -755,17 +765,17 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
 //     })
 // }
 
-// /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
-// /// ```
-// pub fn trim_first(&self) -> PathBuf {
-//     self.components().drop(1).as_path().to_path_buf()
-// }
+/// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_eq!(sys::trim_first("/foo"), PathBuf::from("foo"));
+/// ```
+pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf {
+    path.as_ref().components().drop(1).as_path().to_path_buf()
+}
 
 // /// Returns a new [`PathBuf`] with last [`Component`] trimmed off.
 // ///
@@ -866,6 +876,46 @@ mod tests
     use crate::*;
 
     #[test]
+    fn test_abs() -> RvResult<()> {
+        let cwd = sys::cwd()?;
+        let prev = sys::dir(&cwd)?;
+
+        // expand relative directory
+        assert_eq!(sys::abs("foo")?, sys::mash(&cwd, "foo"));
+
+        // expand previous directory and drop trailing slashes
+        assert_eq!(sys::abs("..//")?, prev);
+        assert_eq!(sys::abs("../")?, prev);
+        assert_eq!(sys::abs("..")?, prev);
+
+        // expand current directory and drop trailing slashes
+        assert_eq!(sys::abs(".//")?, cwd);
+        assert_eq!(sys::abs("./")?, cwd);
+        assert_eq!(sys::abs(".")?, cwd);
+
+        // home dir
+        let home = PathBuf::from(sys::home_dir()?);
+        assert_eq!(sys::abs("~")?, home);
+        assert_eq!(sys::abs("~/")?, home);
+
+        // expand home path
+        assert_eq!(sys::abs("~/foo")?, sys::mash(&home, "foo"));
+
+        // More complicated
+        assert_eq!(sys::abs("~/foo/bar/../.")?, sys::mash(&home, "foo"));
+        assert_eq!(sys::abs("~/foo/bar/../")?, sys::mash(&home, "foo"));
+        assert_eq!(sys::abs("~/foo/bar/../blah")?, sys::mash(&home, "foo/blah"));
+
+        // Move up the path multiple levels
+        assert_eq!(sys::abs("/foo/bar/blah/../../foo1")?, PathBuf::from("/foo/foo1"));
+        assert_eq!(sys::abs("/../../foo")?, PathBuf::from("/foo"));
+
+        // Move up until invalid
+        assert_eq!(sys::abs("../../../../../../../foo").unwrap_err().to_string(), PathError::ParentNotFound(PathBuf::from("/")).to_string());
+        Ok(())
+    }
+
+    #[test]
     fn test_clean() {
         let tests = vec![
             // Root
@@ -917,15 +967,21 @@ mod tests
     }
 
     #[test]
+    fn test_dirname() {
+        assert_eq!(sys::dir("/foo/").unwrap(), PathBuf::from("/").as_path(), );
+        assert_eq!(sys::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
+    }
+
+    #[test]
     fn test_expand() -> RvResult<()>
     {
         let home = sys::home_dir()?;
 
         // Multiple home symbols should fail
-        assert_eq!(sys::expand("~/~").unwrap_err(), RvError::Path(PathError::multiple_home_symbols("~/~")));
+        assert_eq!(sys::expand("~/~").unwrap_err().to_string(), PathError::multiple_home_symbols("~/~").to_string());
 
         // Only home expansion at the begining of the path is allowed
-        assert_eq!(sys::expand("foo/~").unwrap_err(), RvError::Path(PathError::invalid_expansion("foo/~")));
+        assert_eq!(sys::expand("foo/~").unwrap_err().to_string(), PathError::invalid_expansion("foo/~").to_string());
 
         // Tilda only
         assert_eq!(sys::expand("~")?, PathBuf::from(&home));
@@ -980,6 +1036,12 @@ mod tests
 
         // strips off trailing slashes
         assert_eq!(sys::mash("/foo", "bar/"), PathBuf::from("/foo/bar"));
+    }
+
+    #[test]
+    fn test_trim_first() {
+        assert_eq!(sys::trim_first("/"), PathBuf::new(), );
+        assert_eq!(sys::trim_first("/foo"), PathBuf::from("foo"));
     }
 
     #[test]

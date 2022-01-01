@@ -26,17 +26,32 @@ impl Memfs
 
 impl Vfs for Memfs
 {
-    /// Expand all environment variables in the path as well as the home directory.
-    ///
-    /// WARNING: Does not expand partials e.g. "/foo${BAR}ing/blah" only complete components
-    /// e.g. "/foo/${BAR}/blah"
+    /// Return the path in an absolute clean form
     ///
     /// ### Examples
     /// ```
-    /// use rivia_core::*;
-    /// 
+    /// use rivia_vfs::prelude::*;
+    ///
+    /// let stdfs = vfs::Stdfs::new();
     /// let home = sys::home_dir().unwrap();
-    /// assert_eq!(PathBuf::from(&home), PathBuf::from("~/foo").expand().unwrap());
+    /// assert_eq!(stdfs.abs(Path::new("~")).unwrap(), PathBuf::from(&home));
+    /// ```
+    fn abs(&self, path: &Path) -> RvResult<PathBuf>
+    {
+        sys::abs(path)
+    }
+
+   /// Expand all environment variables in the path as well as the home directory.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia_vfs::prelude::*;
+    ///
+    /// let stdfs = vfs::Stdfs::new();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(stdfs.expand(Path::new("~/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+    /// assert_eq!(stdfs.expand(Path::new("$HOME/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+    /// assert_eq!(stdfs.expand(Path::new("${HOME}/foo")).unwrap(), PathBuf::from(&home).join("foo"));
     /// ```
     fn expand(&self, path: &Path) -> RvResult<PathBuf>
     {
