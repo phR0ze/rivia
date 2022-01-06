@@ -8,6 +8,9 @@ use crate::{
 use std::{
     fs::{self, File},
     path::{Component, Path, PathBuf},
+    os::unix::{
+        fs::PermissionsExt,
+    },
 };
 
 /// Return the path in an absolute clean form
@@ -60,38 +63,39 @@ pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     Ok(path_buf)
 }
 
-// /// Returns the final component of the `Path`, if there is one.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
-// /// ```
-// pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String> {
-//     path.file_name().ok_or_else(|| PathError::filename_not_found(path))?.to_string()
-// }
+/// Returns the final component of the `Path`, if there is one.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
+/// ```
+pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String> {
+    let path = path.as_ref();
+    path.file_name().ok_or_else(|| PathError::filename_not_found(path))?.to_string()
+}
 
-// /// Set the given mode for the `Path` and return the `Path`
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_setup_func!();
-// /// let tmpdir = assert_setup!("pathext_trait_chmod");
-// /// let file1 = tmpdir.mash("file1");
-// /// assert_mkfile!(&file1);
-// /// assert!(file1.chmod(0o644).is_ok());
-// /// assert_eq!(file1.mode().unwrap(), 0o100644);
-// /// assert!(file1.chmod(0o555).is_ok());
-// /// assert_eq!(file1.mode().unwrap(), 0o100555);
-// /// assert_remove_all!(&tmpdir);
-// /// ```
-// pub fn chmod(&self, mode: u32) -> RvResult<()> {
-//     sys::chmod(self, mode)?;
-//     Ok(())
-// }
+/// Set the given mode for the `Path`
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_setup_func!();
+/// let tmpdir = assert_setup!("pathext_trait_chmod");
+/// let file1 = tmpdir.mash("file1");
+/// assert_mkfile!(&file1);
+/// assert!(file1.chmod(0o644).is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100644);
+/// assert!(file1.chmod(0o555).is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100555);
+/// assert_remove_all!(&tmpdir);
+/// ```
+pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<()> {
+    fs::set_permissions(path.as_ref(), fs::Permissions::from_mode(mode))?;
+    Ok(())
+}
 
 /// Return the shortest path equivalent to the path by purely lexical processing and thus does
 /// not handle links correctly in some cases, use canonicalize in those cases. It applies
@@ -597,6 +601,36 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
     path.components().collect::<PathBuf>()
 }
 
+/// Wraps `mkdir` allowing for setting the directory's mode.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkdir_m");
+/// let dir1 = tmpdir.mash("dir1");
+/// assert!(Stdfs::mkdir_m(&dir1, 0o555).is_ok());
+/// assert_eq!(Stdfs::mode(&dir1).unwrap(), 0o40555);
+/// assert_stdfs_remove_all!(&tmpdir);
+/// ```
+pub fn mkdir_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf> {
+    let path = abs(path)?;
+
+    // For each directory created apply the same permission given
+    let path_str = path.to_string()?;
+    let mut dir = PathBuf::from("/");
+    let mut components = path_str.split('/').rev().collect::<Vec<&str>>();
+    while !components.is_empty() {
+        dir = mash(dir, components.pop().unwrap());
+        if !dir.exists() {
+            fs::create_dir(&dir)?;
+            fs::set_permissions(&dir, fs::Permissions::from_mode(mode))?;
+        }
+    }
+    Ok(path)
+}
+
 /// Creates the given directory and any parent directories needed, handling path expansion and
 /// returning an absolute path created. If the path already exists and is a dir no change is
 /// made and the path is returned.  If the path already exists and isn't a dir an error is
@@ -654,35 +688,36 @@ pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     Ok(path)
 }
 
-// /// Returns the Mode of the `Path` if it exists else and error
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_setup_func!();
-// /// let tmpdir = assert_setup!("pathext_trait_mode");
-// /// let file1 = tmpdir.mash("file1");
-// /// assert_mkfile!(&file1);
-// /// assert!(file1.chmod(0o644).is_ok());
-// /// assert_eq!(file1.mode().unwrap(), 0o100644);
-// /// assert_remove_all!(&tmpdir);
-// /// ```
-// pub fn mode(&self) -> RvResult<u32> {
-//     sys::mode(self)
-// }
+/// Returns the permissions for a file
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mode");
+/// let file1 = tmpdir.mash("file1");
+/// assert!(Stdfs::mkfile_m(&file1, 0o555).is_ok());
+/// assert_eq!(Stdfs::mode(&file1).unwrap(), 0o100555);
+/// assert_stdfs_remove_all!(&tmpdir);
+/// ```
+pub fn mode<T: AsRef<Path>>(path: T) -> RvResult<u32> {
+    let path = abs(path)?;
+    let meta = fs::symlink_metadata(path)?;
+    Ok(meta.permissions().mode())
+}
 
-// /// Returns the final component of the `Path` without an extension if there is one
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_eq!(PathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
-// /// ```
-// pub fn name(&self) -> RvResult<String> {
-//     self.trim_ext()?.base()
-// }
+/// Returns the final component of the `Path` without an extension if there is one
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_eq!(StdPathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
+/// ```
+pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
+    base(trim_ext(path)?)
+}
 
 // /// Returns the absolute path for the link target. Handles path expansion
 // ///
@@ -783,6 +818,31 @@ pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 //     Ok(path)
 // }
 
+/// Removes the given empty directory or file. Handles path expansion. Does not follow
+/// symbolic links but rather removes the links themselves. A directory that contains
+/// files will trigger an error use `remove_all` if this is undesired.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_remove");
+/// assert!(Stdfs::remove(&tmpdir).is_ok());
+/// assert_eq!(Stdfs::exists(&tmpdir), false);
+/// ```
+pub fn remove<T: AsRef<Path>>(path: T) -> RvResult<()> {
+    let path = abs(path)?;
+    if let Ok(meta) = fs::metadata(&path) {
+        if meta.is_file() {
+            fs::remove_file(path)?;
+        } else if meta.is_dir() {
+            fs::remove_dir(path)?;
+        }
+    }
+    Ok(())
+}
+
 /// Removes the given directory after removing all of its contents. Handles path expansion.
 /// Does not follow symbolic links but rather removes the links themselves.
 ///
@@ -861,20 +921,21 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> RvResult<()> {
 //     Ok(path)
 // }
 
-// /// Returns a new [`PathBuf`] with the file extension trimmed off.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
-// /// ```
-// pub fn trim_ext(&self) -> RvResult<PathBuf> {
-//     Ok(match self.extension() {
-//         Some(val) => self.trim_suffix(format!(".{}", val.to_string()?)),
-//         None => self.to_path_buf(),
-//     })
-// }
+/// Returns a new [`PathBuf`] with the file extension trimmed off.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
+/// ```
+pub fn trim_ext<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    let path = path.as_ref();
+    Ok(match path.extension() {
+        Some(val) => trim_suffix(path, format!(".{}", val.to_string()?)),
+        None => path.to_path_buf(),
+    })
+}
 
 /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
 ///
@@ -950,22 +1011,23 @@ pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf {
     }
 }
 
-// /// Returns a new [`PathBuf`] with the given `suffix` trimmed off else the original `path`.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
-// /// ```
-// pub fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf {
-//     match (self.to_string(), suffix.as_ref().to_string()) {
-//         (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => {
-//             PathBuf::from(&base[..base.size() - suffix.size()])
-//         },
-//         _ => self.to_path_buf(),
-//     }
-// }
+/// Returns a new [`PathBuf`] with the given `suffix` trimmed off else the original `path`.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
+/// ```
+pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBuf {
+    let path = path.as_ref();
+    match (path.to_string(), suffix.as_ref().to_string()) {
+        (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => {
+            PathBuf::from(&base[..base.size() - suffix.size()])
+        },
+        _ => path.to_path_buf(),
+    }
+}
 
 // /// Returns the user ID of the owner of this file.
 // ///

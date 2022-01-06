@@ -240,9 +240,10 @@ macro_rules! assert_is_dir {
             Ok(x) => x,
             _ => panic_msg!("assert_is_dir!", "failed to get absolute path", $path),
         };
-        match sys::is_dir(&target) {
-            Ok() => panic_msg!("assert_is_dir!", "exists but is not a directory", &target);
-        }
+        if sys::exists(&target) {
+            if !sys::is_dir(&target) {
+                panic_msg!("assert_is_dir!", "exists but is not a directory", &target);
+            }
         } else {
             panic_msg!("assert_is_dir!", "doesn't exist", &target);
         }
@@ -295,14 +296,38 @@ macro_rules! assert_is_file {
             Ok(x) => x,
             _ => panic_msg!("assert_is_file!", "failed to get absolute path", $path),
         };
-        match sys::is_file(&target) {
-            Ok() if !sys::is_file(&target) {
+        if sys::exists(&target) {
+            if !sys::is_file(&target) {
                 panic_msg!("assert_is_file!", "exists but is not a file", &target);
             }
         } else {
             panic_msg!("assert_is_file!", "doesn't exist", &target);
         }
-        Err(e) => panic_msg!("assert_mkdir_p!", e.to_string(), &target),
+    };
+}
+
+/// Assert that the given path isn't a file
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_no_file!("tests/temp/assert_no_file/file");
+/// ```
+#[macro_export]
+macro_rules! assert_no_file {
+    ($path:expr) => {
+        let target = match sys::abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_no_file!", "failed to get absolute path", $path),
+        };
+        if sys::exists(&target) {
+            if !sys::is_file(&target) {
+                panic_msg!("assert_no_file!", "exists and is not a file", &target);
+            } else {
+                panic_msg!("assert_no_file!", "file still exists", &target);
+            }
+        }
     };
 }
 
@@ -336,7 +361,7 @@ macro_rules! assert_mkdir_p {
                     );
                 }
             },
-            Err(e) => panic_msg!("assert_mkdir_p!", e.to_string(), &target),
+            Err(e) => panic!("assert_mkdir_p!: {}", e.to_string()),
         };
         if !sys::is_dir(&target) {
             panic_msg!("assert_mkdir_p!", "failed to create directory", &target);
@@ -376,10 +401,46 @@ macro_rules! assert_mkfile {
                     );
                 }
             },
-            Err(e) => panic_msg!("assert_mkfile!", e.to_string(), &target),
+            Err(e) => panic!("assert_mkfile!: {}", e.to_string()),
         };
         if !sys::is_file(&target) {
             panic_msg!("assert_mkfile!", "file doesn't exist", &target);
+        }
+    };
+}
+
+/// Assert the removal of the target file. Assertion fails if the target isn't a file or if the
+/// file exists after `sys::remove` is called or if `sys::remove` fails.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_setup_func!();
+/// let tmpdir = assert_setup!("assert_remove");
+/// let file = tmpdir.mash("file");
+/// assert_mkfile!(&file);
+/// assert_remove!(&file);
+/// assert_remove_all!(&tmpdir);
+/// ```
+#[macro_export]
+macro_rules! assert_remove {
+    ($path:expr) => {
+        let target = match sys::abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_remove!", "failed to get absolute path", $path),
+        };
+        if sys::exists(&target) {
+            if sys::is_file(&target) {
+                if sys::remove(&target).is_err() {
+                    panic_msg!("assert_remove!", "failed removing file", &target);
+                }
+                if sys::is_file(&target) {
+                    panic_msg!("assert_remove!", "file still exists", &target);
+                }
+            } else {
+                panic_msg!("assert_remove!", "exists and isn't a file", &target);
+            }
         }
     };
 }
@@ -463,6 +524,227 @@ mod tests
     assert_setup_func!();
 
     #[test]
+    fn test_assert_exists_and_no_exists() {
+        let tmpdir = assert_setup!();
+
+        // Test file exists
+        {
+            let file = sys::mash(&tmpdir, "file");
+            assert_no_exists!(&file);
+            assert!(!sys::exists(&file));
+            assert_mkfile!(&file);
+            assert_exists!(&file);
+            assert!(sys::exists(&file));
+
+            assert_remove!(&file);
+            assert_no_exists!(&file);
+            assert!(!sys::exists(&file));
+        }
+
+        // Test dir exists
+        {
+            let dir1 = sys::mash(&tmpdir, "dir1");
+            assert_no_exists!(&dir1);
+            assert!(!sys::exists(&dir1));
+            assert_mkdir_p!(&dir1);
+            assert_exists!(&dir1);
+            assert!(sys::exists(&dir1));
+
+            assert_remove_all!(&dir1);
+            assert_no_exists!(&dir1);
+            assert!(!sys::exists(&dir1));
+        }
+
+        // exists: bad abs
+        let result = capture_panic(|| {
+            assert_exists!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_exists!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists: doesn't exist
+        let file1 = sys::mash(&tmpdir, "file1");
+        let result = capture_panic(|| {
+            assert_exists!(&file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_exists!: doesn't exist\n  target: {:?}\n", &file1)
+        );
+
+        // no exists: bad abs
+        let result = capture_panic(|| {
+            assert_no_exists!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_no_exists!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // no exists: does exist
+        assert_mkfile!(&file1);
+        let result = capture_panic(|| {
+            assert_no_exists!(&file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_no_exists!: still exists\n  target: {:?}\n", &file1)
+        );
+
+        assert_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_is_dir_no_dir() {
+        let tmpdir = assert_setup!();
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let dir2 = sys::mash(&tmpdir, "dir2");
+
+        // happy path
+        assert_no_dir!(&dir1);
+        assert!(!sys::is_dir(&dir1));
+        assert_mkdir_p!(&dir1);
+        assert_is_dir!(&dir1);
+        assert!(sys::is_dir(&dir1));
+
+        // is_dir: bad abs
+        let result = capture_panic(|| {
+            assert_is_dir!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_is_dir!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // is_dir: doesn't exist
+        let result = capture_panic(|| {
+            assert_is_dir!(&dir2);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_is_dir!: doesn't exist\n  target: {:?}\n", &dir2)
+        );
+
+        // no_dir: bad abs
+        let result = capture_panic(|| {
+            assert_no_dir!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_no_dir!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // no_dir: does exist
+        let result = capture_panic(|| {
+            assert_no_dir!(&dir1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_no_dir!: directory still exists\n  target: {:?}\n", &dir1)
+        );
+
+        assert_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_is_file_no_file() {
+        let tmpdir = assert_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+        let file2 = sys::mash(&tmpdir, "file2");
+
+        // happy path
+        assert_no_file!(&file1);
+        assert!(!sys::is_file(&file1));
+        assert_mkfile!(&file1);
+        assert_is_file!(&file1);
+        assert!(sys::is_file(&file1));
+
+        // is_file: bad abs
+        let result = capture_panic(|| {
+            assert_is_file!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_is_file!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // is_file: doesn't exist
+        let result = capture_panic(|| {
+            assert_is_file!(&file2);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_is_file!: doesn't exist\n  target: {:?}\n", &file2)
+        );
+
+        // no_file: bad abs
+        let result = capture_panic(|| {
+            assert_no_file!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_no_file!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // no_file: does exist
+        let result = capture_panic(|| {
+            assert_no_file!(&file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_no_file!: file still exists\n  target: {:?}\n", &file1)
+        );
+
+        assert_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_remove() {
+        let tmpdir = assert_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+
+        // happy path
+        assert_remove!(&file1);
+        assert_mkfile!(&file1);
+        assert_is_file!(&file1);
+        assert_remove!(&file1);
+        assert_no_file!(&file1);
+
+        // bad abs
+        let result = capture_panic(|| {
+            assert_remove!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_remove!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // is a directory
+        let result = capture_panic(|| {
+            assert_remove!(&tmpdir);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_remove!: exists and isn't a file\n  target: {:?}\n", &tmpdir)
+        );
+
+        // // fail to remove file
+        // assert_no_file!(&file1);
+        // assert_eq!(sys::mkfile_m(&file1, 0o000).unwrap(), file1);
+        // let result = capture_panic(|| {
+        //     assert_remove!(&file1);
+        // });
+        // assert_eq!(to_string(result), format!("\nassert_remove!: failed removing file\n target:
+        // {:?}\n",
+        // &file1));
+        // assert!(Stdfs::chmod(&file1, 0o777).is_ok());
+
+        assert_remove_all!(&tmpdir);
+    }
+
+    #[test]
     fn test_assert_mkdir_p()
     {
         let tmpdir = assert_setup!();
@@ -487,7 +769,7 @@ mod tests
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_mkdir_p!: is not a directory: {}\n  target: {:?}\n", &file1.display(), &file1)
+            format!("assert_mkdir_p!: is not a directory: {}", &file1.display())
         );
 
         // happy path
@@ -496,5 +778,135 @@ mod tests
         assert_is_dir!(&dir1);
 
         assert_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_mkfile() {
+        let tmpdir = assert_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        assert_mkdir_p!(&dir1);
+
+        // fail abs
+        let result = capture_panic(|| {
+            assert_mkfile!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_mkfile!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a file
+        let result = capture_panic(|| {
+            assert_mkfile!(&dir1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("assert_mkfile!: is not a file: {}", dir1.display())
+        );
+
+        // happy path
+        assert_no_file!(&file1);
+        assert_mkfile!(&file1);
+        assert_is_file!(&file1);
+
+        assert_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_remove_all() {
+        let tmpdir = assert_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+
+        assert_mkfile!(&file1);
+        assert_is_file!(&file1);
+        assert_remove_all!(&tmpdir);
+        assert_no_dir!(&tmpdir);
+
+        // bad abs
+        let result = capture_panic(|| {
+            assert_remove_all!("");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_remove_all!: failed to get absolute path\n  target: \"\"\n"
+        );
+    }
+
+    #[test]
+    fn test_assert_setup() {
+        // Defaults
+        {
+            let tmpdir = assert_setup!();
+            assert_mkdir_p!(&tmpdir);
+            assert_eq!(
+                tmpdir,
+                sys::abs(sys::mash(&PathBuf::from(TEST_TEMP_DIR), "test_assert_setup")).unwrap()
+            );
+            assert_remove_all!(&tmpdir);
+        }
+
+        // Alternate func name
+        {
+            let func_name = "test_assert_setup_alt_func";
+            let tmpdir = assert_setup!(&func_name);
+            assert_mkdir_p!(&tmpdir);
+            assert_eq!(tmpdir, sys::abs(sys::mash(&PathBuf::from(TEST_TEMP_DIR), &func_name)).unwrap());
+            assert_remove_all!(&tmpdir);
+        }
+
+        // Alternate temp dir name and func name
+        {
+            let root = "tests/temp/test_assert_setup_dir";
+            let func_name = "test_assert_setup_alt_func";
+            let tmpdir = assert_setup!(&root, &func_name);
+            assert_mkdir_p!(&tmpdir);
+            assert_eq!(tmpdir, sys::abs(sys::mash(&PathBuf::from(&root), &func_name)).unwrap());
+            assert_remove_all!(&root);
+        }
+    }
+
+    #[test]
+    fn test_assert_setup_func() {
+        // root path is empty
+        let result = capture_panic(|| {
+            assert_setup!("", "foo");
+        });
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_setup_func!: root path is empty\n  target: \"\"\n");
+
+        // func name is empty
+        let result = capture_panic(|| {
+            assert_setup!("foo", "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_setup_func!: function name is empty\n  target: \"\"\n"
+        );
+
+        // fail abs because of multiple home symbols
+        let result = capture_panic(|| {
+            assert_setup!("foo", "~~");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_setup_func!: failed to get absolute path\n  target: \"foo/~~\"\n"
+        );
+
+        // fail to remove directory
+        let path = sys::abs(sys::mash(PathBuf::from(TEST_TEMP_DIR), "test_assert_setup_func_perms")).unwrap();
+        assert_eq!(sys::mkdir_m(&path, 0o000).unwrap(), path); // no write priv
+        assert_eq!(sys::mode(&path).unwrap(), 0o40000);
+        let result = capture_panic(|| {
+            assert_setup!(TEST_TEMP_DIR, sys::name(&path).unwrap());
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!(
+                "\nassert_setup_func!: failed while removing directory\n  target: {:?}\n",
+                path
+            )
+        );
+        assert!(sys::chmod(&path, 0o777).is_ok());
+        assert!(sys::remove_all(&path).is_ok());
     }
 }
