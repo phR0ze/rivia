@@ -16,6 +16,7 @@ use std::{
     sync::Arc,
 };
 
+/// Virtual file system path
 #[derive(Debug)]
 pub struct VfsPath {
     vfs: Arc<dyn Vfs>, // originating vfs backend
@@ -31,7 +32,11 @@ impl fmt::Display for VfsPath {
 
 impl Clone for VfsPath {
     fn clone(&self) -> Self {
-        Self { path: self.path.clone(), abs_run: self.abs_run, vfs: self.vfs.clone() }
+        Self {
+            path: self.path.clone(),
+            abs_run: self.abs_run,
+            vfs: self.vfs.clone()
+        }
     }
 }
 

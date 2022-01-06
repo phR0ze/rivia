@@ -1,7 +1,4 @@
-use crate::{
-    error::*,
-    iter_error::*
-};
+use crate::errors::*;
 use std::{fmt, iter::Iterator};
 
 // Iterator extensions and utilities

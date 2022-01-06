@@ -43,7 +43,7 @@ impl fmt::Display for IterError {
 
 #[cfg(test)]
 mod tests {
-    use crate::{error::*, iter_error::*};
+    use crate::errors::*;
 
     fn item_not_found() -> RvResult<i32> {
         Err(IterError::item_not_found())?

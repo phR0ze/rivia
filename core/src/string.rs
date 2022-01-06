@@ -1,4 +1,4 @@
-use crate::{error::*, string_error::*, path_error::*};
+use crate::errors::*;
 use std::{ffi::OsStr, path::Path, str};
 
 pub trait StringExt {

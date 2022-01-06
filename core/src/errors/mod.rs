@@ -1,9 +1,14 @@
-use crate::{
-    iter_error::*,
-    path_error::*,
-    string_error::*,
-    vfs_error::*,
-};
+mod core;
+mod iter;
+mod path;
+mod string;
+mod vfs;
+
+pub use self::core::*;
+pub use iter::*;
+pub use path::*;
+pub use string::*;
+pub use vfs::*;
 use std::{error::Error as StdError, io, fmt};
 
 /// `Result<T>` provides a simplified result type with a common error type
@@ -13,6 +18,9 @@ pub type RvResult<T> = std::result::Result<T, RvError>;
 #[derive(Debug)]
 pub enum RvError
 {
+    /// Core error
+    Core(CoreError),
+
     /// An io error
     Io(io::Error),
 
@@ -69,6 +77,7 @@ impl fmt::Display for RvError
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match *self {
+            RvError::Core(ref err) => write!(f, "{}", err),
             RvError::Io(ref err) => write!(f, "{}", err),
             RvError::Iter(ref err) => write!(f, "{}", err),
             RvError::Path(ref err) => write!(f, "{}", err),
@@ -85,6 +94,7 @@ impl AsRef<dyn StdError> for RvError
     fn as_ref(&self) -> &(dyn StdError + 'static)
     {
         match *self {
+            RvError::Core(ref err) => err,
             RvError::Io(ref err) => err,
             RvError::Iter(ref err) => err,
             RvError::Path(ref err) => err,
@@ -101,6 +111,7 @@ impl AsMut<dyn StdError> for RvError
     fn as_mut(&mut self) -> &mut (dyn StdError + 'static)
     {
         match *self {
+            RvError::Core(ref mut err) => err,
             RvError::Io(ref mut err) => err,
             RvError::Iter(ref mut err) => err,
             RvError::Path(ref mut err) => err,
@@ -109,6 +120,12 @@ impl AsMut<dyn StdError> for RvError
             RvError::Var(ref mut err) => err,
             RvError::Vfs(ref mut err) => err,
         }
+    }
+}
+
+impl From<CoreError> for RvError {
+    fn from(err: CoreError) -> RvError {
+        RvError::Core(err)
     }
 }
 

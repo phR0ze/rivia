@@ -13,7 +13,7 @@
         {
             "label": "Test",
             "type": "shell",
-            "command": "cargo test --all-features",
+            "command": "cd vfs; cargo test --all-features",
             "group": {
                 "kind": "test",
                 "isDefault": true

@@ -4,11 +4,12 @@
 /// ```no_run
 /// use rivia_vfs::prelude::*;
 /// ```
-use crate::{path::VfsPath, Vfs};
+use crate::{Vfs};
 use rivia_core::*;
 use std::fmt::Debug;
 use std::{
     fs::File,
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -58,6 +59,23 @@ impl Vfs for Stdfs
     {
         sys::expand(path)
     }
+
+    fn mkfile(&self, path: &Path) -> RvResult<Box<dyn Write>> {
+        Ok(Box::new(File::create(path)?))
+    }
+
+    /// Attempts to open a file in read-only mode.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia_vfs::prelude::*;
+    ///
+    /// let stdfs = vfs::Stdfs::new();
+    /// ```
+    fn open(&self, path: &Path) -> RvResult<()>
+    {
+        Ok(())
+    }
 }
 
 
@@ -67,7 +85,13 @@ impl Vfs for Stdfs
 mod tests
 {
     use crate::prelude::*;
-    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn test_abs() -> RvResult<()> {
+        let stdfs = vfs::Stdfs::new();
+        assert_eq!(stdfs.abs(Path::new("~/"))?, sys::home_dir()?);
+        Ok(())
+    }
 
     #[test]
     fn test_expand() -> RvResult<()> {

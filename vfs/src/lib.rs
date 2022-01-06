@@ -15,11 +15,12 @@
 //! ```no_run
 //! use rivia_vfs::prelude::*;
 //!
-//! sys::vfs(Stdfs::new()).unwrap();
+//! vfs::set(Stdfs::new()).unwrap();
 //! ```
+mod file;
 mod memfs;
 mod stdfs;
-mod path;
+pub use file::*;
 pub use memfs::*;
 pub use stdfs::*;
 
@@ -27,6 +28,7 @@ use rivia_core::*;
 use lazy_static::lazy_static;
 use std::{
     fmt::Debug,
+    io::Write,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
@@ -46,6 +48,9 @@ pub mod prelude
     pub mod vfs {
         pub use crate::*;
     }
+
+    // Re-exports
+    pub use std::path::{Path, PathBuf};
 }
 
 lazy_static!
@@ -70,9 +75,10 @@ lazy_static!
 /// functionality only purely in memory.
 pub trait Vfs: Debug+Send+Sync+'static
 {
-    // Pathing
     fn abs(&self, path: &Path) -> RvResult<PathBuf>;
     fn expand(&self, path: &Path) -> RvResult<PathBuf>;
+    fn open(&self, path: &Path) -> RvResult<()>;
+    fn mkfile(&self, path: &Path) -> RvResult<Box<dyn Write>>;
 }
 
 

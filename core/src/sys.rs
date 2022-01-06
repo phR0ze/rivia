@@ -1,12 +1,12 @@
 use crate::{
-    error::*,
+    errors::*,
     iter::*,
     option::*,
-    path_error::*,
     peekable::*,
     string::*,
 };
 use std::{
+    fs::{self, File},
     path::{Component, Path, PathBuf},
 };
 
@@ -213,17 +213,20 @@ pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     Ok(dir.to_path_buf())
 }
 
-// /// Returns true if the `Path` exists. Handles path expansion.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_eq!(Path::new("/etc").exists(), true);
-// /// ```
-// pub fn exists(&self) -> bool {
-//     sys::exists(&self)
-// }
+/// Returns true if the `Path` exists. Handles path expansion.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_eq!(Path::new("/etc").exists(), true);
+/// ```
+pub fn exists<T: AsRef<Path>>(path: T) -> bool {
+    match abs(path) {
+        Ok(abs) => fs::metadata(abs).is_ok(),
+        Err(_) => false,
+    }
+}
 
 /// Expand all environment variables in the path as well as the home directory.
 ///
@@ -398,17 +401,48 @@ pub fn home_dir() -> RvResult<PathBuf> {
     Ok(dir)
 }
 
-// /// Returns true if the `Path` exists and is a directory. Handles path expansion.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia_core::*;
-// ///
-// /// assert_eq!(Path::new("/etc").is_dir(), true);
-// /// ```
-// pub fn is_dir(&self) -> bool {
-//     sys::is_dir(self)
-// }
+/// Returns true if the given path exists and is a directory. Handles path expansion.
+/// Only looks at the given path thus a link will not be considered a directory even
+/// if it points to a directory.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_is_dir");
+/// assert_eq!(Stdfs::is_dir(&tmpdir), true);
+/// assert_stdfs_remove_all!(&tmpdir);
+/// ```
+pub fn is_dir<T: AsRef<Path>>(path: T) -> bool {
+    match fs::symlink_metadata(path.as_ref()) {
+        Ok(x) => !x.file_type().is_symlink() && x.is_dir(),
+        _ => false,
+    }
+}
+
+/// Returns true if the given path exists and is a file. Handles path expansion.
+/// Only looks at the given path thus a link will not be considered a file even
+/// if it points to a file.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_is_file");
+/// let file1 = tmpdir.mash("file1");
+/// assert_eq!(Stdfs::is_file(&file1), false);
+/// assert_stdfs_mkfile!(&file1);
+/// assert_eq!(Stdfs::is_file(&file1), true);
+/// assert_stdfs_remove_all!(&tmpdir);
+/// ```
+pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
+    match fs::symlink_metadata(path.as_ref()) {
+        Ok(x) => !x.file_type().is_symlink() && x.is_file(),
+        _ => false,
+    }
+}
 
 /// Returns true if the `Path` is empty.
 ///
@@ -547,7 +581,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // }
 
 /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
-/// Differs from the `mash` implementation as `mash` drops root prefix of the given `path` if
+/// Differs from the `join` implementation in that it drops root prefix of the given `path` if
 /// it exists and also drops any trailing '/' on the new resulting path. More closely aligns
 /// with the Golang implementation of join.
 ///
@@ -561,6 +595,63 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
     let base = trim_prefix(base, "/");
     let path = dir.as_ref().join(base);
     path.components().collect::<PathBuf>()
+}
+
+/// Creates the given directory and any parent directories needed, handling path expansion and
+/// returning an absolute path created. If the path already exists and is a dir no change is
+/// made and the path is returned.  If the path already exists and isn't a dir an error is
+/// returned.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_setup_func!();
+/// let tmpdir = assert_setup!("vfs_stdfs_func_mkdir");
+/// let dir1 = tmpdir.mash("dir1");
+/// assert_eq!(Stdfs::exists(&dir1), false);
+/// assert!(Stdfs::mkdir(&dir1).is_ok());
+/// assert_eq!(Stdfs::exists(&dir1), true);
+/// assert_stdfs_remove_all!(&tmpdir);
+/// ```
+pub fn mkdir_p<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    let path = abs(path)?;
+
+    // Doesn't error out if it exists
+    if !exists(&path) {
+        fs::create_dir_all(&path)?;
+    } else if !is_dir(&path) {
+        return Err(PathError::IsNotDir(path).into());
+    }
+
+    Ok(path)
+}
+
+/// Create an empty file similar to the linux touch command. Handles path expansion.
+/// Uses default file creation permissions 0o666 - umask usually ends up being 0o644.
+/// If the path already exists and is a file no change is made and the path is returned.
+/// If the path already exists and isn't a file an error is returned.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkfile");
+/// let file1 = tmpdir.mash("file1");
+/// assert_eq!(Stdfs::is_file(&file1), false);
+/// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
+/// assert_eq!(Stdfs::is_file(&file1), true);
+/// assert_stdfs_remove_all!(&tmpdir);
+/// ```
+pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    let path = abs(path)?;
+    if !exists(&path) {
+        File::create(&path)?;
+    } else if !is_file(&path) {
+        return Err(PathError::IsNotFile(path).into());
+    }
+    Ok(path)
 }
 
 // /// Returns the Mode of the `Path` if it exists else and error
@@ -691,6 +782,26 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
 //     }
 //     Ok(path)
 // }
+
+/// Removes the given directory after removing all of its contents. Handles path expansion.
+/// Does not follow symbolic links but rather removes the links themselves.
+///
+/// ### Examples
+/// ```
+/// use rivia_core::*;
+///
+/// assert_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("remove_all");
+/// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+/// assert_eq!(Stdfs::exists(&tmpdir), false);
+/// ```
+pub fn remove_all<T: AsRef<Path>>(path: T) -> RvResult<()> {
+    let path = abs(path)?;
+    if exists(&path) {
+        fs::remove_dir_all(path)?;
+    }
+    Ok(())
+}
 
 // /// Set the given [`Mode`] on the `Path` and return the `Path`
 // ///
@@ -971,6 +1082,18 @@ mod tests
         assert_eq!(sys::dir("/foo/").unwrap(), PathBuf::from("/").as_path(), );
         assert_eq!(sys::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
     }
+
+    // #[test]
+    // fn test_vfs_stdfs_exists() {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpfile = tmpdir.mash("file");
+    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert!(Stdfs::mkdir(&tmpdir).is_ok());
+    //     assert_eq!(Stdfs::exists(&tmpfile), false);
+    //     assert!(Stdfs::mkfile(&tmpfile).is_ok());
+    //     assert_eq!(Stdfs::exists(&tmpfile), true);
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
     #[test]
     fn test_expand() -> RvResult<()>
