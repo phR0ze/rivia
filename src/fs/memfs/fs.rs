@@ -70,21 +70,39 @@ impl Memfs {
 
         Ok(path_buf)
     }
+
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does. If the path exists an isn't a file an error will be
+    /// returned.
+    /// 
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// ```
+    pub fn mkfile<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
+        let path = Stdfs::abs(path)?;
+
+        Ok(())
+    }
 }
 
 impl FileSystem for Memfs
 {
+    /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
         Stdfs::abs(path)
     }
 
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does.
+    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    {
+        Stdfs::mkfile(path, data)
+    }
+
     /// Up cast the trait type to the enum wrapper
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::*;
-    /// ```
     fn upcast(self) -> Vfs {
         Vfs::Memfs(self)
     }

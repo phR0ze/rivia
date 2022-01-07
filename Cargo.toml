@@ -1,6 +1,6 @@
 [package]
 name = "rivia"
-version = "0.0.17"
+version = "0.0.18"
 edition = "2021"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -29,5 +29,6 @@ debug = false   # Provide debug symbols for Witcher
 opt-level = 0   # Default no optimization
 
 [dependencies]
+nix = "0.23"
 tracing = "0.1"
 lazy_static = "1.4"

@@ -16,17 +16,21 @@ use std::{
 /// functionality only purely in memory.
 pub trait FileSystem: Debug+Send+Sync+'static
 {
+
+    /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>;
+
     //fn expand(&self, path: &Path) -> RvResult<PathBuf>;
     //fn open(&self, path: &Path) -> RvResult<()>;
-    //fn mkfile(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does.
+    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>;
+
+    /// Opens a file for writing, creating if it doesn't exist and truncating if it does
+    //fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
 
     /// Up cast the trait type to the enum wrapper
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
     fn upcast(self) -> Vfs;
 }
 
@@ -39,17 +43,24 @@ pub enum Vfs
     Memfs(Memfs),
 }
 
-impl Vfs {
-    pub fn new_memfs() -> Vfs {
+impl Vfs
+{
+    /// Create a new instance of Memfs wrapped in the Vfs enum
+    pub fn new_memfs() -> Vfs
+    {
         Vfs::Memfs(Memfs::new())
     }
-    pub fn new_stdfs() -> Vfs {
+
+    /// Create a new instance of Stdfs wrapped in the Vfs enum
+    pub fn new_stdfs() -> Vfs
+    {
         Vfs::Stdfs(Stdfs::new())
     }
 }
 
 impl FileSystem for Vfs
 {
+    /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
         match self {
@@ -58,12 +69,17 @@ impl FileSystem for Vfs
         }
     }
 
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does.
+    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.mkfile(path, data),
+            Vfs::Memfs(x) => x.mkfile(path, data),
+        }
+    }
+
     /// Up cast the trait type to the enum wrapper
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
     fn upcast(self) -> Vfs {
         match self {
             Vfs::Stdfs(x) => x.upcast(),

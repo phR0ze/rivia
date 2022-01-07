@@ -16,7 +16,13 @@ pub use iter::*;
 pub use path::*;
 pub use string::*;
 pub use vfs::*;
-use std::{error::Error as StdError, io, fmt};
+
+use std::{
+    error::Error as StdError,
+    io,
+    fmt,
+    time::SystemTimeError
+};
 
 /// `Result<T>` provides a simplified result type with a common error type
 pub type RvResult<T> = std::result::Result<T, RvError>;
@@ -34,11 +40,17 @@ pub enum RvError
     /// A interator error
     Iter(IterError),
 
+    /// Nix low level error
+    Nix(nix::errno::Errno),
+
     /// A pathing error
     Path(PathError),
 
     /// A string error
     String(StringError),
+
+    /// A system time error
+    SystemTime(SystemTimeError),
 
     /// An internal Utf8 error
     Utf8(std::str::Utf8Error),
@@ -87,8 +99,10 @@ impl fmt::Display for RvError
             RvError::Core(ref err) => write!(f, "{}", err),
             RvError::Io(ref err) => write!(f, "{}", err),
             RvError::Iter(ref err) => write!(f, "{}", err),
+            RvError::Nix(ref err) => write!(f, "{}", err),
             RvError::Path(ref err) => write!(f, "{}", err),
             RvError::String(ref err) => write!(f, "{}", err),
+            RvError::SystemTime(ref err) => write!(f, "{}", err),
             RvError::Utf8(ref err) => write!(f, "{}", err),
             RvError::Var(ref err) => write!(f, "{}", err),
             RvError::Vfs(ref err) => write!(f, "{}", err),
@@ -104,8 +118,10 @@ impl AsRef<dyn StdError> for RvError
             RvError::Core(ref err) => err,
             RvError::Io(ref err) => err,
             RvError::Iter(ref err) => err,
+            RvError::Nix(ref err) => err,
             RvError::Path(ref err) => err,
             RvError::String(ref err) => err,
+            RvError::SystemTime(ref err) => err,
             RvError::Utf8(ref err) => err,
             RvError::Var(ref err) => err,
             RvError::Vfs(ref err) => err,
@@ -121,8 +137,10 @@ impl AsMut<dyn StdError> for RvError
             RvError::Core(ref mut err) => err,
             RvError::Io(ref mut err) => err,
             RvError::Iter(ref mut err) => err,
+            RvError::Nix(ref mut err) => err,
             RvError::Path(ref mut err) => err,
             RvError::String(ref mut err) => err,
+            RvError::SystemTime(ref mut err) => err,
             RvError::Utf8(ref mut err) => err,
             RvError::Var(ref mut err) => err,
             RvError::Vfs(ref mut err) => err,
@@ -148,6 +166,12 @@ impl From<IterError> for RvError {
     }
 }
 
+impl From<nix::errno::Errno> for RvError {
+    fn from(err: nix::errno::Errno) -> RvError {
+        RvError::Nix(err)
+    }
+}
+
 impl From<PathError> for RvError {
     fn from(err: PathError) -> RvError {
         RvError::Path(err)
@@ -157,6 +181,12 @@ impl From<PathError> for RvError {
 impl From<StringError> for RvError {
     fn from(err: StringError) -> RvError {
         RvError::String(err)
+    }
+}
+
+impl From<SystemTimeError> for RvError {
+    fn from(err: SystemTimeError) -> RvError {
+        RvError::SystemTime(err)
     }
 }
 

@@ -24,7 +24,7 @@ pub mod prelude {
     // Export macros by name
     pub use crate::{
         assert_stdfs_exists, assert_stdfs_is_dir, assert_stdfs_is_file, assert_stdfs_mkdir_p,
-        assert_stdfs_mkfile, assert_stdfs_no_dir, assert_stdfs_no_exists, assert_stdfs_no_file,
+        assert_stdfs_touch, assert_stdfs_no_dir, assert_stdfs_no_exists, assert_stdfs_no_file,
         assert_stdfs_remove, assert_stdfs_remove_all, assert_stdfs_setup, assert_stdfs_setup_func, 
         cfgblock,
         function,

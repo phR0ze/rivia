@@ -518,8 +518,8 @@ mod tests
 
         assert_stdfs_mkdir_p!(&dir1);
         assert_stdfs_mkdir_p!(&dir2);
-        assert_stdfs_mkfile!(&file1);
-        assert_stdfs_mkfile!(&file2);
+        assert_stdfs_touch!(&file1);
+        assert_stdfs_touch!(&file2);
 
         // dirs first
         let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
@@ -550,8 +550,8 @@ mod tests
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let file2 = Stdfs::mash(&tmpdir, "file2");
 
-        assert_stdfs_mkfile!(&file1);
-        assert_stdfs_mkfile!(&file2);
+        assert_stdfs_touch!(&file1);
+        assert_stdfs_touch!(&file2);
 
         // custom sort for files
         let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
@@ -570,8 +570,8 @@ mod tests
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let file2 = Stdfs::mash(&tmpdir, "file2");
 
-        assert_stdfs_mkfile!(&file1);
-        assert_stdfs_mkfile!(&file2);
+        assert_stdfs_touch!(&file1);
+        assert_stdfs_touch!(&file2);
 
         // open file descriptors
         let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
@@ -607,7 +607,7 @@ mod tests
         assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_dir(), true);
 
         // file is not a directory
-        assert_stdfs_mkfile!(&file1);
+        assert_stdfs_touch!(&file1);
         assert_eq!(StdfsEntry::from(&file1).unwrap().is_dir(), false);
 
         // file link is not a directory
@@ -645,7 +645,7 @@ mod tests
         assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_file(), false);
 
         // regular file is true
-        assert_stdfs_mkfile!(&file1);
+        assert_stdfs_touch!(&file1);
         assert_eq!(StdfsEntry::from(&file1).unwrap().is_file(), true);
 
         // file link is not a regular file ist a symlink_file
@@ -683,7 +683,7 @@ mod tests
         );
 
         // regular file is not a symlink
-        assert!(Stdfs::mkfile(&file1).is_ok());
+        assert!(Stdfs::touch(&file1).is_ok());
         assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink(), false);
 
         // symlink file is a symlink
@@ -733,7 +733,7 @@ mod tests
         let link2 = Stdfs::mash(&tmpdir, "link2");
 
         // regular file is not a symlink dir
-        assert!(Stdfs::mkfile(&file1).is_ok());
+        assert!(Stdfs::touch(&file1).is_ok());
         assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink_file(), false);
 
         // test absolute
@@ -761,7 +761,7 @@ mod tests
         let link4 = Stdfs::mash(&dir1, "link4");
 
         // link at the same level
-        assert!(Stdfs::mkfile(&file1).is_ok());
+        assert!(Stdfs::touch(&file1).is_ok());
         assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
         assert_eq!(StdfsEntry::from(&link1).unwrap().path(), link1);
         assert_eq!(StdfsEntry::from(&link1).unwrap().alt(), file1);

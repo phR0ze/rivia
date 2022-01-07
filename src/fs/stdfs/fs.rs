@@ -3,13 +3,19 @@ use crate::{
     fs::{Entry, FileSystem, StdfsEntry, Vfs},
     iters::*,
 };
+use nix::sys::{
+    stat::{self, UtimensatFlags},
+    time::TimeSpec,
+};
 use std::{
     fs::{self, File},
+    io::Write,
     path::{Component, Path, PathBuf},
     os::unix::{
         self,
         fs::PermissionsExt,
     },
+    time::SystemTime,
 };
 
 /// `Stdfs` is a Vfs backend implementation that wraps the standard library `std::fs`
@@ -446,7 +452,7 @@ impl Stdfs {
     /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_is_file");
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
-    /// assert_stdfs_mkfile!(&file1);
+    /// assert_stdfs_touch!(&file1);
     /// assert_eq!(Stdfs::is_file(&file1), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
@@ -670,31 +676,28 @@ impl Stdfs {
         Ok(path)
     }
 
-    /// Create an empty file similar to the linux touch command. Handles path expansion.
-    /// Uses default file creation permissions 0o666 - umask usually ends up being 0o644.
-    /// If the path already exists and is a file no change is made and the path is returned.
-    /// If the path already exists and isn't a file an error is returned.
-    ///
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does. If the path exists an isn't a file an error will be
+    /// returned.
+    /// 
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkfile");
-    /// let file1 = tmpdir.mash("file1");
-    /// assert_eq!(Stdfs::is_file(&file1), false);
-    /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
-    /// assert_eq!(Stdfs::is_file(&file1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn mkfile<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
         let path = Stdfs::abs(path)?;
-        if !Stdfs::exists(&path) {
-            File::create(&path)?;
-        } else if !Stdfs::is_file(&path) {
+        if Stdfs::exists(&path) && !Stdfs::is_file(&path) {
             return Err(PathError::IsNotFile(path).into());
         }
-        Ok(path)
+
+        // Will create or truncate the target file
+        let mut f = File::create(&path)?;
+        f.write_all(data)?;
+
+        // f.sync_all() works better than f.flush()?
+        f.sync_all()?;
+        Ok(())
     }
 
     /// Returns the permissions for a file
@@ -759,7 +762,7 @@ impl Stdfs {
     /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_readlink_abs");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
-    /// assert_stdfs_mkfile!(&file1);
+    /// assert_stdfs_touch!(&file1);
     /// assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
     /// assert_eq!(Stdfs::readlink_abs(link1).unwrap(), file1);
     /// assert_stdfs_remove_all!(&tmpdir);
@@ -941,7 +944,7 @@ impl Stdfs {
     /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_symlink");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
-    /// assert_stdfs_mkfile!(&file1);
+    /// assert_stdfs_touch!(&file1);
     /// assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
     /// assert_eq!(Stdfs::readlink(&link1).unwrap(), PathBuf::from("file1"));
     /// assert_stdfs_remove_all!(&tmpdir);
@@ -966,6 +969,53 @@ impl Stdfs {
 
         unix::fs::symlink(src, &dst)?;
         Ok(dst)
+    }
+
+    /// Create an empty file similar to the linux touch command. Handles path expansion.
+    /// Uses default file creation permissions 0o666 - umask usually ends up being 0o644.
+    /// If the path already exists and is a file only the access and modified times are changed.
+    /// If the path already exists and isn't a file an error is returned.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkfile");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_eq!(Stdfs::is_file(&file1), false);
+    /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
+    /// assert_eq!(Stdfs::is_file(&file1), true);
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    pub fn touch<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+        let path = Stdfs::abs(path)?;
+        let meta = fs::symlink_metadata(&path);
+        if let Err(_) = meta {
+            File::create(&path)?;
+        } else {
+            let meta = meta.unwrap();
+            if !meta.is_file() {
+                return Err(PathError::IsNotFile(path).into());
+            }
+            let now = SystemTime::now();
+            Stdfs::set_file_time(&path, now, now)?;
+        }
+        Ok(path)
+    }
+
+    /// Set the access and modification times for the given file to the given times
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// ```
+    pub fn set_file_time<T: AsRef<Path>>(path: T, atime: SystemTime, mtime: SystemTime) -> RvResult<()> {
+        let atime_spec = TimeSpec::from(atime.duration_since(std::time::UNIX_EPOCH)?);
+        let mtime_spec = TimeSpec::from(mtime.duration_since(std::time::UNIX_EPOCH)?);
+        stat::utimensat(None, path.as_ref(), &atime_spec, &mtime_spec, UtimensatFlags::NoFollowSymlink)?;
+        Ok(())
     }
 
     /// Returns a new [`PathBuf`] with the file extension trimmed off.
@@ -1091,17 +1141,20 @@ impl Stdfs {
 
 impl FileSystem for Stdfs
 {
+    /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
         Stdfs::abs(path)
     }
 
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does.
+    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    {
+        Stdfs::mkfile(path, data)
+    }
+
     /// Up cast the trait type to the enum wrapper
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::*;
-    /// ```
     fn upcast(self) -> Vfs {
         Vfs::Stdfs(self)
     }
