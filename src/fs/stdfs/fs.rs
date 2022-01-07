@@ -720,7 +720,7 @@ impl Stdfs {
     /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn read<T: AsRef<Path>>(path: T) -> RvResult<String> {
+    pub fn read_all<T: AsRef<Path>>(path: T) -> RvResult<String> {
         let path = Stdfs::abs(path.as_ref())?;
         match std::fs::read_to_string(path) {
             Ok(data) => Ok(data),
@@ -1144,7 +1144,7 @@ impl Stdfs {
     /// use rivia::prelude::*;
     ///
     /// ```
-    pub fn write<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
+    pub fn write_all<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
         let path = Stdfs::abs(path)?;
         if Stdfs::exists(&path) && !Stdfs::is_file(&path) {
             return Err(PathError::IsNotFile(path).into());
@@ -1169,16 +1169,16 @@ impl FileSystem for Stdfs
     }
 
     /// Read all data from the given file and return it as a String
-    fn read(&self, path: &Path) -> RvResult<String>
+    fn read_all(&self, path: &Path) -> RvResult<String>
     {
-        Stdfs::read(path)
+        Stdfs::read_all(path)
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
-        Stdfs::write(path, data)
+        Stdfs::write_all(path, data)
     }
 
     /// Up cast the trait type to the enum wrapper

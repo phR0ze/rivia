@@ -86,7 +86,7 @@ impl StdfsEntry
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub(crate) fn new<T: Into<PathBuf>>(
         path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool,
@@ -100,7 +100,7 @@ impl StdfsEntry
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn from<T: AsRef<Path>>(path: T) -> RvResult<Self> {
         let path = Stdfs::abs(path)?;
@@ -144,7 +144,7 @@ impl StdfsEntry
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter> {
         Ok(EntryIter {
@@ -159,7 +159,7 @@ impl StdfsEntry
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn follow(mut self, follow: bool) -> Self {
         if follow && !self.follow {
@@ -183,7 +183,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn path(&self) -> &Path {
         &self.path
@@ -193,7 +193,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn path_buf(self) -> PathBuf {
         self.path
@@ -207,7 +207,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn alt(&self) -> &Path {
         &self.alt
@@ -217,7 +217,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn alt_buf(self) -> PathBuf {
         self.alt
@@ -227,7 +227,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn follow(self, follow: bool) -> VfsEntry {
         VfsEntry::Stdfs(self.follow(follow))
@@ -237,7 +237,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn following(&self) -> bool {
         self.follow
@@ -247,7 +247,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn is_dir(&self) -> bool {
         self.dir
@@ -257,7 +257,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn is_file(&self) -> bool {
         self.file
@@ -267,7 +267,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn is_symlink(&self) -> bool {
         self.link
@@ -277,7 +277,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn mode(&self) -> u32 {
         self.mode
@@ -288,7 +288,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn iter(&self) -> RvResult<EntryIter> {
         StdfsEntry::iter(&self.path, false)
@@ -298,7 +298,7 @@ impl Entry for StdfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn upcast(self) -> VfsEntry {
         VfsEntry::Stdfs(self)

@@ -21,6 +21,7 @@ use std::{
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct MemfsEntry {
+    data: Vec<u8>, // memory file data
     path: PathBuf, // path of the entry
     alt: PathBuf,  // alternate path for the entry, used with links
     dir: bool,     // is this entry a dir
@@ -34,6 +35,7 @@ pub struct MemfsEntry {
 impl Default for MemfsEntry {
     fn default() -> Self {
         Self {
+            data: vec![],
             path: PathBuf::new(),
             alt: PathBuf::new(),
             dir: false,
@@ -49,6 +51,7 @@ impl Default for MemfsEntry {
 impl Clone for MemfsEntry {
     fn clone(&self) -> Self {
         Self {
+            data: self.data.clone(),
             path: self.path.clone(),
             alt: self.alt.clone(),
             dir: self.dir,
@@ -66,12 +69,23 @@ impl MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub(crate) fn new<T: Into<PathBuf>>(
         path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool,
     ) -> Self {
-        MemfsEntry { path: path.into(), alt: alt.into(), dir, file, link, mode, follow, cached }
+        MemfsEntry
+        {
+            data: vec![],
+            path: path.into(),
+            alt: alt.into(),
+            dir,
+            file,
+            link,
+            mode,
+            follow,
+            cached
+        }
     }
 
     /// Create a Memfs entry from the given path. The path is always expanded, cleaned and
@@ -79,7 +93,7 @@ impl MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn from<T: AsRef<Path>>(path: T) -> RvResult<Self> {
         let path = Stdfs::abs(path)?;
@@ -107,6 +121,7 @@ impl MemfsEntry {
         }
 
         Ok(MemfsEntry {
+            data: vec![],
             path,
             alt,
             dir: meta.is_dir(),
@@ -123,7 +138,7 @@ impl MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter> {
         Ok(EntryIter {
@@ -138,7 +153,7 @@ impl MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn follow(mut self, follow: bool) -> Self {
         if follow && !self.follow {
@@ -162,7 +177,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn path(&self) -> &Path {
         &self.path
@@ -172,7 +187,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn path_buf(self) -> PathBuf {
         self.path
@@ -186,7 +201,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn alt(&self) -> &Path {
         &self.alt
@@ -196,7 +211,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn alt_buf(self) -> PathBuf {
         self.alt
@@ -206,7 +221,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn follow(self, follow: bool) -> VfsEntry {
         VfsEntry::Memfs(self.follow(follow))
@@ -216,7 +231,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn following(&self) -> bool {
         self.follow
@@ -226,7 +241,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn is_dir(&self) -> bool {
         self.dir
@@ -236,7 +251,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn is_file(&self) -> bool {
         self.file
@@ -246,7 +261,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn is_symlink(&self) -> bool {
         self.link
@@ -256,7 +271,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn mode(&self) -> u32 {
         self.mode
@@ -267,7 +282,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn iter(&self) -> RvResult<EntryIter> {
         MemfsEntry::iter(&self.path, false)
@@ -277,7 +292,7 @@ impl Entry for MemfsEntry {
     ///
     /// ### Examples
     /// ```
-    /// use rivia::*;
+    /// use rivia::prelude::*;
     /// ```
     fn upcast(self) -> VfsEntry {
         VfsEntry::Memfs(self)

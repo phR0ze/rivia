@@ -9,10 +9,14 @@ fn main()
     let file1 = Stdfs::mash(testing::TEST_TEMP_DIR, "file1");
 
     // 2. Create a new stdfs instance that we can change to memfs later
-    let vfs = Vfs::new_memfs();
+    let vfs = Vfs::new_stdfs();
 
     // 3. Make the file writing out the data
-    vfs.write(&file1, b"foo bar").unwrap();
+    vfs.write_all(&file1, b"hello").unwrap();
 
     // 4. Read back the file contents
+    let data = vfs.read_all(&file1).unwrap();
+
+    println!("Data: {}", data);
+    Stdfs::remove(file1).unwrap();
 }

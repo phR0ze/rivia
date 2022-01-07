@@ -21,17 +21,18 @@ pub trait FileSystem: Debug+Send+Sync+'static
     fn abs(&self, path: &Path) -> RvResult<PathBuf>;
 
     //fn expand(&self, path: &Path) -> RvResult<PathBuf>;
-    //fn open(&self, path: &Path) -> RvResult<()>;
 
-    /// Read all data from the given file and return it as a String
-    fn read(&self, path: &Path) -> RvResult<String>;
+    //fn read(&self, path: &Path) -> RvResult<()>;
 
     /// Opens a file for writing, creating if it doesn't exist and truncating if it does
-    //fn open_write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+    //fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
 
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does.
-    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>;
+    /// Read all data from the given file and return it as a String
+    fn read_all(&self, path: &Path) -> RvResult<String>;
+
+    /// Write all the given data to to the indicated file creating the file first if it doesn't
+    /// exist or truncating it first if it does.
+    fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>;
 
     /// Up cast the trait type to the enum wrapper
     fn upcast(self) -> Vfs;
@@ -73,21 +74,21 @@ impl FileSystem for Vfs
     }
 
     /// Read all data from the given file and return it as a String
-    fn read(&self, path: &Path) -> RvResult<String>
+    fn read_all(&self, path: &Path) -> RvResult<String>
     {
         match self {
-            Vfs::Stdfs(x) => x.read(path),
-            Vfs::Memfs(x) => x.read(path),
+            Vfs::Stdfs(x) => x.read_all(path),
+            Vfs::Memfs(x) => x.read_all(path),
         }
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
         match self {
-            Vfs::Stdfs(x) => x.write(path, data),
-            Vfs::Memfs(x) => x.write(path, data),
+            Vfs::Stdfs(x) => x.write_all(path, data),
+            Vfs::Memfs(x) => x.write_all(path, data),
         }
     }
 
@@ -109,10 +110,11 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_fs_read_write() -> RvResult<()> {
+    fn test_fs_stdfs_read_write() -> RvResult<()> {
 
         // Manually doing this as I want to show the switching of vfs backends
-        let tmpdir = Stdfs::mash(testing::TEST_TEMP_DIR, "test_fs_read_write");
+        let tmpdir = Stdfs::mash(testing::TEST_TEMP_DIR, "test_fs_stdfs_read_write");
+        assert_stdfs_remove_all!(&tmpdir);
         assert_stdfs_mkdir_p!(&tmpdir);
         let file1 = Stdfs::mash(&tmpdir, "file1");
 
@@ -123,11 +125,11 @@ mod tests
         // Write out the data to a new file
         let data_in = b"foobar";
         assert_stdfs_no_exists!(&file1);
-        vfs.write(&file1, data_in)?;
+        vfs.write_all(&file1, data_in)?;
         assert_stdfs_is_file!(&file1);
 
         // Read the data back in from th file
-        let data_out = vfs.read(&file1)?;
+        let data_out = vfs.read_all(&file1)?;
         assert_eq!(data_in, data_out.as_bytes());
 
         assert_stdfs_remove_all!(&tmpdir);
