@@ -1,3 +1,5 @@
+//! Grouping path extensions here based on the concreate implementations in the sys module.
+
 // use crate::{
 //     error::*,
 //     iter::*,

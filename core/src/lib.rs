@@ -1,15 +1,16 @@
-//! Provides essential macros and extension traits
+//! `rivia-core` provides essential macros and extensions to fill in gaps in Rust ergonomics
+//! and reduce the amount of boiler plate code required for common tasks. The intent is to
+//! provide this while keeping dependencies to a minimum.
 //!
 //! ### Using the `core` crate
 //! ```
-//! use rivia-core::*;
+//! use rivia_core::*;
 //! ```
 #[macro_use]
 mod assert;
 mod errors;
 mod iter;
 mod option;
-mod path;
 mod peekable;
 mod string;
 
@@ -21,7 +22,6 @@ pub use assert::*;
 pub use errors::*;
 pub use iter::*;
 pub use option::*;
-pub use path::*;
 pub use peekable::*;
 pub use string::*;
 
@@ -32,7 +32,7 @@ pub use std::path::{Path, PathBuf};
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::prelude::*;
+/// use rivia_core::*;
 ///
 /// cfgblk! {
 ///     #[cfg(feature = "foo")])
@@ -65,7 +65,7 @@ macro_rules! cfgblock {
 ///
 /// ### Examples
 /// ```
-/// use fungus::prelude::*;
+/// use rivia_core::*;
 ///
 /// fn my_func() -> &'static str {
 ///     function!()

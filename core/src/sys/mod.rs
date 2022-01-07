@@ -1,3 +1,15 @@
+//! `sys` provides a unified, extended and simplified way to work with system calls around
+//! pathing, disk io and the filesystem.
+//!
+//! ### Using the sys modules from the Rivia Core crate
+//! ```
+//! use rivia_core::*;
+//! ```
+mod entry;
+mod path;
+pub use entry::*;
+pub use path::*;
+
 use crate::{
     errors::*,
     iter::*,

@@ -2,7 +2,7 @@
 //!
 //! ## For testing only
 //! All code in this module should only ever be used in testing and not in production.
-use crate::{sys, errors::*};
+use crate::errors::*;
 use lazy_static::lazy_static;
 use std::{
     panic,
