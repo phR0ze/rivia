@@ -2,19 +2,12 @@
 //!
 //! ## For testing only
 //! All code in this module should only ever be used in testing and not in production.
-use crate::{
-    errors::*,
-    fs::*,
-    function,
-};
+use crate::errors::*;
 use lazy_static::lazy_static;
 use std::{
     panic,
     sync::{Arc, Mutex},
 };
-use std::path::{Path, PathBuf};
-
-pub const TEST_TEMP_DIR: &str = "tests/temp";
 
 // Setup a simple counter to track if a custom panic handler should be used. Mutex is used to ensure
 // a single thread is accessing the buffer at a time, but mutex itself is not thread safe so we
@@ -171,10 +164,10 @@ macro_rules! assert_stdfs_setup_func {
 #[macro_export]
 macro_rules! assert_stdfs_setup {
     () => {
-        setup(TEST_TEMP_DIR, function!())
+        setup(testing::TEST_TEMP_DIR, function!())
     };
     ($func:expr) => {
-        setup(TEST_TEMP_DIR, $func)
+        setup(testing::TEST_TEMP_DIR, $func)
     };
     ($root:expr, $func:expr) => {
         setup($root, $func)
@@ -561,7 +554,7 @@ mod tests
         }
 
         // exists: bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_exists!("");
         });
         assert_eq!(
@@ -571,7 +564,7 @@ mod tests
 
         // exists: doesn't exist
         let file1 = Stdfs::mash(&tmpdir, "file1");
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_exists!(&file1);
         });
         assert_eq!(
@@ -580,7 +573,7 @@ mod tests
         );
 
         // no exists: bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_no_exists!("");
         });
         assert_eq!(
@@ -590,7 +583,7 @@ mod tests
 
         // no exists: does exist
         assert_stdfs_touch!(&file1);
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_no_exists!(&file1);
         });
         assert_eq!(
@@ -615,7 +608,7 @@ mod tests
         assert!(Stdfs::is_dir(&dir1));
 
         // is_dir: bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_is_dir!("");
         });
         assert_eq!(
@@ -624,7 +617,7 @@ mod tests
         );
 
         // is_dir: doesn't exist
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_is_dir!(&dir2);
         });
         assert_eq!(
@@ -633,7 +626,7 @@ mod tests
         );
 
         // no_dir: bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_no_dir!("");
         });
         assert_eq!(
@@ -642,7 +635,7 @@ mod tests
         );
 
         // no_dir: does exist
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_no_dir!(&dir1);
         });
         assert_eq!(
@@ -667,7 +660,7 @@ mod tests
         assert!(Stdfs::is_file(&file1));
 
         // is_file: bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_is_file!("");
         });
         assert_eq!(
@@ -676,7 +669,7 @@ mod tests
         );
 
         // is_file: doesn't exist
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_is_file!(&file2);
         });
         assert_eq!(
@@ -685,7 +678,7 @@ mod tests
         );
 
         // no_file: bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_no_file!("");
         });
         assert_eq!(
@@ -694,7 +687,7 @@ mod tests
         );
 
         // no_file: does exist
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_no_file!(&file1);
         });
         assert_eq!(
@@ -718,7 +711,7 @@ mod tests
         assert_stdfs_no_file!(&file1);
 
         // bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_remove!("");
         });
         assert_eq!(
@@ -727,7 +720,7 @@ mod tests
         );
 
         // is a directory
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_remove!(&tmpdir);
         });
         assert_eq!(
@@ -738,7 +731,7 @@ mod tests
         // // fail to remove file
         // assert_stdfs_no_file!(&file1);
         // assert_stdfs_eq!(Stdfs::mkfile_m(&file1, 0o000).unwrap(), file1);
-        // let result = capture_panic(|| {
+        // let result = testing::capture_panic(|| {
         //     assert_stdfs_remove!(&file1);
         // });
         // assert_stdfs_eq!(to_string(result), format!("\nassert_stdfs_remove!: failed removing file\n target:
@@ -758,7 +751,7 @@ mod tests
         assert_stdfs_touch!(&file1);
 
         // fail abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_mkdir_p!("");
         });
 
@@ -769,7 +762,7 @@ mod tests
         );
 
         // exists but not a directory
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_mkdir_p!(&file1);
         });
         assert_eq!(
@@ -793,7 +786,7 @@ mod tests
         assert_stdfs_mkdir_p!(&dir1);
 
         // fail abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_touch!("");
         });
         assert_eq!(
@@ -802,7 +795,7 @@ mod tests
         );
 
         // exists but not a file
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_touch!(&dir1);
         });
         assert_eq!(
@@ -829,7 +822,7 @@ mod tests
         assert_stdfs_no_dir!(&tmpdir);
 
         // bad abs
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_remove_all!("");
         });
         assert_eq!(
@@ -846,7 +839,7 @@ mod tests
             assert_stdfs_mkdir_p!(&tmpdir);
             assert_eq!(
                 tmpdir,
-                Stdfs::abs(Stdfs::mash(&PathBuf::from(TEST_TEMP_DIR), "test_assert_stdfs_setup")).unwrap()
+                Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup")).unwrap()
             );
             assert_stdfs_remove_all!(&tmpdir);
         }
@@ -856,7 +849,7 @@ mod tests
             let func_name = "test_assert_stdfs_setup_alt_func";
             let tmpdir = assert_stdfs_setup!(&func_name);
             assert_stdfs_mkdir_p!(&tmpdir);
-            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(TEST_TEMP_DIR), &func_name)).unwrap());
+            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), &func_name)).unwrap());
             assert_stdfs_remove_all!(&tmpdir);
         }
 
@@ -874,13 +867,13 @@ mod tests
     #[test]
     fn test_assert_stdfs_setup_func() {
         // root path is empty
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_setup!("", "foo");
         });
         assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_setup_func!: root path is empty\n  target: \"\"\n");
 
         // func name is empty
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_setup!("foo", "");
         });
         assert_eq!(
@@ -889,7 +882,7 @@ mod tests
         );
 
         // fail abs because of multiple home symbols
-        let result = capture_panic(|| {
+        let result = testing::capture_panic(|| {
             assert_stdfs_setup!("foo", "~~");
         });
         assert_eq!(
@@ -898,11 +891,11 @@ mod tests
         );
 
         // fail to remove directory
-        let path = Stdfs::abs(Stdfs::mash(PathBuf::from(TEST_TEMP_DIR), "test_assert_stdfs_setup_func_perms")).unwrap();
+        let path = Stdfs::abs(Stdfs::mash(PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup_func_perms")).unwrap();
         assert_eq!(Stdfs::mkdir_m(&path, 0o000).unwrap(), path); // no write priv
         assert_eq!(Stdfs::mode(&path).unwrap(), 0o40000);
-        let result = capture_panic(|| {
-            assert_stdfs_setup!(TEST_TEMP_DIR, Stdfs::name(&path).unwrap());
+        let result = testing::capture_panic(|| {
+            assert_stdfs_setup!(testing::TEST_TEMP_DIR, Stdfs::name(&path).unwrap());
         });
         assert_eq!(
             result.unwrap_err().to_string(),

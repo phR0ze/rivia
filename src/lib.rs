@@ -36,7 +36,7 @@ pub mod prelude {
         errors::*,
         fs::*,
         iters::*,
-        testing::*,
+        testing,
     };
 
     // Re-exports

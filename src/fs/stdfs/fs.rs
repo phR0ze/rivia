@@ -691,7 +691,7 @@ impl Stdfs {
             return Err(PathError::IsNotFile(path).into());
         }
 
-        // Will create or truncate the target file
+        // Create or truncate the target file
         let mut f = File::create(&path)?;
         f.write_all(data)?;
 
