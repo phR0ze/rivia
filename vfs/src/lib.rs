@@ -17,14 +17,14 @@
 //!
 //! vfs::set(Stdfs::new()).unwrap();
 //! ```
-mod file;
-mod memfs;
-mod stdfs;
-pub use file::*;
-pub use memfs::*;
-pub use stdfs::*;
+// mod file;
+// mod memfs;
+// mod stdfs;
+// pub use file::*;
+// pub use memfs::*;
+// pub use stdfs::*;
 
-use rivia::*;
+use rivia::prelude::*;
 use lazy_static::lazy_static;
 use std::{
     fmt::Debug,
@@ -41,8 +41,7 @@ use std::{
 /// ```
 pub mod prelude
 {
-    pub use crate::*;
-    pub use rivia::*;
+    pub use rivia::prelude::*;
 
     // Nest global vfs functions for ergonomics
     pub mod vfs {
@@ -63,23 +62,23 @@ lazy_static!
     /// desired following the promoting pattern rather than interior mutability i.e. Arc<RwLock>>.
     /// Since changing the backend will be a rare occurance RwLock is used here rather than Mutex
     /// to provide many readers but only one writer which should be as efficient as possible.
-    pub static ref VFS: RwLock<Arc<dyn Vfs>> = RwLock::new(Arc::new(Stdfs::new()));
+    pub static ref VFS: RwLock<Arc<Vfs>> = RwLock::new(Arc::new(Vfs::new_stdfs()));
 }
 
-// Vfs trait
-// -------------------------------------------------------------------------------------------------
+// // Vfs trait
+// // -------------------------------------------------------------------------------------------------
 
-/// Vfs provides a set of functions that are implemented by various backend filesystem providers.
-/// For example [`Stdfs`] implements a pass through to the sRust std::fs library that operates
-/// against disk as per usual and [`Memfs`] is an in memory implementation providing the same
-/// functionality only purely in memory.
-pub trait Vfs: Debug+Send+Sync+'static
-{
-    fn abs(&self, path: &Path) -> RvResult<PathBuf>;
-    fn expand(&self, path: &Path) -> RvResult<PathBuf>;
-    fn open(&self, path: &Path) -> RvResult<()>;
-    fn mkfile(&self, path: &Path) -> RvResult<Box<dyn Write>>;
-}
+// /// Vfs provides a set of functions that are implemented by various backend filesystem providers.
+// /// For example [`Stdfs`] implements a pass through to the sRust std::fs library that operates
+// /// against disk as per usual and [`Memfs`] is an in memory implementation providing the same
+// /// functionality only purely in memory.
+// pub trait Vfs: Debug+Send+Sync+'static
+// {
+//     fn abs(&self, path: &Path) -> RvResult<PathBuf>;
+//     // fn expand(&self, path: &Path) -> RvResult<PathBuf>;
+//     // fn open(&self, path: &Path) -> RvResult<()>;
+//     // fn mkfile(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+// }
 
 
 // Vfs convenience functions
@@ -97,7 +96,7 @@ pub trait Vfs: Debug+Send+Sync+'static
 ///
 /// vfs::set(Stdfs::new()).unwrap();
 /// ```
-pub fn set(vfs: impl Vfs) -> RvResult<()>
+pub fn set(vfs: Vfs) -> RvResult<()>
 {
     *VFS.write().map_err(|_| VfsError::Unavailable)? = Arc::new(vfs);
     Ok(())
@@ -116,28 +115,21 @@ pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     VFS.read().map_err(|_| VfsError::Unavailable)?.clone().abs(path.as_ref())
 }
 
-/// Expand all environment variables in the path as well as the home directory.
-///
-/// ### Examples
-/// ```
-/// use rivia_vfs::prelude::*;
-///
-/// let home = sys::home_dir().unwrap();
-/// assert_eq!(vfs::expand(Path::new("~/foo")).unwrap(), PathBuf::from(&home).join("foo"));
-/// assert_eq!(vfs::expand(Path::new("$HOME/foo")).unwrap(), PathBuf::from(&home).join("foo"));
-/// assert_eq!(vfs::expand(Path::new("${HOME}/foo")).unwrap(), PathBuf::from(&home).join("foo"));
-/// ```
-pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
-{
-    VFS.read().map_err(|_| VfsError::Unavailable)?.clone().expand(path.as_ref())
-}
-
-pub fn test() -> RvResult<()>
-{
-    println!("\nvfs lib here");
-    println!("home: {}", expand("~")?.to_string()?);
-    Ok(())
-}
+// /// Expand all environment variables in the path as well as the home directory.
+// ///
+// /// ### Examples
+// /// ```
+// /// use rivia_vfs::prelude::*;
+// ///
+// /// let home = sys::home_dir().unwrap();
+// /// assert_eq!(vfs::expand(Path::new("~/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+// /// assert_eq!(vfs::expand(Path::new("$HOME/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+// /// assert_eq!(vfs::expand(Path::new("${HOME}/foo")).unwrap(), PathBuf::from(&home).join("foo"));
+// /// ```
+// pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+// {
+//     VFS.read().map_err(|_| VfsError::Unavailable)?.clone().expand(path.as_ref())
+// }
 
 // Unit tests
 // -------------------------------------------------------------------------------------------------
@@ -147,9 +139,10 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_expand() -> RvResult<()>
-    {
-        assert_eq!(vfs::expand("~/foo")?, sys::home_dir()?.join("foo"));
+    fn test_vfs_abs() -> RvResult<()> {
+        let cwd = Stdfs::cwd()?;
+
+        assert_eq!(vfs::abs(Path::new("foo"))?, Stdfs::mash(&cwd, "foo"));
         Ok(())
     }
 }

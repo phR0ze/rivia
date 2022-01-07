@@ -1,5 +1,5 @@
 mod entry;
-pub mod stdfs;
+pub mod fs;
 
 pub use entry::*;
-pub use stdfs::*;
+pub use fs::*;

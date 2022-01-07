@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    fs::{Entry, EntryIter, EntryTrait, Stdfs},
+    fs::{VfsEntry, EntryIter, Entry, Stdfs},
     trying,
 };
 
@@ -174,7 +174,7 @@ impl StdfsEntry
     }
 }
 
-impl EntryTrait for StdfsEntry {
+impl Entry for StdfsEntry {
     /// `path` reports the actual file or directory when `is_symlink` reports false. When
     /// `is_symlink` reports true and `follow` reports true `path` will report the actual file
     /// or directory that the link points to and `alt` will report the link's path. When
@@ -229,8 +229,8 @@ impl EntryTrait for StdfsEntry {
     /// ```
     /// use rivia::*;
     /// ```
-    fn follow(self, follow: bool) -> Entry {
-        Entry::Stdfs(self.follow(follow))
+    fn follow(self, follow: bool) -> VfsEntry {
+        VfsEntry::Stdfs(self.follow(follow))
     }
 
     /// Return the current following state
@@ -300,17 +300,17 @@ impl EntryTrait for StdfsEntry {
     /// ```
     /// use rivia::*;
     /// ```
-    fn upcast(self) -> Entry {
-        Entry::Stdfs(self)
+    fn upcast(self) -> VfsEntry {
+        VfsEntry::Stdfs(self)
     }
 }
 
 #[derive(Debug)]
 struct StdfsEntryIter(fs::ReadDir);
 impl Iterator for StdfsEntryIter {
-    type Item = RvResult<Entry>;
+    type Item = RvResult<VfsEntry>;
 
-    fn next(&mut self) -> Option<RvResult<Entry>> {
+    fn next(&mut self) -> Option<RvResult<VfsEntry>> {
         if let Some(value) = self.0.next() {
             return Some(match StdfsEntry::from(&trying!(value).path()) {
                 Ok(x) => Ok(x.upcast()),

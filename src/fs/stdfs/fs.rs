@@ -1,13 +1,6 @@
-//! `sys` provides a unified, extended and simplified way to work with system calls around
-//! pathing, disk io and the filesystem.
-//!
-//! ### Using the sys modules from the Rivia Core crate
-//! ```
-//! use rivia::prelude::*;
-//! ```
 use crate::{
     errors::*,
-    fs::{EntryTrait, StdfsEntry},
+    fs::{Entry, FileSystem, StdfsEntry},
     iters::*,
 };
 use std::{
@@ -1096,6 +1089,14 @@ impl Stdfs {
     // }
 }
 
+impl FileSystem for Stdfs
+{
+    fn abs(&self, path: &Path) -> RvResult<PathBuf>
+    {
+        Stdfs::abs(path)
+    }
+}
+
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
@@ -1104,7 +1105,7 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_abs() -> RvResult<()> {
+    fn test_stdfs_abs() -> RvResult<()> {
         let cwd = Stdfs::cwd()?;
         let prev = Stdfs::dir(&cwd)?;
 
@@ -1144,7 +1145,7 @@ mod tests
     }
 
     #[test]
-    fn test_clean() {
+    fn test_stdfs_clean() {
         let tests = vec![
             // Root
             ("/", "/"),
@@ -1195,7 +1196,7 @@ mod tests
     }
 
     #[test]
-    fn test_dirname() {
+    fn test_stdfs_dirname() {
         assert_eq!(Stdfs::dir("/foo/").unwrap(), PathBuf::from("/").as_path(), );
         assert_eq!(Stdfs::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
     }
@@ -1213,7 +1214,7 @@ mod tests
     // }
 
     #[test]
-    fn test_expand() -> RvResult<()>
+    fn test_stdfs_expand() -> RvResult<()>
     {
         let home = Stdfs::home_dir()?;
 
@@ -1241,14 +1242,14 @@ mod tests
     }
 
     #[test]
-    fn test_has_prefix() {
+    fn test_stdfs_has_prefix() {
         let path = PathBuf::from("/foo/bar");
         assert_eq!(Stdfs::has_prefix(&path, "/foo"), true);
         assert_eq!(Stdfs::has_prefix(&path, "foo"), false);
     }
 
     #[test]
-    fn test_home_dir()
+    fn test_stdfs_home_dir()
     {
         let home = Stdfs::home_dir().unwrap();
         assert!(home != PathBuf::new());
@@ -1257,7 +1258,7 @@ mod tests
     }
 
     #[test]
-    fn test_is_empty()
+    fn test_stdfs_is_empty()
     {
         assert_eq!(Stdfs::is_empty(""), true);
         assert_eq!(Stdfs::is_empty(Path::new("")), true);
@@ -1265,7 +1266,7 @@ mod tests
     }
 
     #[test]
-    fn test_mash()
+    fn test_stdfs_mash()
     {
         // mashing nothing should yield no change
         assert_eq!(Stdfs::mash("", ""), PathBuf::from(""));
@@ -1279,13 +1280,13 @@ mod tests
     }
 
     #[test]
-    fn test_trim_first() {
+    fn test_stdfs_trim_first() {
         assert_eq!(Stdfs::trim_first("/"), PathBuf::new(), );
         assert_eq!(Stdfs::trim_first("/foo"), PathBuf::from("foo"));
     }
 
     #[test]
-    fn test_trim_prefix()
+    fn test_stdfs_trim_prefix()
     {
         // drop root
         assert_eq!(Stdfs::trim_prefix("/", "/"), PathBuf::new());
@@ -1299,7 +1300,7 @@ mod tests
     }
 
     #[test]
-    fn test_trim_protocol()
+    fn test_stdfs_trim_protocol()
     {
         // no change
         assert_eq!(Stdfs::trim_protocol("/foo"), PathBuf::from("/foo"));

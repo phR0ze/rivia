@@ -1,5 +1,7 @@
-/target/
+target/
+vfs/target/
 **/*.rs.bk
 tests/temp/
+vfs/tests/temp/
 bin/
-Cargo.lock
+vfs/bin/

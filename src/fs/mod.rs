@@ -8,6 +8,8 @@
 mod entry;
 mod memfs;
 mod stdfs;
+mod fs;
 pub use entry::*;
 pub use memfs::*;
 pub use stdfs::*;
+pub use fs::*;

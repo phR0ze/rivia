@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    fs::{Entry, EntryIter, EntryTrait, Stdfs},
+    fs::{VfsEntry, EntryIter, Entry, Stdfs},
     trying,
 };
 
@@ -13,7 +13,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// # MemfsEntry provides a virtual filesystem backend implementation for a memory based entry.
+/// MemfsEntry is an implementation a virtual filesystem trait for a single filesystem item. It is implemented
+///
+/// ### Example
+/// ```
+/// use rivia::prelude::*;
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct MemfsEntry {
     path: PathBuf, // path of the entry
@@ -148,7 +153,7 @@ impl MemfsEntry {
     }
 }
 
-impl EntryTrait for MemfsEntry {
+impl Entry for MemfsEntry {
     /// `path` reports the actual file or directory when `is_symlink` reports false. When
     /// `is_symlink` reports true and `follow` reports true `path` will report the actual file
     /// or directory that the link points to and `alt` will report the link's path. When
@@ -203,8 +208,8 @@ impl EntryTrait for MemfsEntry {
     /// ```
     /// use rivia::*;
     /// ```
-    fn follow(self, follow: bool) -> Entry {
-        Entry::Memfs(self.follow(follow))
+    fn follow(self, follow: bool) -> VfsEntry {
+        VfsEntry::Memfs(self.follow(follow))
     }
 
     /// Return the current following state
@@ -274,17 +279,17 @@ impl EntryTrait for MemfsEntry {
     /// ```
     /// use rivia::*;
     /// ```
-    fn upcast(self) -> Entry {
-        Entry::Memfs(self)
+    fn upcast(self) -> VfsEntry {
+        VfsEntry::Memfs(self)
     }
 }
 
 #[derive(Debug)]
 struct MemfsEntryIter(fs::ReadDir);
 impl Iterator for MemfsEntryIter {
-    type Item = RvResult<Entry>;
+    type Item = RvResult<VfsEntry>;
 
-    fn next(&mut self) -> Option<RvResult<Entry>> {
+    fn next(&mut self) -> Option<RvResult<VfsEntry>> {
         if let Some(value) = self.0.next() {
             return Some(match MemfsEntry::from(&trying!(value).path()) {
                 Ok(x) => Ok(x.upcast()),
