@@ -23,12 +23,15 @@ pub trait FileSystem: Debug+Send+Sync+'static
     //fn expand(&self, path: &Path) -> RvResult<PathBuf>;
     //fn open(&self, path: &Path) -> RvResult<()>;
 
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does.
-    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>;
+    /// Read all data from the given file and return it as a String
+    fn read(&self, path: &Path) -> RvResult<String>;
 
     /// Opens a file for writing, creating if it doesn't exist and truncating if it does
-    //fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+    //fn open_write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does.
+    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>;
 
     /// Up cast the trait type to the enum wrapper
     fn upcast(self) -> Vfs;
@@ -69,18 +72,28 @@ impl FileSystem for Vfs
         }
     }
 
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does.
-    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    /// Read all data from the given file and return it as a String
+    fn read(&self, path: &Path) -> RvResult<String>
     {
         match self {
-            Vfs::Stdfs(x) => x.mkfile(path, data),
-            Vfs::Memfs(x) => x.mkfile(path, data),
+            Vfs::Stdfs(x) => x.read(path),
+            Vfs::Memfs(x) => x.read(path),
+        }
+    }
+
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does.
+    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.write(path, data),
+            Vfs::Memfs(x) => x.write(path, data),
         }
     }
 
     /// Up cast the trait type to the enum wrapper
-    fn upcast(self) -> Vfs {
+    fn upcast(self) -> Vfs
+    {
         match self {
             Vfs::Stdfs(x) => x.upcast(),
             Vfs::Memfs(x) => x.upcast(),
@@ -96,11 +109,28 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_fs_abs() -> RvResult<()> {
-        let cwd = Stdfs::cwd()?;
-        let vfs = Vfs::Stdfs(Stdfs::new());
+    fn test_fs_read_write() -> RvResult<()> {
 
-        assert_eq!(vfs.abs(Path::new("foo"))?, Stdfs::mash(&cwd, "foo"));
+        // Manually doing this as I want to show the switching of vfs backends
+        let tmpdir = Stdfs::mash(testing::TEST_TEMP_DIR, "test_fs_read_write");
+        assert_stdfs_mkdir_p!(&tmpdir);
+        let file1 = Stdfs::mash(&tmpdir, "file1");
+
+        // Create the stdfs instance to test first with. Verify with Stdfs functions
+        // directly as we haven't yet implemented the vfs functions.
+        let vfs = Vfs::new_stdfs();
+
+        // Write out the data to a new file
+        let data_in = b"foobar";
+        assert_stdfs_no_exists!(&file1);
+        vfs.write(&file1, data_in)?;
+        assert_stdfs_is_file!(&file1);
+
+        // Read the data back in from th file
+        let data_out = vfs.read(&file1)?;
+        assert_eq!(data_in, data_out.as_bytes());
+
+        assert_stdfs_remove_all!(&tmpdir);
         Ok(())
     }
 }

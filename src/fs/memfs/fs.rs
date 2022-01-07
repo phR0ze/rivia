@@ -85,6 +85,28 @@ impl Memfs {
 
         Ok(())
     }
+
+
+    /// Returns the contents of the `path` as a `String`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_read");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert!(Stdfs::write(&file1, "this is a test").is_ok());
+    /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    pub fn read<T: AsRef<Path>>(path: T) -> RvResult<String> {
+        let path = Stdfs::abs(path.as_ref())?;
+        match std::fs::read_to_string(path) {
+            Ok(data) => Ok(data),
+            Err(err) => Err(err.into()),
+        }
+    }
 }
 
 impl FileSystem for Memfs
@@ -92,14 +114,20 @@ impl FileSystem for Memfs
     /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
-        Stdfs::abs(path)
+        Memfs::abs(path)
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
-        Stdfs::mkfile(path, data)
+        Memfs::mkfile(path, data)
+    }
+
+    /// Read all data from the given file and return it as a String
+    fn read(&self, path: &Path) -> RvResult<String>
+    {
+        Memfs::read(path)
     }
 
     /// Up cast the trait type to the enum wrapper

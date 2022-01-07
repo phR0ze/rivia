@@ -676,30 +676,6 @@ impl Stdfs {
         Ok(path)
     }
 
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does. If the path exists an isn't a file an error will be
-    /// returned.
-    /// 
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// ```
-    pub fn mkfile<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
-        let path = Stdfs::abs(path)?;
-        if Stdfs::exists(&path) && !Stdfs::is_file(&path) {
-            return Err(PathError::IsNotFile(path).into());
-        }
-
-        // Create or truncate the target file
-        let mut f = File::create(&path)?;
-        f.write_all(data)?;
-
-        // f.sync_all() works better than f.flush()?
-        f.sync_all()?;
-        Ok(())
-    }
-
     /// Returns the permissions for a file
     ///
     /// ### Examples
@@ -729,6 +705,27 @@ impl Stdfs {
     /// ```
     pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
         Stdfs::base(Stdfs::trim_ext(path)?)
+    }
+
+    /// Returns the contents of the `path` as a `String`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_read");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert!(Stdfs::write(&file1, "this is a test").is_ok());
+    /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    pub fn read<T: AsRef<Path>>(path: T) -> RvResult<String> {
+        let path = Stdfs::abs(path.as_ref())?;
+        match std::fs::read_to_string(path) {
+            Ok(data) => Ok(data),
+            Err(err) => Err(err.into()),
+        }
     }
 
     // /// Returns the absolute path for the link target. Handles path expansion
@@ -1137,6 +1134,30 @@ impl Stdfs {
     // pub fn uid(&self) -> RvResult<u32> {
     //     Stdfs::uid(&self)
     // }
+
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist
+    /// or truncating it first if it does. If the path exists an isn't a file an error will be
+    /// returned.
+    /// 
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// ```
+    pub fn write<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
+        let path = Stdfs::abs(path)?;
+        if Stdfs::exists(&path) && !Stdfs::is_file(&path) {
+            return Err(PathError::IsNotFile(path).into());
+        }
+
+        // Create or truncate the target file
+        let mut f = File::create(&path)?;
+        f.write_all(data)?;
+
+        // f.sync_all() works better than f.flush()?
+        f.sync_all()?;
+        Ok(())
+    }
 }
 
 impl FileSystem for Stdfs
@@ -1147,11 +1168,17 @@ impl FileSystem for Stdfs
         Stdfs::abs(path)
     }
 
+    /// Read all data from the given file and return it as a String
+    fn read(&self, path: &Path) -> RvResult<String>
+    {
+        Stdfs::read(path)
+    }
+
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn mkfile(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    fn write(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
-        Stdfs::mkfile(path, data)
+        Stdfs::write(path, data)
     }
 
     /// Up cast the trait type to the enum wrapper
