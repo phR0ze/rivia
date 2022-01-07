@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    fs::{Entry, FileSystem, Stdfs, StdfsEntry},
+    fs::{Entry, FileSystem, Stdfs, StdfsEntry, Vfs},
     iters::*,
 };
 use std::{
@@ -77,6 +77,16 @@ impl FileSystem for Memfs
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
         Stdfs::abs(path)
+    }
+
+    /// Up cast the trait type to the enum wrapper
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::*;
+    /// ```
+    fn upcast(self) -> Vfs {
+        Vfs::Memfs(self)
     }
 }
 

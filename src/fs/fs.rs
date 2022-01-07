@@ -20,6 +20,14 @@ pub trait FileSystem: Debug+Send+Sync+'static
     //fn expand(&self, path: &Path) -> RvResult<PathBuf>;
     //fn open(&self, path: &Path) -> RvResult<()>;
     //fn mkfile(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+
+    /// Up cast the trait type to the enum wrapper
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn upcast(self) -> Vfs;
 }
 
 
@@ -47,6 +55,19 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.abs(path),
             Vfs::Memfs(x) => x.abs(path),
+        }
+    }
+
+    /// Up cast the trait type to the enum wrapper
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn upcast(self) -> Vfs {
+        match self {
+            Vfs::Stdfs(x) => x.upcast(),
+            Vfs::Memfs(x) => x.upcast(),
         }
     }
 }
