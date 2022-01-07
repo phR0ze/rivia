@@ -85,7 +85,7 @@ impl ToStringExt for OsStr {
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use crate::prelude::*;
     use std::{
         ffi::OsStr,
         path::{Path, PathBuf},

@@ -2,12 +2,17 @@
 //!
 //! ## For testing only
 //! All code in this module should only ever be used in testing and not in production.
-use crate::errors::*;
+use crate::{
+    errors::*,
+    fs::*,
+    function,
+};
 use lazy_static::lazy_static;
 use std::{
     panic,
     sync::{Arc, Mutex},
 };
+use std::path::{Path, PathBuf};
 
 pub const TEST_TEMP_DIR: &str = "tests/temp";
 
@@ -64,50 +69,50 @@ pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()> {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// assert_setup!("tests/temp", "assert_setup_func");
-/// assert_mkdir_p!("tests/temp/assert_setup_func");
-/// assert_remove_all!("tests/temp/assert_setup_func");
+/// assert_stdfs_setup_func!();
+/// assert_stdfs_setup!("tests/temp", "assert_stdfs_setup_func");
+/// assert_stdfs_mkdir_p!("tests/temp/assert_stdfs_setup_func");
+/// assert_stdfs_remove_all!("tests/temp/assert_stdfs_setup_func");
 /// ```
 #[macro_export]
-macro_rules! assert_setup_func {
+macro_rules! assert_stdfs_setup_func {
     () => {
         fn setup<T: AsRef<Path>, U: AsRef<Path>>(root: T, func_name: U) -> PathBuf {
             // Validate the root path and function name
-            if sys::is_empty(root.as_ref()) {
-                panic_msg!("assert_setup_func!", "root path is empty", root.as_ref());
-            } else if sys::is_empty(func_name.as_ref()) {
-                panic_msg!("assert_setup_func!", "function name is empty", func_name.as_ref());
+            if Stdfs::is_empty(root.as_ref()) {
+                panic_msg!("assert_stdfs_setup_func!", "root path is empty", root.as_ref());
+            } else if Stdfs::is_empty(func_name.as_ref()) {
+                panic_msg!("assert_stdfs_setup_func!", "function name is empty", func_name.as_ref());
             }
 
             // Resolve absolute path of target
-            let target = sys::mash(root.as_ref().to_owned(), func_name.as_ref());
-            let target = match sys::abs(&target) {
+            let target = Stdfs::mash(root.as_ref().to_owned(), func_name.as_ref());
+            let target = match Stdfs::abs(&target) {
                 Ok(x) => x,
-                _ => panic_msg!("assert_setup_func!", "failed to get absolute path", &target),
+                _ => panic_msg!("assert_stdfs_setup_func!", "failed to get absolute path", &target),
             };
 
             // Ensure the target has been removed
-            if sys::remove_all(&target).is_err() {
-                panic_msg!("assert_setup_func!", "failed while removing directory", &target);
+            if Stdfs::remove_all(&target).is_err() {
+                panic_msg!("assert_stdfs_setup_func!", "failed while removing directory", &target);
             }
 
             // Create the target directory
-            match sys::mkdir_p(&target) {
+            match Stdfs::mkdir_p(&target) {
                 Ok(dir) => dir,
-                _ => panic_msg!("assert_setup_func!", "failed while creating directory", &target),
+                _ => panic_msg!("assert_stdfs_setup_func!", "failed while creating directory", &target),
             }
         }
     };
 }
 
-/// Call the `setup` function created by `assert_setup_func!` with default `root` and `func_name`
+/// Call the `setup` function created by `assert_stdfs_setup_func!` with default `root` and `func_name`
 /// based on the function context the setup function is run from or optionally override those
 /// values. `root` will default to `TEST_TEMP_DIR` and `func_name` defaults to the function name
 /// using the `function!` macro. If only one override is given it is assumed to be the `func_name`
-/// to be passed into the `assert_setup_func` function. If two parameters are given the first is
+/// to be passed into the `assert_stdfs_setup_func` function. If two parameters are given the first is
 /// assumed to be the `root` and the second to be the `func_name`.
 ///
 /// WARNING: since doc tests always have a default function name of `rust_out::main` its required
@@ -118,53 +123,53 @@ macro_rules! assert_setup_func {
 ///
 /// ### Using the default `root` and `func_name` is fine if called from a named function
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// fn assert_setup_default() {
-///     let tmpdir = assert_setup!();
-///     assert_mkdir!(&tmpdir);
-///     assert_eq!(
+/// assert_stdfs_setup_func!();
+/// fn assert_stdfs_setup_default() {
+///     let tmpdir = assert_stdfs_setup!();
+///     assert_stdfs_mkdir!(&tmpdir);
+///     assert_stdfs_eq!(
 ///         &tmpdir,
-///         &PathBuf::from(TEST_TEMP_DIR).abs().unwrap().mash("assert_setup_default")
+///         &PathBuf::from(TEST_TEMP_DIR).abs().unwrap().mash("assert_stdfs_setup_default")
 ///     );
-///     assert_remove_all!(&tmpdir);
+///     assert_stdfs_remove_all!(&tmpdir);
 /// }
-/// assert_setup_default();
+/// assert_stdfs_setup_default();
 /// ```
 ///
 /// ### Doc tests don't have a named function and require the `func_name` param be overridden
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_setup_custom_func");
-/// assert_mkdir!(&tmpdir);
-/// assert_eq!(
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_setup_custom_func");
+/// assert_stdfs_mkdir!(&tmpdir);
+/// assert_stdfs_eq!(
 ///     &tmpdir,
-///     &PathBuf::from(TEST_TEMP_DIR).abs().unwrap().mash("assert_setup_custom_func")
+///     &PathBuf::from(TEST_TEMP_DIR).abs().unwrap().mash("assert_stdfs_setup_custom_func")
 /// );
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 ///
 /// ### `root` is treated as the first and `func_name` as the second when two params are given.
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("tests/temp/assert_setup_custom_root", "assert_setup_custom_func");
-/// assert_mkdir!(&tmpdir);
-/// assert_eq!(
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("tests/temp/assert_stdfs_setup_custom_root", "assert_stdfs_setup_custom_func");
+/// assert_stdfs_mkdir!(&tmpdir);
+/// assert_stdfs_eq!(
 ///     &tmpdir,
-///     &PathBuf::from("tests/temp/assert_setup_custom_root")
+///     &PathBuf::from("tests/temp/assert_stdfs_setup_custom_root")
 ///         .abs()
 ///         .unwrap()
-///         .mash("assert_setup_custom_func")
+///         .mash("assert_stdfs_setup_custom_func")
 /// );
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_setup {
+macro_rules! assert_stdfs_setup {
     () => {
         setup(TEST_TEMP_DIR, function!())
     };
@@ -180,22 +185,22 @@ macro_rules! assert_setup {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_exists");
-/// assert_exists!(&tmpdir);
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_exists");
+/// assert_stdfs_exists!(&tmpdir);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_exists {
+macro_rules! assert_stdfs_exists {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_exists!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_exists!", "failed to get absolute path", $path),
         };
-        if !sys::exists(&target) {
-            panic_msg!("assert_exists!", "doesn't exist", &target);
+        if !Stdfs::exists(&target) {
+            panic_msg!("assert_stdfs_exists!", "doesn't exist", &target);
         }
     };
 }
@@ -204,20 +209,20 @@ macro_rules! assert_exists {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_no_exists!("tests/temp/assert_no_exists");
-/// assert_no_exists!("tests/temp/assert_no_exists/file");
+/// assert_stdfs_no_exists!("tests/temp/assert_stdfs_no_exists");
+/// assert_stdfs_no_exists!("tests/temp/assert_stdfs_no_exists/file");
 /// ```
 #[macro_export]
-macro_rules! assert_no_exists {
+macro_rules! assert_stdfs_no_exists {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_no_exists!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_no_exists!", "failed to get absolute path", $path),
         };
-        if sys::exists(&target) {
-            panic_msg!("assert_no_exists!", "still exists", &target);
+        if Stdfs::exists(&target) {
+            panic_msg!("assert_stdfs_no_exists!", "still exists", &target);
         }
     };
 }
@@ -226,26 +231,26 @@ macro_rules! assert_no_exists {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_is_dir");
-/// assert_is_dir!(&tmpdir);
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_is_dir");
+/// assert_stdfs_is_dir!(&tmpdir);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_is_dir {
+macro_rules! assert_stdfs_is_dir {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_is_dir!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_is_dir!", "failed to get absolute path", $path),
         };
-        if sys::exists(&target) {
-            if !sys::is_dir(&target) {
-                panic_msg!("assert_is_dir!", "exists but is not a directory", &target);
+        if Stdfs::exists(&target) {
+            if !Stdfs::is_dir(&target) {
+                panic_msg!("assert_stdfs_is_dir!", "exists but is not a directory", &target);
             }
         } else {
-            panic_msg!("assert_is_dir!", "doesn't exist", &target);
+            panic_msg!("assert_stdfs_is_dir!", "doesn't exist", &target);
         }
     };
 }
@@ -256,21 +261,21 @@ macro_rules! assert_is_dir {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from(TEST_TEMP_DIR).mash("assert_no_dir");
-/// assert_no_dir!(&tmpdir);
+/// let tmpdir = PathBuf::from(TEST_TEMP_DIR).mash("assert_stdfs_no_dir");
+/// assert_stdfs_no_dir!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_no_dir {
+macro_rules! assert_stdfs_no_dir {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_no_dir!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_no_dir!", "failed to get absolute path", $path),
         };
-        if sys::exists(&target) {
-            if !sys::is_dir(&target) {
-                panic_msg!("assert_no_dir!", "exists and is not a directory", &target);
+        if Stdfs::exists(&target) {
+            if !Stdfs::is_dir(&target) {
+                panic_msg!("assert_stdfs_no_dir!", "exists and is not a directory", &target);
             } else {
-                panic_msg!("assert_no_dir!", "directory still exists", &target);
+                panic_msg!("assert_stdfs_no_dir!", "directory still exists", &target);
             }
         }
     };
@@ -280,28 +285,28 @@ macro_rules! assert_no_dir {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_is_file");
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_is_file");
 /// let file = tmpdir.mash("file");
-/// assert_mkfile!(&file);
-/// assert_is_file!(&file);
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_mkfile!(&file);
+/// assert_stdfs_is_file!(&file);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_is_file {
+macro_rules! assert_stdfs_is_file {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_is_file!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_is_file!", "failed to get absolute path", $path),
         };
-        if sys::exists(&target) {
-            if !sys::is_file(&target) {
-                panic_msg!("assert_is_file!", "exists but is not a file", &target);
+        if Stdfs::exists(&target) {
+            if !Stdfs::is_file(&target) {
+                panic_msg!("assert_stdfs_is_file!", "exists but is not a file", &target);
             }
         } else {
-            panic_msg!("assert_is_file!", "doesn't exist", &target);
+            panic_msg!("assert_stdfs_is_file!", "doesn't exist", &target);
         }
     };
 }
@@ -310,22 +315,22 @@ macro_rules! assert_is_file {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_no_file!("tests/temp/assert_no_file/file");
+/// assert_stdfs_no_file!("tests/temp/assert_stdfs_no_file/file");
 /// ```
 #[macro_export]
-macro_rules! assert_no_file {
+macro_rules! assert_stdfs_no_file {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_no_file!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_no_file!", "failed to get absolute path", $path),
         };
-        if sys::exists(&target) {
-            if !sys::is_file(&target) {
-                panic_msg!("assert_no_file!", "exists and is not a file", &target);
+        if Stdfs::exists(&target) {
+            if !Stdfs::is_file(&target) {
+                panic_msg!("assert_stdfs_no_file!", "exists and is not a file", &target);
             } else {
-                panic_msg!("assert_no_file!", "file still exists", &target);
+                panic_msg!("assert_stdfs_no_file!", "file still exists", &target);
             }
         }
     };
@@ -335,36 +340,36 @@ macro_rules! assert_no_file {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_mkdir_p");
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_mkdir_p");
 /// let dir1 = tmpdir.mash("dir1");
-/// assert_mkdir_p!(&dir1);
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_mkdir_p!(&dir1);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_mkdir_p {
+macro_rules! assert_stdfs_mkdir_p {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_mkdir_p!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_mkdir_p!", "failed to get absolute path", $path),
         };
-        match sys::mkdir_p(&target) {
+        match Stdfs::mkdir_p(&target) {
             Ok(x) => {
                 if &x != &target {
                     panic_compare_msg!(
-                        "assert_mkdir_p!",
+                        "assert_stdfs_mkdir_p!",
                         "created directory path doesn't match the target",
                         &x,
                         &target
                     );
                 }
             },
-            Err(e) => panic!("assert_mkdir_p!: {}", e.to_string()),
+            Err(e) => panic!("assert_stdfs_mkdir_p!: {}", e.to_string()),
         };
-        if !sys::is_dir(&target) {
-            panic_msg!("assert_mkdir_p!", "failed to create directory", &target);
+        if !Stdfs::is_dir(&target) {
+            panic_msg!("assert_stdfs_mkdir_p!", "failed to create directory", &target);
         }
     };
 }
@@ -373,103 +378,103 @@ macro_rules! assert_mkdir_p {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_mkfile");
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_mkfile");
 /// let file1 = tmpdir.mash("file1");
-/// assert_no_file!(&file1);
-/// assert_mkfile!(&file1);
-/// assert_is_file!(&file1);
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_no_file!(&file1);
+/// assert_stdfs_mkfile!(&file1);
+/// assert_stdfs_is_file!(&file1);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_mkfile {
+macro_rules! assert_stdfs_mkfile {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_mkfile!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_mkfile!", "failed to get absolute path", $path),
         };
-        match sys::mkfile(&target) {
+        match Stdfs::mkfile(&target) {
             Ok(x) => {
                 if &x != &target {
                     panic_compare_msg!(
-                        "assert_mkfile!",
+                        "assert_stdfs_mkfile!",
                         "created file path doesn't match the target",
                         &x,
                         &target
                     );
                 }
             },
-            Err(e) => panic!("assert_mkfile!: {}", e.to_string()),
+            Err(e) => panic!("assert_stdfs_mkfile!: {}", e.to_string()),
         };
-        if !sys::is_file(&target) {
-            panic_msg!("assert_mkfile!", "file doesn't exist", &target);
+        if !Stdfs::is_file(&target) {
+            panic_msg!("assert_stdfs_mkfile!", "file doesn't exist", &target);
         }
     };
 }
 
 /// Assert the removal of the target file. Assertion fails if the target isn't a file or if the
-/// file exists after `sys::remove` is called or if `sys::remove` fails.
+/// file exists after `Stdfs::remove` is called or if `Stdfs::remove` fails.
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_remove");
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_remove");
 /// let file = tmpdir.mash("file");
-/// assert_mkfile!(&file);
-/// assert_remove!(&file);
-/// assert_remove_all!(&tmpdir);
+/// assert_stdfs_mkfile!(&file);
+/// assert_stdfs_remove!(&file);
+/// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_remove {
+macro_rules! assert_stdfs_remove {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_remove!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_remove!", "failed to get absolute path", $path),
         };
-        if sys::exists(&target) {
-            if sys::is_file(&target) {
-                if sys::remove(&target).is_err() {
-                    panic_msg!("assert_remove!", "failed removing file", &target);
+        if Stdfs::exists(&target) {
+            if Stdfs::is_file(&target) {
+                if Stdfs::remove(&target).is_err() {
+                    panic_msg!("assert_stdfs_remove!", "failed removing file", &target);
                 }
-                if sys::is_file(&target) {
-                    panic_msg!("assert_remove!", "file still exists", &target);
+                if Stdfs::is_file(&target) {
+                    panic_msg!("assert_stdfs_remove!", "file still exists", &target);
                 }
             } else {
-                panic_msg!("assert_remove!", "exists and isn't a file", &target);
+                panic_msg!("assert_stdfs_remove!", "exists and isn't a file", &target);
             }
         }
     };
 }
 
-/// Assert the removal of the target path. Assertion fails if `sys::remove_all` fails or the target
-/// path still exists after the call to `sys::remove_all`.
+/// Assert the removal of the target path. Assertion fails if `Stdfs::remove_all` fails or the target
+/// path still exists after the call to `Stdfs::remove_all`.
 ///
 /// ### Examples
 /// ```
 /// use fungus::prelude::*;
 ///
-/// assert_setup_func!();
-/// let tmpdir = assert_setup!("assert_remove_all");
-/// assert_exists!(&tmpdir);
-/// assert_remove_all!(&tmpdir);
-/// assert_no_exists!(&tmpdir);
+/// assert_stdfs_setup_func!();
+/// let tmpdir = assert_stdfs_setup!("assert_stdfs_remove_all");
+/// assert_stdfs_exists!(&tmpdir);
+/// assert_stdfs_remove_all!(&tmpdir);
+/// assert_stdfs_no_exists!(&tmpdir);
 /// ```
 #[macro_export]
-macro_rules! assert_remove_all {
+macro_rules! assert_stdfs_remove_all {
     ($path:expr) => {
-        let target = match sys::abs($path) {
+        let target = match Stdfs::abs($path) {
             Ok(x) => x,
-            _ => panic_msg!("assert_remove_all!", "failed to get absolute path", $path),
+            _ => panic_msg!("assert_stdfs_remove_all!", "failed to get absolute path", $path),
         };
-        if sys::remove_all(&target).is_err() {
-            panic_msg!("assert_remove_all!", "failed while removing", &target);
+        if Stdfs::remove_all(&target).is_err() {
+            panic_msg!("assert_stdfs_remove_all!", "failed while removing", &target);
         }
-        if sys::exists(&target) {
-            panic_msg!("assert_remove_all!", "still exists", &target);
+        if Stdfs::exists(&target) {
+            panic_msg!("assert_stdfs_remove_all!", "still exists", &target);
         }
     };
 }
@@ -478,9 +483,9 @@ macro_rules! assert_remove_all {
 ///
 /// ### Examples
 /// ```ignore,no_run
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// panic_msg!("assert_mkdir_p!", "failed to create directory", PathBuf::from("foo"));
+/// panic_msg!("assert_stdfs_mkdir_p!", "failed to create directory", PathBuf::from("foo"));
 /// ```
 #[macro_export]
 macro_rules! panic_msg {
@@ -498,9 +503,9 @@ macro_rules! panic_msg {
 ///
 /// ### Examples
 /// ```ignore,no_run
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
-/// panic_msg!("assert_mkdir_p!", "failed to create directory", PathBuf::from("foo"), PathBuf::from("foo"));
+/// panic_msg!("assert_stdfs_mkdir_p!", "failed to create directory", PathBuf::from("foo"), PathBuf::from("foo"));
 /// ```
 #[macro_export]
 macro_rules! panic_compare_msg {
@@ -520,393 +525,393 @@ macro_rules! panic_compare_msg {
 #[cfg(test)]
 mod tests
 {
-    use crate::*;
-    assert_setup_func!();
+    use crate::prelude::*;
+    assert_stdfs_setup_func!();
 
     #[test]
-    fn test_assert_exists_and_no_exists() {
-        let tmpdir = assert_setup!();
+    fn test_assert_stdfs_exists_and_no_exists() {
+        let tmpdir = assert_stdfs_setup!();
 
         // Test file exists
         {
-            let file = sys::mash(&tmpdir, "file");
-            assert_no_exists!(&file);
-            assert!(!sys::exists(&file));
-            assert_mkfile!(&file);
-            assert_exists!(&file);
-            assert!(sys::exists(&file));
+            let file = Stdfs::mash(&tmpdir, "file");
+            assert_stdfs_no_exists!(&file);
+            assert!(!Stdfs::exists(&file));
+            assert_stdfs_mkfile!(&file);
+            assert_stdfs_exists!(&file);
+            assert!(Stdfs::exists(&file));
 
-            assert_remove!(&file);
-            assert_no_exists!(&file);
-            assert!(!sys::exists(&file));
+            assert_stdfs_remove!(&file);
+            assert_stdfs_no_exists!(&file);
+            assert!(!Stdfs::exists(&file));
         }
 
         // Test dir exists
         {
-            let dir1 = sys::mash(&tmpdir, "dir1");
-            assert_no_exists!(&dir1);
-            assert!(!sys::exists(&dir1));
-            assert_mkdir_p!(&dir1);
-            assert_exists!(&dir1);
-            assert!(sys::exists(&dir1));
+            let dir1 = Stdfs::mash(&tmpdir, "dir1");
+            assert_stdfs_no_exists!(&dir1);
+            assert!(!Stdfs::exists(&dir1));
+            assert_stdfs_mkdir_p!(&dir1);
+            assert_stdfs_exists!(&dir1);
+            assert!(Stdfs::exists(&dir1));
 
-            assert_remove_all!(&dir1);
-            assert_no_exists!(&dir1);
-            assert!(!sys::exists(&dir1));
+            assert_stdfs_remove_all!(&dir1);
+            assert_stdfs_no_exists!(&dir1);
+            assert!(!Stdfs::exists(&dir1));
         }
 
         // exists: bad abs
         let result = capture_panic(|| {
-            assert_exists!("");
+            assert_stdfs_exists!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_exists!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_exists!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // exists: doesn't exist
-        let file1 = sys::mash(&tmpdir, "file1");
+        let file1 = Stdfs::mash(&tmpdir, "file1");
         let result = capture_panic(|| {
-            assert_exists!(&file1);
+            assert_stdfs_exists!(&file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_exists!: doesn't exist\n  target: {:?}\n", &file1)
+            format!("\nassert_stdfs_exists!: doesn't exist\n  target: {:?}\n", &file1)
         );
 
         // no exists: bad abs
         let result = capture_panic(|| {
-            assert_no_exists!("");
+            assert_stdfs_no_exists!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_no_exists!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_no_exists!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // no exists: does exist
-        assert_mkfile!(&file1);
+        assert_stdfs_mkfile!(&file1);
         let result = capture_panic(|| {
-            assert_no_exists!(&file1);
+            assert_stdfs_no_exists!(&file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_no_exists!: still exists\n  target: {:?}\n", &file1)
+            format!("\nassert_stdfs_no_exists!: still exists\n  target: {:?}\n", &file1)
         );
 
-        assert_remove_all!(&tmpdir);
+        assert_stdfs_remove_all!(&tmpdir);
     }
 
     #[test]
-    fn test_assert_is_dir_no_dir() {
-        let tmpdir = assert_setup!();
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let dir2 = sys::mash(&tmpdir, "dir2");
+    fn test_assert_stdfs_is_dir_no_dir() {
+        let tmpdir = assert_stdfs_setup!();
+        let dir1 = Stdfs::mash(&tmpdir, "dir1");
+        let dir2 = Stdfs::mash(&tmpdir, "dir2");
 
         // happy path
-        assert_no_dir!(&dir1);
-        assert!(!sys::is_dir(&dir1));
-        assert_mkdir_p!(&dir1);
-        assert_is_dir!(&dir1);
-        assert!(sys::is_dir(&dir1));
+        assert_stdfs_no_dir!(&dir1);
+        assert!(!Stdfs::is_dir(&dir1));
+        assert_stdfs_mkdir_p!(&dir1);
+        assert_stdfs_is_dir!(&dir1);
+        assert!(Stdfs::is_dir(&dir1));
 
         // is_dir: bad abs
         let result = capture_panic(|| {
-            assert_is_dir!("");
+            assert_stdfs_is_dir!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_is_dir!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_is_dir!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // is_dir: doesn't exist
         let result = capture_panic(|| {
-            assert_is_dir!(&dir2);
+            assert_stdfs_is_dir!(&dir2);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_is_dir!: doesn't exist\n  target: {:?}\n", &dir2)
+            format!("\nassert_stdfs_is_dir!: doesn't exist\n  target: {:?}\n", &dir2)
         );
 
         // no_dir: bad abs
         let result = capture_panic(|| {
-            assert_no_dir!("");
+            assert_stdfs_no_dir!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_no_dir!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_no_dir!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // no_dir: does exist
         let result = capture_panic(|| {
-            assert_no_dir!(&dir1);
+            assert_stdfs_no_dir!(&dir1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_no_dir!: directory still exists\n  target: {:?}\n", &dir1)
+            format!("\nassert_stdfs_no_dir!: directory still exists\n  target: {:?}\n", &dir1)
         );
 
-        assert_remove_all!(&tmpdir);
+        assert_stdfs_remove_all!(&tmpdir);
     }
 
     #[test]
-    fn test_assert_is_file_no_file() {
-        let tmpdir = assert_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
-        let file2 = sys::mash(&tmpdir, "file2");
+    fn test_assert_stdfs_is_file_no_file() {
+        let tmpdir = assert_stdfs_setup!();
+        let file1 = Stdfs::mash(&tmpdir, "file1");
+        let file2 = Stdfs::mash(&tmpdir, "file2");
 
         // happy path
-        assert_no_file!(&file1);
-        assert!(!sys::is_file(&file1));
-        assert_mkfile!(&file1);
-        assert_is_file!(&file1);
-        assert!(sys::is_file(&file1));
+        assert_stdfs_no_file!(&file1);
+        assert!(!Stdfs::is_file(&file1));
+        assert_stdfs_mkfile!(&file1);
+        assert_stdfs_is_file!(&file1);
+        assert!(Stdfs::is_file(&file1));
 
         // is_file: bad abs
         let result = capture_panic(|| {
-            assert_is_file!("");
+            assert_stdfs_is_file!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_is_file!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_is_file!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // is_file: doesn't exist
         let result = capture_panic(|| {
-            assert_is_file!(&file2);
+            assert_stdfs_is_file!(&file2);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_is_file!: doesn't exist\n  target: {:?}\n", &file2)
+            format!("\nassert_stdfs_is_file!: doesn't exist\n  target: {:?}\n", &file2)
         );
 
         // no_file: bad abs
         let result = capture_panic(|| {
-            assert_no_file!("");
+            assert_stdfs_no_file!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_no_file!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_no_file!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // no_file: does exist
         let result = capture_panic(|| {
-            assert_no_file!(&file1);
+            assert_stdfs_no_file!(&file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_no_file!: file still exists\n  target: {:?}\n", &file1)
+            format!("\nassert_stdfs_no_file!: file still exists\n  target: {:?}\n", &file1)
         );
 
-        assert_remove_all!(&tmpdir);
+        assert_stdfs_remove_all!(&tmpdir);
     }
 
     #[test]
-    fn test_assert_remove() {
-        let tmpdir = assert_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
+    fn test_assert_stdfs_remove() {
+        let tmpdir = assert_stdfs_setup!();
+        let file1 = Stdfs::mash(&tmpdir, "file1");
 
         // happy path
-        assert_remove!(&file1);
-        assert_mkfile!(&file1);
-        assert_is_file!(&file1);
-        assert_remove!(&file1);
-        assert_no_file!(&file1);
+        assert_stdfs_remove!(&file1);
+        assert_stdfs_mkfile!(&file1);
+        assert_stdfs_is_file!(&file1);
+        assert_stdfs_remove!(&file1);
+        assert_stdfs_no_file!(&file1);
 
         // bad abs
         let result = capture_panic(|| {
-            assert_remove!("");
+            assert_stdfs_remove!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_remove!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_remove!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // is a directory
         let result = capture_panic(|| {
-            assert_remove!(&tmpdir);
+            assert_stdfs_remove!(&tmpdir);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_remove!: exists and isn't a file\n  target: {:?}\n", &tmpdir)
+            format!("\nassert_stdfs_remove!: exists and isn't a file\n  target: {:?}\n", &tmpdir)
         );
 
         // // fail to remove file
-        // assert_no_file!(&file1);
-        // assert_eq!(sys::mkfile_m(&file1, 0o000).unwrap(), file1);
+        // assert_stdfs_no_file!(&file1);
+        // assert_stdfs_eq!(Stdfs::mkfile_m(&file1, 0o000).unwrap(), file1);
         // let result = capture_panic(|| {
-        //     assert_remove!(&file1);
+        //     assert_stdfs_remove!(&file1);
         // });
-        // assert_eq!(to_string(result), format!("\nassert_remove!: failed removing file\n target:
+        // assert_stdfs_eq!(to_string(result), format!("\nassert_stdfs_remove!: failed removing file\n target:
         // {:?}\n",
         // &file1));
         // assert!(Stdfs::chmod(&file1, 0o777).is_ok());
 
-        assert_remove_all!(&tmpdir);
+        assert_stdfs_remove_all!(&tmpdir);
     }
 
     #[test]
-    fn test_assert_mkdir_p()
+    fn test_assert_stdfs_mkdir_p()
     {
-        let tmpdir = assert_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        assert_mkfile!(&file1);
+        let tmpdir = assert_stdfs_setup!();
+        let file1 = Stdfs::mash(&tmpdir, "file1");
+        let dir1 = Stdfs::mash(&tmpdir, "dir1");
+        assert_stdfs_mkfile!(&file1);
 
         // fail abs
         let result = capture_panic(|| {
-            assert_mkdir_p!("");
+            assert_stdfs_mkdir_p!("");
         });
 
         // fail abs
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_mkdir_p!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_mkdir_p!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // exists but not a directory
         let result = capture_panic(|| {
-            assert_mkdir_p!(&file1);
+            assert_stdfs_mkdir_p!(&file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("assert_mkdir_p!: is not a directory: {}", &file1.display())
+            format!("assert_stdfs_mkdir_p!: is not a directory: {}", &file1.display())
         );
 
         // happy path
-        assert_no_dir!(&dir1);
-        assert_mkdir_p!(&dir1);
-        assert_is_dir!(&dir1);
+        assert_stdfs_no_dir!(&dir1);
+        assert_stdfs_mkdir_p!(&dir1);
+        assert_stdfs_is_dir!(&dir1);
 
-        assert_remove_all!(&tmpdir);
+        assert_stdfs_remove_all!(&tmpdir);
     }
 
     #[test]
-    fn test_assert_mkfile() {
-        let tmpdir = assert_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        assert_mkdir_p!(&dir1);
+    fn test_assert_stdfs_mkfile() {
+        let tmpdir = assert_stdfs_setup!();
+        let file1 = Stdfs::mash(&tmpdir, "file1");
+        let dir1 = Stdfs::mash(&tmpdir, "dir1");
+        assert_stdfs_mkdir_p!(&dir1);
 
         // fail abs
         let result = capture_panic(|| {
-            assert_mkfile!("");
+            assert_stdfs_mkfile!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_mkfile!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_mkfile!: failed to get absolute path\n  target: \"\"\n"
         );
 
         // exists but not a file
         let result = capture_panic(|| {
-            assert_mkfile!(&dir1);
+            assert_stdfs_mkfile!(&dir1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("assert_mkfile!: is not a file: {}", dir1.display())
+            format!("assert_stdfs_mkfile!: is not a file: {}", dir1.display())
         );
 
         // happy path
-        assert_no_file!(&file1);
-        assert_mkfile!(&file1);
-        assert_is_file!(&file1);
+        assert_stdfs_no_file!(&file1);
+        assert_stdfs_mkfile!(&file1);
+        assert_stdfs_is_file!(&file1);
 
-        assert_remove_all!(&tmpdir);
+        assert_stdfs_remove_all!(&tmpdir);
     }
 
     #[test]
-    fn test_assert_remove_all() {
-        let tmpdir = assert_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
+    fn test_assert_stdfs_remove_all() {
+        let tmpdir = assert_stdfs_setup!();
+        let file1 = Stdfs::mash(&tmpdir, "file1");
 
-        assert_mkfile!(&file1);
-        assert_is_file!(&file1);
-        assert_remove_all!(&tmpdir);
-        assert_no_dir!(&tmpdir);
+        assert_stdfs_mkfile!(&file1);
+        assert_stdfs_is_file!(&file1);
+        assert_stdfs_remove_all!(&tmpdir);
+        assert_stdfs_no_dir!(&tmpdir);
 
         // bad abs
         let result = capture_panic(|| {
-            assert_remove_all!("");
+            assert_stdfs_remove_all!("");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_remove_all!: failed to get absolute path\n  target: \"\"\n"
+            "\nassert_stdfs_remove_all!: failed to get absolute path\n  target: \"\"\n"
         );
     }
 
     #[test]
-    fn test_assert_setup() {
+    fn test_assert_stdfs_setup() {
         // Defaults
         {
-            let tmpdir = assert_setup!();
-            assert_mkdir_p!(&tmpdir);
+            let tmpdir = assert_stdfs_setup!();
+            assert_stdfs_mkdir_p!(&tmpdir);
             assert_eq!(
                 tmpdir,
-                sys::abs(sys::mash(&PathBuf::from(TEST_TEMP_DIR), "test_assert_setup")).unwrap()
+                Stdfs::abs(Stdfs::mash(&PathBuf::from(TEST_TEMP_DIR), "test_assert_stdfs_setup")).unwrap()
             );
-            assert_remove_all!(&tmpdir);
+            assert_stdfs_remove_all!(&tmpdir);
         }
 
         // Alternate func name
         {
-            let func_name = "test_assert_setup_alt_func";
-            let tmpdir = assert_setup!(&func_name);
-            assert_mkdir_p!(&tmpdir);
-            assert_eq!(tmpdir, sys::abs(sys::mash(&PathBuf::from(TEST_TEMP_DIR), &func_name)).unwrap());
-            assert_remove_all!(&tmpdir);
+            let func_name = "test_assert_stdfs_setup_alt_func";
+            let tmpdir = assert_stdfs_setup!(&func_name);
+            assert_stdfs_mkdir_p!(&tmpdir);
+            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(TEST_TEMP_DIR), &func_name)).unwrap());
+            assert_stdfs_remove_all!(&tmpdir);
         }
 
         // Alternate temp dir name and func name
         {
-            let root = "tests/temp/test_assert_setup_dir";
-            let func_name = "test_assert_setup_alt_func";
-            let tmpdir = assert_setup!(&root, &func_name);
-            assert_mkdir_p!(&tmpdir);
-            assert_eq!(tmpdir, sys::abs(sys::mash(&PathBuf::from(&root), &func_name)).unwrap());
-            assert_remove_all!(&root);
+            let root = "tests/temp/test_assert_stdfs_setup_dir";
+            let func_name = "test_assert_stdfs_setup_alt_func";
+            let tmpdir = assert_stdfs_setup!(&root, &func_name);
+            assert_stdfs_mkdir_p!(&tmpdir);
+            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(&root), &func_name)).unwrap());
+            assert_stdfs_remove_all!(&root);
         }
     }
 
     #[test]
-    fn test_assert_setup_func() {
+    fn test_assert_stdfs_setup_func() {
         // root path is empty
         let result = capture_panic(|| {
-            assert_setup!("", "foo");
+            assert_stdfs_setup!("", "foo");
         });
-        assert_eq!(result.unwrap_err().to_string(), "\nassert_setup_func!: root path is empty\n  target: \"\"\n");
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_setup_func!: root path is empty\n  target: \"\"\n");
 
         // func name is empty
         let result = capture_panic(|| {
-            assert_setup!("foo", "");
+            assert_stdfs_setup!("foo", "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_setup_func!: function name is empty\n  target: \"\"\n"
+            "\nassert_stdfs_setup_func!: function name is empty\n  target: \"\"\n"
         );
 
         // fail abs because of multiple home symbols
         let result = capture_panic(|| {
-            assert_setup!("foo", "~~");
+            assert_stdfs_setup!("foo", "~~");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            "\nassert_setup_func!: failed to get absolute path\n  target: \"foo/~~\"\n"
+            "\nassert_stdfs_setup_func!: failed to get absolute path\n  target: \"foo/~~\"\n"
         );
 
         // fail to remove directory
-        let path = sys::abs(sys::mash(PathBuf::from(TEST_TEMP_DIR), "test_assert_setup_func_perms")).unwrap();
-        assert_eq!(sys::mkdir_m(&path, 0o000).unwrap(), path); // no write priv
-        assert_eq!(sys::mode(&path).unwrap(), 0o40000);
+        let path = Stdfs::abs(Stdfs::mash(PathBuf::from(TEST_TEMP_DIR), "test_assert_stdfs_setup_func_perms")).unwrap();
+        assert_eq!(Stdfs::mkdir_m(&path, 0o000).unwrap(), path); // no write priv
+        assert_eq!(Stdfs::mode(&path).unwrap(), 0o40000);
         let result = capture_panic(|| {
-            assert_setup!(TEST_TEMP_DIR, sys::name(&path).unwrap());
+            assert_stdfs_setup!(TEST_TEMP_DIR, Stdfs::name(&path).unwrap());
         });
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
-                "\nassert_setup_func!: failed while removing directory\n  target: {:?}\n",
+                "\nassert_stdfs_setup_func!: failed while removing directory\n  target: {:?}\n",
                 path
             )
         );
-        assert!(sys::chmod(&path, 0o777).is_ok());
-        assert!(sys::remove_all(&path).is_ok());
+        assert!(Stdfs::chmod(&path, 0o777).is_ok());
+        assert!(Stdfs::remove_all(&path).is_ok());
     }
 }

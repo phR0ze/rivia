@@ -49,7 +49,7 @@ impl fmt::Display for VfsError {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use crate::errors::*;
 
     fn vfs_unavailable() -> RvResult<VfsError> {
         Err(VfsError::Unavailable)?

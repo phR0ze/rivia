@@ -4,32 +4,52 @@
 //!
 //! ### Using the `core` crate
 //! ```
-//! use rivia::*;
+//! use rivia::prelude::*;
 //! ```
 #[macro_use]
 pub mod testing;
 
-mod errors;
-mod iters;
+pub mod errors;
+pub mod iters;
+pub mod fs;
 
+/// All essential symbols in a simple consumable way
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+/// ```
+pub mod prelude {
 
-// Export module directly
-pub mod sys;
+    // Export macros by name
+    pub use crate::{
+        assert_stdfs_exists, assert_stdfs_is_dir, assert_stdfs_is_file, assert_stdfs_mkdir_p,
+        assert_stdfs_mkfile, assert_stdfs_no_dir, assert_stdfs_no_exists, assert_stdfs_no_file,
+        assert_stdfs_remove, assert_stdfs_remove_all, assert_stdfs_setup, assert_stdfs_setup_func, 
+        cfgblock,
+        function,
+        trying,
+    };
 
-// Export internal types
-pub use errors::*;
-pub use iters::*;
+    // Export internal types
+    pub use crate::{
+        errors::*,
+        fs::*,
+        iters::*,
+        testing::*,
+    };
 
-pub use testing::*;
-
-// Re-exports
-pub use std::path::{Path, PathBuf};
+    // Re-exports
+    pub use std::{
+        path::{Path, PathBuf},
+    };
+}
 
 /// Provides the ability to define `#[cfg]` statements for multiple items
 ///
 /// ### Examples
 /// ```ignore
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
 /// cfgblk! {
 ///     #[cfg(feature = "foo")])
@@ -62,7 +82,7 @@ macro_rules! cfgblock {
 ///
 /// ### Examples
 /// ```
-/// use rivia::*;
+/// use rivia::prelude::*;
 ///
 /// fn my_func() -> &'static str {
 ///     function!()
@@ -94,11 +114,32 @@ macro_rules! function {
     }};
 }
 
+/// Return an iterator Err type conveniently
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// fn trying_func<T: AsRef<Path>>(path: T) -> Option<FnResult<PathBuf>> {
+///     Some(Ok(trying!(path.as_ref().abs())))
+/// }
+/// assert_eq!(trying_func("").unwrap().unwrap_err().to_string(), "path empty");
+/// ```
+#[macro_export]
+macro_rules! trying {
+    ($e:expr) => {
+        match $e {
+            Ok(v) => v,
+            Err(err) => return Some(Err(From::from(err))),
+        }
+    };
+}
+
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use crate::prelude::*;
 
     #[test]
     fn test_function_macro() {
@@ -107,5 +148,13 @@ mod tests {
         }
         assert_eq!(function!(), "test_function_macro");
         assert_eq!(indirect_func_name(), "indirect_func_name");
+    }
+
+    #[test]
+    fn test_trying_macro() {
+        fn trying_func<T: AsRef<Path>>(path: T) -> Option<RvResult<PathBuf>> {
+            Some(Ok(trying!(Stdfs::abs(path.as_ref()))))
+        }
+        assert_eq!(trying_func("").unwrap().unwrap_err().to_string(), "path empty");
     }
 }

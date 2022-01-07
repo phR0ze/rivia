@@ -167,7 +167,7 @@ impl fmt::Display for PathError {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use crate::errors::*;
     use std::path::{Path, PathBuf};
 
     fn path_empty() -> RvResult<PathBuf> {

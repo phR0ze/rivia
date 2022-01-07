@@ -183,7 +183,7 @@ impl From<VfsError> for RvError {
 #[cfg(test)]
 mod tests
 {
-    use crate::*;
+    use crate::errors::*;
     use std::{path::PathBuf};
 
     #[test]

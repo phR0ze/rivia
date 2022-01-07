@@ -80,7 +80,7 @@ where
 #[cfg(test)]
 mod tests
 {
-    use crate::*;
+    use crate::prelude::*;
 
     #[test]
     fn test_take_while_p_should_keep_first_false() {
