@@ -18,7 +18,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let home = user::home_dir().unwrap();
 //     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
@@ -30,7 +30,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
 //     /// ```
@@ -40,7 +40,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_chmod");
@@ -72,7 +72,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
 //     /// ```
@@ -83,7 +83,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
 //     /// ```
@@ -93,7 +93,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
 //     /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
@@ -104,7 +104,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").exists(), true);
 //     /// ```
@@ -114,7 +114,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let home = user::home_dir().unwrap();
 //     /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
@@ -125,7 +125,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
 //     /// ```
@@ -135,7 +135,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     /// use std::path::Component;
 //     ///
 //     /// let first = Component::Normal(OsStr::new("foo"));
@@ -147,7 +147,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").gid().unwrap(), 0);
 //     /// ```
@@ -157,7 +157,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let path = PathBuf::from("/foo/bar");
 //     /// assert_eq!(path.has("foo"), true);
@@ -169,7 +169,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let path = PathBuf::from("/foo/bar");
 //     /// assert_eq!(path.has_prefix("/foo"), true);
@@ -181,7 +181,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let path = PathBuf::from("/foo/bar");
 //     /// assert_eq!(path.has_suffix("/bar"), true);
@@ -193,7 +193,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").is_dir(), true);
 //     /// ```
@@ -203,7 +203,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("").is_empty(), true);
 //     /// ```
@@ -213,7 +213,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_exec");
@@ -231,7 +231,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
 //     /// ```
@@ -241,7 +241,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_readonly");
@@ -259,7 +259,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_symlink");
@@ -276,7 +276,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_symlink_dir");
@@ -294,7 +294,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_symlink_file");
@@ -311,7 +311,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     /// use std::path::Component;
 //     ///
 //     /// let first = Component::Normal(OsStr::new("bar"));
@@ -326,7 +326,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
 //     /// ```
@@ -336,7 +336,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_mode");
@@ -352,7 +352,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
 //     /// ```
@@ -362,7 +362,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_readlink");
@@ -381,7 +381,7 @@
 //     //
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_readlink_abs");
@@ -401,7 +401,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(
 //     ///     PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(),
@@ -414,7 +414,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_set_mode");
@@ -433,7 +433,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("bar1").shared_prefix("bar2").unwrap(), Stdfs::cwd().unwrap());
 //     /// ```
@@ -443,7 +443,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
 //     /// ```
@@ -453,7 +453,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
 //     /// ```
@@ -463,7 +463,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
 //     /// ```
@@ -473,7 +473,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
 //     /// ```
@@ -484,7 +484,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
 //     /// ```
@@ -494,7 +494,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
 //     /// ```
@@ -504,7 +504,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").uid().unwrap(), 0);
 //     /// ```
@@ -516,7 +516,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let home = user::home_dir().unwrap();
 //     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
@@ -529,7 +529,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
 //     /// ```
@@ -541,7 +541,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_chmod");
@@ -576,7 +576,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
 //     /// ```
@@ -634,7 +634,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
 //     /// ```
@@ -646,7 +646,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
 //     /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
@@ -660,7 +660,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").exists(), true);
 //     /// ```
@@ -672,7 +672,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let home = user::home_dir().unwrap();
 //     /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
@@ -685,7 +685,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
 //     /// ```
@@ -700,7 +700,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     /// use std::path::Component;
 //     ///
 //     /// let first = Component::Normal(OsStr::new("foo"));
@@ -714,7 +714,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").gid().unwrap(), 0);
 //     /// ```
@@ -726,7 +726,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let path = PathBuf::from("/foo/bar");
 //     /// assert_eq!(path.has("foo"), true);
@@ -743,7 +743,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let path = PathBuf::from("/foo/bar");
 //     /// assert_eq!(path.has_prefix("/foo"), true);
@@ -760,7 +760,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// let path = PathBuf::from("/foo/bar");
 //     /// assert_eq!(path.has_suffix("/bar"), true);
@@ -777,7 +777,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").is_dir(), true);
 //     /// ```
@@ -789,7 +789,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("").is_empty(), true);
 //     /// ```
@@ -801,7 +801,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_exec");
@@ -821,7 +821,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
 //     /// ```
@@ -833,7 +833,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_readonly");
@@ -853,7 +853,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_symlink");
@@ -872,7 +872,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_symlink_dir");
@@ -892,7 +892,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_is_symlink_file");
@@ -911,7 +911,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     /// use std::path::Component;
 //     ///
 //     /// let first = Component::Normal(OsStr::new("bar"));
@@ -928,7 +928,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
 //     /// ```
@@ -940,7 +940,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_mode");
@@ -958,7 +958,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
 //     /// ```
@@ -970,7 +970,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_readlink");
@@ -991,7 +991,7 @@
 //     //
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_readlink_abs");
@@ -1013,7 +1013,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(
 //     ///     PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(),
@@ -1069,7 +1069,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_setup_func!();
 //     /// let tmpdir = assert_setup!("pathext_trait_set_mode");
@@ -1091,7 +1091,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("bar1").shared_prefix("bar2").unwrap(), Stdfs::cwd().unwrap());
 //     /// ```
@@ -1127,7 +1127,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
 //     /// ```
@@ -1142,7 +1142,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
 //     /// ```
@@ -1154,7 +1154,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
 //     /// ```
@@ -1166,7 +1166,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
 //     /// ```
@@ -1184,7 +1184,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
 //     /// ```
@@ -1214,7 +1214,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
 //     /// ```
@@ -1231,7 +1231,7 @@
 //     ///
 //     /// ### Examples
 //     /// ```
-//     /// use rivia_core::*;
+//     /// use rivia::*;
 //     ///
 //     /// assert_eq!(Path::new("/etc").uid().unwrap(), 0);
 //     /// ```

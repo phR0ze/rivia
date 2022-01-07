@@ -4,26 +4,23 @@
 //!
 //! ### Using the `core` crate
 //! ```
-//! use rivia_core::*;
+//! use rivia::*;
 //! ```
 #[macro_use]
-mod assert;
+pub mod testing;
+
 mod errors;
-mod iter;
-mod option;
-mod peekable;
-mod string;
+mod iters;
+
 
 // Export module directly
 pub mod sys;
 
 // Export internal types
-pub use assert::*;
 pub use errors::*;
-pub use iter::*;
-pub use option::*;
-pub use peekable::*;
-pub use string::*;
+pub use iters::*;
+
+pub use testing::*;
 
 // Re-exports
 pub use std::path::{Path, PathBuf};
@@ -32,7 +29,7 @@ pub use std::path::{Path, PathBuf};
 ///
 /// ### Examples
 /// ```ignore
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// cfgblk! {
 ///     #[cfg(feature = "foo")])
@@ -65,7 +62,7 @@ macro_rules! cfgblock {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// fn my_func() -> &'static str {
 ///     function!()

@@ -3,19 +3,14 @@
 //!
 //! ### Using the sys modules from the Rivia Core crate
 //! ```
-//! use rivia_core::*;
+//! use rivia::*;
 //! ```
-mod entry;
 mod path;
-pub use entry::*;
 pub use path::*;
 
 use crate::{
     errors::*,
-    iter::*,
-    option::*,
-    peekable::*,
-    string::*,
+    iters::*,
 };
 use std::{
     fs::{self, File},
@@ -29,7 +24,7 @@ use std::{
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// let home = sys::home_dir().unwrap();
 /// assert_eq!(sys::abs("~").unwrap(), PathBuf::from(&home));
@@ -79,7 +74,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
 /// ```
@@ -92,7 +87,7 @@ pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("pathext_trait_chmod");
@@ -127,7 +122,7 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<()> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(sys::clean("./foo/./bar").unwrap(), PathBuf::from("foo/bar"));
 /// ```
@@ -185,7 +180,7 @@ pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
 // /// ```
@@ -206,7 +201,7 @@ pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// println!("current working directory: {:?}", sys::cwd().unwrap());
 /// ```
@@ -219,7 +214,7 @@ pub fn cwd() -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(sys::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
 /// ```
@@ -233,7 +228,7 @@ pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(Path::new("/etc").exists(), true);
 /// ```
@@ -248,7 +243,7 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// let home = sys::home_dir().unwrap();
 /// assert_eq!(sys::expand("~/foo").unwrap(), PathBuf::from(&home).join("foo"));
@@ -326,7 +321,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
 // /// ```
@@ -341,7 +336,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(Path::new("/etc").gid().unwrap(), 0);
 // /// ```
@@ -353,7 +348,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// let path = PathBuf::from("/foo/bar");
 // /// assert_eq!(path.has("foo"), true);
@@ -370,7 +365,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// let path = PathBuf::from("/foo/bar");
 /// assert_eq!(sys::has_prefix(&path, "/foo"), true);
@@ -387,7 +382,7 @@ pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// let path = PathBuf::from("/foo/bar");
 // /// assert_eq!(path.has_suffix("/bar"), true);
@@ -407,7 +402,7 @@ pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert!(sys::home_dir().is_ok());
 /// ```
@@ -423,7 +418,7 @@ pub fn home_dir() -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_is_dir");
@@ -464,7 +459,7 @@ pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(sys::is_empty(""), true);
 /// ```
@@ -476,7 +471,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_is_exec");
@@ -496,7 +491,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
 // /// ```
@@ -508,7 +503,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_is_readonly");
@@ -528,7 +523,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_is_symlink");
@@ -547,7 +542,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_is_symlink_dir");
@@ -567,7 +562,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_is_symlink_file");
@@ -586,7 +581,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // /// use std::path::Component;
 // ///
 // /// let first = Component::Normal(OsStr::new("bar"));
@@ -603,7 +598,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(sys::mash("/foo", "/bar"), PathBuf::from("/foo/bar"));
 /// ```
@@ -617,7 +612,7 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_stdfs_setup_func!();
 /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkdir_m");
@@ -650,7 +645,7 @@ pub fn mkdir_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("vfs_stdfs_func_mkdir");
@@ -680,7 +675,7 @@ pub fn mkdir_p<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_stdfs_setup_func!();
 /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkfile");
@@ -704,7 +699,7 @@ pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_stdfs_setup_func!();
 /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mode");
@@ -723,7 +718,7 @@ pub fn mode<T: AsRef<Path>>(path: T) -> RvResult<u32> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(StdPathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
 /// ```
@@ -735,7 +730,7 @@ pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_readlink");
@@ -756,7 +751,7 @@ pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
 // //
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_readlink_abs");
@@ -778,7 +773,7 @@ pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(
 // ///     PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(),
@@ -836,7 +831,7 @@ pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_stdfs_setup_func!();
 /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_remove");
@@ -860,7 +855,7 @@ pub fn remove<T: AsRef<Path>>(path: T) -> RvResult<()> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_stdfs_setup!("remove_all");
@@ -879,7 +874,7 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> RvResult<()> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_setup_func!();
 // /// let tmpdir = assert_setup!("pathext_trait_set_mode");
@@ -901,7 +896,7 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> RvResult<()> {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(PathBuf::from("bar1").shared_prefix("bar2").unwrap(), Stdfs::cwd().unwrap());
 // /// ```
@@ -937,7 +932,7 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> RvResult<()> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
 /// ```
@@ -953,7 +948,7 @@ pub fn trim_ext<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(sys::trim_first("/foo"), PathBuf::from("foo"));
 /// ```
@@ -965,7 +960,7 @@ pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf {
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
 // /// ```
@@ -977,7 +972,7 @@ pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(sys::trim_prefix("/foo/bar", "/foo"), PathBuf::from("/bar"));
 /// ```
@@ -996,7 +991,7 @@ pub fn trim_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> PathBu
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(sys::trim_protocol("ftp://foo"), PathBuf::from("foo"));
 /// ```
@@ -1027,7 +1022,7 @@ pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
 /// ```
@@ -1045,7 +1040,7 @@ pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBu
 // ///
 // /// ### Examples
 // /// ```
-// /// use rivia_core::*;
+// /// use rivia::*;
 // ///
 // /// assert_eq!(Path::new("/etc").uid().unwrap(), 0);
 // /// ```

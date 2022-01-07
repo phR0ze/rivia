@@ -5,7 +5,7 @@
 /// use rivia_vfs::prelude::*;
 /// ```
 use crate::{Vfs};
-use rivia_core::*;
+use rivia::*;
 use std::fmt::Debug;
 use std::{
     fs::File,

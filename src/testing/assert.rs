@@ -64,7 +64,7 @@ pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()> {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// assert_setup!("tests/temp", "assert_setup_func");
@@ -118,7 +118,7 @@ macro_rules! assert_setup_func {
 ///
 /// ### Using the default `root` and `func_name` is fine if called from a named function
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// fn assert_setup_default() {
@@ -135,7 +135,7 @@ macro_rules! assert_setup_func {
 ///
 /// ### Doc tests don't have a named function and require the `func_name` param be overridden
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("assert_setup_custom_func");
@@ -149,7 +149,7 @@ macro_rules! assert_setup_func {
 ///
 /// ### `root` is treated as the first and `func_name` as the second when two params are given.
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("tests/temp/assert_setup_custom_root", "assert_setup_custom_func");
@@ -180,7 +180,7 @@ macro_rules! assert_setup {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("assert_exists");
@@ -204,7 +204,7 @@ macro_rules! assert_exists {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_no_exists!("tests/temp/assert_no_exists");
 /// assert_no_exists!("tests/temp/assert_no_exists/file");
@@ -226,7 +226,7 @@ macro_rules! assert_no_exists {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("assert_is_dir");
@@ -280,7 +280,7 @@ macro_rules! assert_no_dir {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("assert_is_file");
@@ -310,7 +310,7 @@ macro_rules! assert_is_file {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_no_file!("tests/temp/assert_no_file/file");
 /// ```
@@ -335,7 +335,7 @@ macro_rules! assert_no_file {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("assert_mkdir_p");
@@ -373,7 +373,7 @@ macro_rules! assert_mkdir_p {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("assert_mkfile");
@@ -414,7 +414,7 @@ macro_rules! assert_mkfile {
 ///
 /// ### Examples
 /// ```
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// assert_setup_func!();
 /// let tmpdir = assert_setup!("assert_remove");
@@ -478,7 +478,7 @@ macro_rules! assert_remove_all {
 ///
 /// ### Examples
 /// ```ignore,no_run
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// panic_msg!("assert_mkdir_p!", "failed to create directory", PathBuf::from("foo"));
 /// ```
@@ -498,7 +498,7 @@ macro_rules! panic_msg {
 ///
 /// ### Examples
 /// ```ignore,no_run
-/// use rivia_core::*;
+/// use rivia::*;
 ///
 /// panic_msg!("assert_mkdir_p!", "failed to create directory", PathBuf::from("foo"), PathBuf::from("foo"));
 /// ```

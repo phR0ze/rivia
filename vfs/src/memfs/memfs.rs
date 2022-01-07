@@ -5,7 +5,7 @@
 // /// use rivia_vfs::prelude::*;
 // /// ```
 // use crate::{Vfs, VfsPath};
-// use rivia_core::*;
+// use rivia::*;
 // use std::collections::HashMap;
 // use std::fmt::Debug;
 // use std::{

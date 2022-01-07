@@ -3,7 +3,7 @@
 //!
 //! ### Using the Rivia Core crate
 //! ```
-//! use rivia_core::*;
+//! use rivia::*;
 //! ```
 mod core;
 mod iter;

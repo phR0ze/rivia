@@ -1,3 +1,11 @@
+mod option;
+mod peekable;
+mod string;
+
+pub use option::*;
+pub use peekable::*;
+pub use string::*;
+
 use crate::errors::*;
 use std::{fmt, iter::Iterator};
 
@@ -289,7 +297,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{iter::*};
+    use crate::iters::*;
     use std::ffi::OsStr;
     use std::path::{Component, PathBuf};
 

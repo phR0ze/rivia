@@ -24,7 +24,7 @@ pub use file::*;
 pub use memfs::*;
 pub use stdfs::*;
 
-use rivia_core::*;
+use rivia::*;
 use lazy_static::lazy_static;
 use std::{
     fmt::Debug,
@@ -42,7 +42,7 @@ use std::{
 pub mod prelude
 {
     pub use crate::*;
-    pub use rivia_core::*;
+    pub use rivia::*;
 
     // Nest global vfs functions for ergonomics
     pub mod vfs {
