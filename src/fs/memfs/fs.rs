@@ -1,24 +1,31 @@
 use crate::{
     errors::*,
-    fs::{Entry, FileSystem, Stdfs, StdfsEntry, Vfs},
+    fs::{FileSystem, MemfsEntry, Stdfs, Vfs},
     iters::*,
 };
 use std::{
-    fs::{self, File},
+    collections::HashMap,
     path::{Component, Path, PathBuf},
-    os::unix::{
-        self,
-        fs::PermissionsExt,
-    },
 };
 
 /// `Memfs` is a Vfs backend implementation that is purely memory based
 #[derive(Debug)]
-pub struct Memfs;
-impl Memfs {
+pub struct Memfs
+{
+    cwd: PathBuf,                       // Current working directory
+    fs: HashMap<PathBuf, MemfsEntry>,   // filesystem
+}
+
+impl Memfs
+{
     /// Create a new instance of the Memfs Vfs backend implementation
     pub fn new() -> Self {
-        Self
+        let mut fs = HashMap::new();
+        fs.insert(PathBuf::from("/"), MemfsEntry::default());
+        Self {
+            cwd: PathBuf::from("/"),
+            fs
+        }
     }
 
     /// Return the path in an absolute clean form
@@ -26,11 +33,8 @@ impl Memfs {
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
-    /// let home = Stdfs::home_dir().unwrap();
-    /// assert_eq!(Stdfs::abs("~").unwrap(), PathBuf::from(&home));
     /// ```
-    pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
         let path = path.as_ref();
 
         // Check for empty string
@@ -71,6 +75,29 @@ impl Memfs {
         Ok(path_buf)
     }
 
+    /// Returns the current working directory as a [`PathBuf`].
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// println!("current working directory: {:?}", Memfs::cwd().unwrap());
+    /// ```
+    pub fn cwd(&self) -> RvResult<PathBuf> {
+        Ok(self.cwd.clone())
+    }
+
+    /// Returns the contents of the `path` as a `String`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    pub fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String> {
+        let path = self.abs(path.as_ref())?;
+        Ok("".to_string())
+    }
+
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does. If the path exists an isn't a file an error will be
     /// returned.
@@ -78,34 +105,11 @@ impl Memfs {
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
     /// ```
-    pub fn write_all<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
-        let path = Stdfs::abs(path)?;
+    pub fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()> {
+        let path = self.abs(path)?;
 
         Ok(())
-    }
-
-
-    /// Returns the contents of the `path` as a `String`.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_read");
-    /// let file1 = tmpdir.mash("file1");
-    /// assert!(Stdfs::write(&file1, "this is a test").is_ok());
-    /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
-    /// assert_stdfs_remove_all!(&tmpdir);
-    /// ```
-    pub fn read_all<T: AsRef<Path>>(path: T) -> RvResult<String> {
-        let path = Stdfs::abs(path.as_ref())?;
-        match std::fs::read_to_string(path) {
-            Ok(data) => Ok(data),
-            Err(err) => Err(err.into()),
-        }
     }
 }
 
@@ -114,20 +118,20 @@ impl FileSystem for Memfs
     /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
-        Memfs::abs(path)
+        self.abs(path)
     }
 
     /// Read all data from the given file and return it as a String
     fn read_all(&self, path: &Path) -> RvResult<String>
     {
-        Memfs::read_all(path)
+        self.read_all(path)
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
     fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
-        Memfs::write_all(path, data)
+        self.write_all(path, data)
     }
 
     /// Up cast the trait type to the enum wrapper
@@ -144,42 +148,9 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_stdfs_abs() -> RvResult<()> {
-        let cwd = Stdfs::cwd()?;
-        let prev = Stdfs::dir(&cwd)?;
-
-        // expand relative directory
-        assert_eq!(Stdfs::abs("foo")?, Stdfs::mash(&cwd, "foo"));
-
-        // expand previous directory and drop trailing slashes
-        assert_eq!(Stdfs::abs("..//")?, prev);
-        assert_eq!(Stdfs::abs("../")?, prev);
-        assert_eq!(Stdfs::abs("..")?, prev);
-
-        // expand current directory and drop trailing slashes
-        assert_eq!(Stdfs::abs(".//")?, cwd);
-        assert_eq!(Stdfs::abs("./")?, cwd);
-        assert_eq!(Stdfs::abs(".")?, cwd);
-
-        // home dir
-        let home = PathBuf::from(Stdfs::home_dir()?);
-        assert_eq!(Stdfs::abs("~")?, home);
-        assert_eq!(Stdfs::abs("~/")?, home);
-
-        // expand home path
-        assert_eq!(Stdfs::abs("~/foo")?, Stdfs::mash(&home, "foo"));
-
-        // More complicated
-        assert_eq!(Stdfs::abs("~/foo/bar/../.")?, Stdfs::mash(&home, "foo"));
-        assert_eq!(Stdfs::abs("~/foo/bar/../")?, Stdfs::mash(&home, "foo"));
-        assert_eq!(Stdfs::abs("~/foo/bar/../blah")?, Stdfs::mash(&home, "foo/blah"));
-
-        // Move up the path multiple levels
-        assert_eq!(Stdfs::abs("/foo/bar/blah/../../foo1")?, PathBuf::from("/foo/foo1"));
-        assert_eq!(Stdfs::abs("/../../foo")?, PathBuf::from("/foo"));
-
-        // Move up until invalid
-        assert_eq!(Stdfs::abs("../../../../../../../foo").unwrap_err().to_string(), PathError::ParentNotFound(PathBuf::from("/")).to_string());
+    fn test_memfs_cwd() -> RvResult<()> {
+        let memfs = Memfs::new();
+        assert_eq!(memfs.cwd()?, PathBuf::from("/"));
         Ok(())
     }
 }

@@ -1,15 +1,12 @@
 use crate::{
     errors::*,
-    fs::{VfsEntry, EntryIter, Entry, Stdfs},
+    fs::{VfsEntry, EntryIter, Entry},
     trying,
 };
 
 use std::{
-    cmp::Ordering,
-    ffi::OsStr,
     fmt::Debug,
     fs,
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 
@@ -29,16 +26,19 @@ pub struct MemfsEntry {
     link: bool,    // is this entry a link
     mode: u32,     // permission mode of the entry
     follow: bool,  // tracks if the path and alt have been switched
-    cached: bool,  // tracsk if properties have been cached
+    cached: bool,  // tracks if properties have been cached
 }
 
 impl Default for MemfsEntry {
-    fn default() -> Self {
+
+    /// Defaults to an empty directory
+    fn default() -> Self
+    {
         Self {
             data: vec![],
             path: PathBuf::new(),
             alt: PathBuf::new(),
-            dir: false,
+            dir: true,              // Set directory to true by default
             file: false,
             link: false,
             mode: 0,
@@ -65,72 +65,43 @@ impl Clone for MemfsEntry {
 }
 
 impl MemfsEntry {
-    /// Create a Memfs entry using the given properties
+    /// Create a Memfs entry for the given path
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub(crate) fn new<T: Into<PathBuf>>(
-        path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool,
-    ) -> Self {
+    pub(crate) fn new<T: Into<PathBuf>>(path: T) -> Self {
         MemfsEntry
         {
             data: vec![],
             path: path.into(),
-            alt: alt.into(),
-            dir,
-            file,
-            link,
-            mode,
-            follow,
-            cached
+            ..Default::default()
         }
     }
 
-    /// Create a Memfs entry from the given path. The path is always expanded, cleaned and
-    /// turned into an absolute value. Additionally filesystem properties are cached.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn from<T: AsRef<Path>>(path: T) -> RvResult<Self> {
-        let path = Stdfs::abs(path)?;
-        let mut link = false;
-        let mut alt = PathBuf::new();
-        let mut meta = fs::symlink_metadata(&path)?;
+    /// Set the entry to be a directory. Will automatically set file and link to false.
+    /// In order to have a link that points to a directory you need to call link() after this call.
+    pub fn dir(mut self) -> Self {
+        self.file = false;
+        self.link = false;
+        self.dir = true;
+        self
+    }
 
-        // Load link information for links
-        if meta.file_type().is_symlink() {
-            link = true;
-            let src = fs::read_link(&path)?;
+    /// Set the entry to be a file. Will automatically set dir and link to false.
+    /// In order to have a link that points to a file you need to call link() after this call.
+    pub fn file(mut self) -> Self {
+        self.dir = false;
+        self.link = false;
+        self.file = true;
+        self
+    }
 
-            // Ensure src is rooted properly
-            let rooted = if !src.is_absolute() {
-                Stdfs::mash(Stdfs::dir(&path)?, src)
-            } else {
-                src
-            };
-
-            // Set the link's source
-            alt = Stdfs::abs(rooted)?;
-
-            // Switch to the link's source metadata
-            meta = fs::metadata(&path)?;
-        }
-
-        Ok(MemfsEntry {
-            data: vec![],
-            path,
-            alt,
-            dir: meta.is_dir(),
-            file: meta.is_file(),
-            link,
-            mode: meta.permissions().mode(),
-            follow: false,
-            cached: true,
-        })
+    /// Set the entry to be a link
+    pub fn link(mut self) -> Self {
+        self.link = true;
+        self
     }
 
     /// Create an iterator from the given path to iterate over just the contents
@@ -305,12 +276,27 @@ impl Iterator for MemfsEntryIter {
     type Item = RvResult<VfsEntry>;
 
     fn next(&mut self) -> Option<RvResult<VfsEntry>> {
-        if let Some(value) = self.0.next() {
-            return Some(match MemfsEntry::from(&trying!(value).path()) {
-                Ok(x) => Ok(x.upcast()),
-                Err(e) => Err(e),
-            });
-        }
+        // if let Some(value) = self.0.next() {
+        //     return Some(match MemfsEntry::from(&trying!(value).path()) {
+        //         Ok(x) => Ok(x.upcast()),
+        //         Err(e) => Err(e),
+        //     });
+        // }
         None
+    }
+}
+
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests
+{
+    use crate::prelude::*;
+
+    #[test]
+    fn test_root_dir() -> RvResult<()> {
+        let memfs = Memfs::new();
+        let data = memfs.read_all(Path::new("/"))?;
+        Ok(())
     }
 }
