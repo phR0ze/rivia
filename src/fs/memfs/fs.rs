@@ -19,7 +19,8 @@ pub struct Memfs
 impl Memfs
 {
     /// Create a new instance of the Memfs Vfs backend implementation
-    pub fn new() -> Self {
+    pub fn new() -> Self
+    {
         let mut fs = HashMap::new();
         fs.insert(PathBuf::from("/"), MemfsEntry::default());
         Self {
@@ -28,15 +29,30 @@ impl Memfs
         }
     }
 
+    /// Returns the current working directory as a [`PathBuf`].
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// println!("current working directory: {:?}", Memfs::cwd().unwrap());
+    /// ```
+    pub fn cwd(&self) -> RvResult<PathBuf> {
+        Ok(self.cwd.clone())
+    }
+}
+
+impl FileSystem for Memfs
+{
     /// Return the path in an absolute clean form
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
     /// ```
-    pub fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
-        let path = path.as_ref();
-
+    fn abs(&self, path: &Path) -> RvResult<PathBuf>
+    {
         // Check for empty string
         if Stdfs::is_empty(path) {
             return Err(PathError::Empty.into());
@@ -75,66 +91,39 @@ impl Memfs
         Ok(path_buf)
     }
 
-    /// Returns the current working directory as a [`PathBuf`].
+    /// Read all data from the given file and return it as a String
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// println!("current working directory: {:?}", Memfs::cwd().unwrap());
     /// ```
-    pub fn cwd(&self) -> RvResult<PathBuf> {
-        Ok(self.cwd.clone())
-    }
-
-    /// Returns the contents of the `path` as a `String`.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String> {
+    fn read_all(&self, path: &Path) -> RvResult<String>
+    {
         let path = self.abs(path.as_ref())?;
         Ok("".to_string())
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does. If the path exists an isn't a file an error will be
-    /// returned.
-    /// 
+    /// or truncating it first if it does.
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
     /// ```
-    pub fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()> {
-        let path = self.abs(path)?;
-
-        Ok(())
-    }
-}
-
-impl FileSystem for Memfs
-{
-    /// Return the path in an absolute clean form
-    fn abs(&self, path: &Path) -> RvResult<PathBuf>
-    {
-        self.abs(path)
-    }
-
-    /// Read all data from the given file and return it as a String
-    fn read_all(&self, path: &Path) -> RvResult<String>
-    {
-        self.read_all(path)
-    }
-
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does.
     fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
-        self.write_all(path, data)
+        Ok(())
     }
 
     /// Up cast the trait type to the enum wrapper
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// ```
     fn upcast(self) -> Vfs {
         Vfs::Memfs(self)
     }

@@ -111,7 +111,8 @@ impl MemfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter> {
+    pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter>
+    {
         Ok(EntryIter {
             path: path.to_path_buf(),
             cached: false,
@@ -126,7 +127,8 @@ impl MemfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn follow(mut self, follow: bool) -> Self {
+    pub fn follow(mut self, follow: bool) -> Self
+    {
         if follow && !self.follow {
             self.follow = true;
             if self.link {
@@ -139,7 +141,8 @@ impl MemfsEntry {
     }
 }
 
-impl Entry for MemfsEntry {
+impl Entry for MemfsEntry
+{
     /// `path` reports the actual file or directory when `is_symlink` reports false. When
     /// `is_symlink` reports true and `follow` reports true `path` will report the actual file
     /// or directory that the link points to and `alt` will report the link's path. When
