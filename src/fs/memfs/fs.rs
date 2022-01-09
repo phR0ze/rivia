@@ -1,19 +1,20 @@
+use std::{
+    collections::HashMap,
+    path::{Component, Path, PathBuf},
+};
+
 use crate::{
     errors::*,
     fs::{FileSystem, MemfsEntry, Stdfs, Vfs},
     iters::*,
-};
-use std::{
-    collections::HashMap,
-    path::{Component, Path, PathBuf},
 };
 
 /// `Memfs` is a Vfs backend implementation that is purely memory based
 #[derive(Debug)]
 pub struct Memfs
 {
-    cwd: PathBuf,                       // Current working directory
-    fs: HashMap<PathBuf, MemfsEntry>,   // filesystem
+    cwd: PathBuf,                     // Current working directory
+    fs: HashMap<PathBuf, MemfsEntry>, // filesystem
 }
 
 impl Memfs
@@ -25,7 +26,7 @@ impl Memfs
         fs.insert(PathBuf::from("/"), MemfsEntry::default());
         Self {
             cwd: PathBuf::from("/"),
-            fs
+            fs,
         }
     }
 
@@ -37,7 +38,8 @@ impl Memfs
     ///
     /// println!("current working directory: {:?}", Memfs::cwd().unwrap());
     /// ```
-    pub fn cwd(&self) -> RvResult<PathBuf> {
+    pub fn cwd(&self) -> RvResult<PathBuf>
+    {
         Ok(self.cwd.clone())
     }
 }
@@ -49,7 +51,6 @@ impl FileSystem for Memfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
     /// ```
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
@@ -77,12 +78,12 @@ impl FileSystem for Memfs
                     },
                     Component::ParentDir => {
                         if curr.to_string()? == "/" {
-                        return Err(PathError::ParentNotFound(curr).into());
+                            return Err(PathError::ParentNotFound(curr).into());
                         }
                         curr = Stdfs::dir(curr)?;
                         path_buf = Stdfs::trim_first(path_buf);
                     },
-                    _ => return Ok(Stdfs::mash(curr, path_buf))
+                    _ => return Ok(Stdfs::mash(curr, path_buf)),
                 };
             }
             return Ok(curr);
@@ -96,7 +97,6 @@ impl FileSystem for Memfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
     /// ```
     fn read_all(&self, path: &Path) -> RvResult<String>
     {
@@ -104,13 +104,12 @@ impl FileSystem for Memfs
         Ok("".to_string())
     }
 
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does.
+    /// Write the given data to to the indicated file creating the file first if it doesn't exist or
+    /// truncating it first if it does.
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
     /// ```
     fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
@@ -122,9 +121,9 @@ impl FileSystem for Memfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
     /// ```
-    fn upcast(self) -> Vfs {
+    fn upcast(self) -> Vfs
+    {
         Vfs::Memfs(self)
     }
 }
@@ -137,7 +136,8 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_memfs_cwd() -> RvResult<()> {
+    fn test_memfs_cwd() -> RvResult<()>
+    {
         let memfs = Memfs::new();
         assert_eq!(memfs.cwd()?, PathBuf::from("/"));
         Ok(())
