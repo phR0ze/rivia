@@ -1,10 +1,11 @@
-pub trait OptionExt<T> {
+pub trait OptionExt<T>
+{
     fn has<U>(&self, value: U) -> bool
-    where
-        U: PartialEq<T>;
+    where U: PartialEq<T>;
 }
 
-impl<T> OptionExt<T> for Option<T> {
+impl<T> OptionExt<T> for Option<T>
+{
     /// Returns `true` if the option is a [`Some`] value containing the given value.
     ///
     /// # Examples
@@ -21,8 +22,7 @@ impl<T> OptionExt<T> for Option<T> {
     /// assert!(!x.has(2));
     /// ```
     fn has<U>(&self, x: U) -> bool
-    where
-        U: PartialEq<T>,
+    where U: PartialEq<T>
     {
         match self {
             Some(y) => x == *y,
@@ -32,12 +32,15 @@ impl<T> OptionExt<T> for Option<T> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod tests
+{
     use std::path::Component;
 
+    use super::*;
+
     #[test]
-    fn test_has() {
+    fn test_has()
+    {
         assert!(Some(Component::ParentDir).has(Component::ParentDir));
         assert_eq!(Some(Component::ParentDir).has(Component::ParentDir), true);
         assert_eq!(None.has(Component::ParentDir), false);

@@ -1,30 +1,31 @@
-use crate::{
-    errors::*,
-    fs::{Entry, FileSystem, StdfsEntry, Vfs},
-    iters::*,
+use std::{
+    fs::{self, File},
+    io::Write,
+    os::unix::{self, fs::PermissionsExt},
+    path::{Component, Path, PathBuf},
+    time::SystemTime,
 };
+
 use nix::sys::{
     stat::{self, UtimensatFlags},
     time::TimeSpec,
 };
-use std::{
-    fs::{self, File},
-    io::Write,
-    path::{Component, Path, PathBuf},
-    os::unix::{
-        self,
-        fs::PermissionsExt,
-    },
-    time::SystemTime,
+
+use crate::{
+    errors::*,
+    fs::{Entry, FileSystem, StdfsEntry, Vfs},
+    iters::*,
 };
 
 /// `Stdfs` is a Vfs backend implementation that wraps the standard library `std::fs`
 /// functions for use with Vfs.
 #[derive(Debug)]
 pub struct Stdfs;
-impl Stdfs {
+impl Stdfs
+{
     /// Create a new instance of the Stdfs Vfs backend implementation
-    pub fn new() -> Self {
+    pub fn new() -> Self
+    {
         Self
     }
 
@@ -37,7 +38,8 @@ impl Stdfs {
     /// let home = Stdfs::home_dir().unwrap();
     /// assert_eq!(Stdfs::abs("~").unwrap(), PathBuf::from(&home));
     /// ```
-    pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
         let path = path.as_ref();
 
         // Check for empty string
@@ -64,12 +66,12 @@ impl Stdfs {
                     },
                     Component::ParentDir => {
                         if curr.to_string()? == "/" {
-                        return Err(PathError::ParentNotFound(curr).into());
+                            return Err(PathError::ParentNotFound(curr).into());
                         }
                         curr = Stdfs::dir(curr)?;
                         path_buf = Stdfs::trim_first(path_buf);
                     },
-                    _ => return Ok(Stdfs::mash(curr, path_buf))
+                    _ => return Ok(Stdfs::mash(curr, path_buf)),
                 };
             }
             return Ok(curr);
@@ -86,9 +88,12 @@ impl Stdfs {
     ///
     /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
     /// ```
-    pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String> {
+    pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
+    {
         let path = path.as_ref();
-        path.file_name().ok_or_else(|| PathError::filename_not_found(path))?.to_string()
+        path.file_name()
+            .ok_or_else(|| PathError::filename_not_found(path))?
+            .to_string()
     }
 
     /// Set the given mode for the `Path`
@@ -107,7 +112,8 @@ impl Stdfs {
     /// assert_eq!(file1.mode().unwrap(), 0o100555);
     /// assert_remove_all!(&tmpdir);
     /// ```
-    pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<()> {
+    pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<()>
+    {
         fs::set_permissions(path.as_ref(), fs::Permissions::from_mode(mode))?;
         Ok(())
     }
@@ -134,7 +140,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Stdfs::clean("./foo/./bar").unwrap(), PathBuf::from("foo/bar"));
     /// ```
-    pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
         // Components already handles the following cases:
         // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
         // 2. Occurrences of . are normalized away, except if they are at the beginning of the path.
@@ -213,7 +220,8 @@ impl Stdfs {
     ///
     /// println!("current working directory: {:?}", Stdfs::cwd().unwrap());
     /// ```
-    pub fn cwd() -> RvResult<PathBuf> {
+    pub fn cwd() -> RvResult<PathBuf>
+    {
         let path = std::env::current_dir()?;
         Ok(path)
     }
@@ -226,9 +234,12 @@ impl Stdfs {
     ///
     /// assert_eq!(Stdfs::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
     /// ```
-    pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
         let path = path.as_ref();
-        let dir = path.parent().ok_or_else(|| PathError::parent_not_found(path))?;
+        let dir = path
+            .parent()
+            .ok_or_else(|| PathError::parent_not_found(path))?;
         Ok(dir.to_path_buf())
     }
 
@@ -240,7 +251,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Path::new("/etc").exists(), true);
     /// ```
-    pub fn exists<T: AsRef<Path>>(path: T) -> bool {
+    pub fn exists<T: AsRef<Path>>(path: T) -> bool
+    {
         match Stdfs::abs(path) {
             Ok(abs) => fs::metadata(abs).is_ok(),
             Err(_) => false,
@@ -258,16 +270,15 @@ impl Stdfs {
     /// assert_eq!(Stdfs::expand("$HOME/foo").unwrap(), PathBuf::from(&home).join("foo"));
     /// assert_eq!(Stdfs::expand("${HOME}/foo").unwrap(), PathBuf::from(&home).join("foo"));
     /// ```
-    pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
         let path = path.as_ref();
         let pathstr = path.to_string()?;
 
         // Expand home directory
         let path = match pathstr.matches('~').count() {
             // Only a single home expansion is allowed
-            cnt if cnt > 1 => {
-                return Err(PathError::multiple_home_symbols(path).into())
-            },
+            cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(path).into()),
 
             // Home expansion only makes sense at the beinging of a path
             cnt if cnt == 1 && !Stdfs::has_prefix(path, "~/") && pathstr != "~" => {
@@ -275,9 +286,7 @@ impl Stdfs {
             },
 
             // Single tilda only
-            cnt if cnt == 1 && pathstr == "~" => {
-                Stdfs::home_dir()?
-            },
+            cnt if cnt == 1 && pathstr == "~" => Stdfs::home_dir()?,
 
             // Replace prefix with home directory
             1 => Stdfs::mash(Stdfs::home_dir()?, &pathstr[2..]),
@@ -295,15 +304,16 @@ impl Stdfs {
                         let seg = y.to_string()?;
                         let mut chars = seg.chars().peekable();
 
-                        while chars.peek().is_some()
-                        {
+                        while chars.peek().is_some() {
                             // Extract chars up to $ and consumes $ as it has to look at it
                             str += &chars.by_ref().take_while(|&x| x != '$').collect::<String>();
 
                             // Read variable if it exists
                             if chars.peek().is_some() {
                                 chars.next_if_eq(&'{'); // drop {
-                                let var = &chars.take_while_p(|&x| x != '$' && x != '}').collect::<String>();
+                                let var = &chars
+                                    .take_while_p(|&x| x != '$' && x != '}')
+                                    .collect::<String>();
                                 chars.next_if_eq(&'}'); // drop }
                                 if var == "" {
                                     return Err(PathError::invalid_expansion(seg).into());
@@ -379,7 +389,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::has_prefix(&path, "/foo"), true);
     /// assert_eq!(Stdfs::has_prefix(&path, "foo"), false);
     /// ```
-    pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool {
+    pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool
+    {
         match (path.as_ref().to_string(), prefix.as_ref().to_string()) {
             (Ok(base), Ok(prefix)) => base.starts_with(&prefix),
             _ => false,
@@ -414,7 +425,8 @@ impl Stdfs {
     ///
     /// assert!(Stdfs::home_dir().is_ok());
     /// ```
-    pub fn home_dir() -> RvResult<PathBuf> {
+    pub fn home_dir() -> RvResult<PathBuf>
+    {
         let home = std::env::var("HOME")?;
         let dir = PathBuf::from(home);
         Ok(dir)
@@ -433,7 +445,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::is_dir(&tmpdir), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn is_dir<T: AsRef<Path>>(path: T) -> bool {
+    pub fn is_dir<T: AsRef<Path>>(path: T) -> bool
+    {
         match fs::symlink_metadata(path.as_ref()) {
             Ok(x) => !x.file_type().is_symlink() && x.is_dir(),
             _ => false,
@@ -456,7 +469,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::is_file(&file1), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
+    pub fn is_file<T: AsRef<Path>>(path: T) -> bool
+    {
         match fs::symlink_metadata(path.as_ref()) {
             Ok(x) => !x.file_type().is_symlink() && x.is_file(),
             _ => false,
@@ -471,7 +485,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Stdfs::is_empty(""), true);
     /// ```
-    pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
+    pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool
+    {
         path.into() == PathBuf::new()
     }
 
@@ -610,7 +625,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Stdfs::mash("/foo", "/bar"), PathBuf::from("/foo/bar"));
     /// ```
-    pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
+    pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf
+    {
         let base = Stdfs::trim_prefix(base, "/");
         let path = dir.as_ref().join(base);
         path.components().collect::<PathBuf>()
@@ -629,7 +645,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::mode(&dir1).unwrap(), 0o40555);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn mkdir_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf> {
+    pub fn mkdir_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf>
+    {
         let path = Stdfs::abs(path)?;
 
         // For each directory created apply the same permission given
@@ -663,7 +680,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::exists(&dir1), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn mkdir_p<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn mkdir_p<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
         let path = Stdfs::abs(path)?;
 
         // Doesn't error out if it exists
@@ -689,7 +707,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::mode(&file1).unwrap(), 0o100555);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn mode<T: AsRef<Path>>(path: T) -> RvResult<u32> {
+    pub fn mode<T: AsRef<Path>>(path: T) -> RvResult<u32>
+    {
         let path = Stdfs::abs(path)?;
         let meta = fs::symlink_metadata(path)?;
         Ok(meta.permissions().mode())
@@ -703,7 +722,8 @@ impl Stdfs {
     ///
     /// assert_eq!(StdPathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
     /// ```
-    pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
+    pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String>
+    {
         Stdfs::base(Stdfs::trim_ext(path)?)
     }
 
@@ -720,7 +740,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn read_all<T: AsRef<Path>>(path: T) -> RvResult<String> {
+    pub fn read_all<T: AsRef<Path>>(path: T) -> RvResult<String>
+    {
         let path = Stdfs::abs(path.as_ref())?;
         match std::fs::read_to_string(path) {
             Ok(data) => Ok(data),
@@ -764,7 +785,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::readlink_abs(link1).unwrap(), file1);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn readlink_abs<T: AsRef<Path>>(link: T) -> RvResult<PathBuf> {
+    pub fn readlink_abs<T: AsRef<Path>>(link: T) -> RvResult<PathBuf>
+    {
         Ok(StdfsEntry::from(link.as_ref())?.alt_buf())
     }
 
@@ -782,7 +804,8 @@ impl Stdfs {
     ///     PathBuf::from("../bar1")
     /// );
     /// ```
-    pub fn relative<T: AsRef<Path>, U: AsRef<Path>>(path: T, base: U) -> RvResult<PathBuf> {
+    pub fn relative<T: AsRef<Path>, U: AsRef<Path>>(path: T, base: U) -> RvResult<PathBuf>
+    {
         let path = Stdfs::abs(path)?;
         let base = Stdfs::abs(base)?;
         if path != base {
@@ -840,7 +863,8 @@ impl Stdfs {
     /// assert!(Stdfs::remove(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
-    pub fn remove<T: AsRef<Path>>(path: T) -> RvResult<()> {
+    pub fn remove<T: AsRef<Path>>(path: T) -> RvResult<()>
+    {
         let path = Stdfs::abs(path)?;
         if let Ok(meta) = fs::metadata(&path) {
             if meta.is_file() {
@@ -864,7 +888,8 @@ impl Stdfs {
     /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
-    pub fn remove_all<T: AsRef<Path>>(path: T) -> RvResult<()> {
+    pub fn remove_all<T: AsRef<Path>>(path: T) -> RvResult<()>
+    {
         let path = Stdfs::abs(path)?;
         if Stdfs::exists(&path) {
             fs::remove_dir_all(path)?;
@@ -946,7 +971,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::readlink(&link1).unwrap(), PathBuf::from("file1"));
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> RvResult<PathBuf> {
+    pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> RvResult<PathBuf>
+    {
         let src = src.as_ref().to_owned();
 
         // Ensure dst is rooted properly standard lookup
@@ -985,7 +1011,8 @@ impl Stdfs {
     /// assert_eq!(Stdfs::is_file(&file1), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
-    pub fn touch<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn touch<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
         let path = Stdfs::abs(path)?;
         let meta = fs::symlink_metadata(&path);
         if let Err(_) = meta {
@@ -1006,12 +1033,20 @@ impl Stdfs {
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
     /// ```
-    pub fn set_file_time<T: AsRef<Path>>(path: T, atime: SystemTime, mtime: SystemTime) -> RvResult<()> {
+    pub fn set_file_time<T: AsRef<Path>>(
+        path: T, atime: SystemTime, mtime: SystemTime,
+    ) -> RvResult<()>
+    {
         let atime_spec = TimeSpec::from(atime.duration_since(std::time::UNIX_EPOCH)?);
         let mtime_spec = TimeSpec::from(mtime.duration_since(std::time::UNIX_EPOCH)?);
-        stat::utimensat(None, path.as_ref(), &atime_spec, &mtime_spec, UtimensatFlags::NoFollowSymlink)?;
+        stat::utimensat(
+            None,
+            path.as_ref(),
+            &atime_spec,
+            &mtime_spec,
+            UtimensatFlags::NoFollowSymlink,
+        )?;
         Ok(())
     }
 
@@ -1023,7 +1058,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
     /// ```
-    pub fn trim_ext<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
+    pub fn trim_ext<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
         let path = path.as_ref();
         Ok(match path.extension() {
             Some(val) => Stdfs::trim_suffix(path, format!(".{}", val.to_string()?)),
@@ -1039,7 +1075,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Stdfs::trim_first("/foo"), PathBuf::from("foo"));
     /// ```
-    pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf {
+    pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf
+    {
         path.as_ref().components().drop(1).as_path().to_path_buf()
     }
 
@@ -1063,7 +1100,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Stdfs::trim_prefix("/foo/bar", "/foo"), PathBuf::from("/bar"));
     /// ```
-    pub fn trim_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> PathBuf {
+    pub fn trim_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> PathBuf
+    {
         let path = path.as_ref();
         match (path.to_string(), prefix.as_ref().to_string()) {
             (Ok(base), Ok(prefix)) if base.starts_with(&prefix) => {
@@ -1082,7 +1120,8 @@ impl Stdfs {
     ///
     /// assert_eq!(Stdfs::trim_protocol("ftp://foo"), PathBuf::from("foo"));
     /// ```
-    pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf {
+    pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf
+    {
         let path = path.as_ref();
         match path.to_string() {
             Ok(base) => match base.find("//") {
@@ -1113,7 +1152,8 @@ impl Stdfs {
     ///
     /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
     /// ```
-    pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBuf {
+    pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBuf
+    {
         let path = path.as_ref();
         match (path.to_string(), suffix.as_ref().to_string()) {
             (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => {
@@ -1138,13 +1178,13 @@ impl Stdfs {
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does. If the path exists an isn't a file an error will be
     /// returned.
-    /// 
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
     /// ```
-    pub fn write_all<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()> {
+    pub fn write_all<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()>
+    {
         let path = Stdfs::abs(path)?;
         if Stdfs::exists(&path) && !Stdfs::is_file(&path) {
             return Err(PathError::IsNotFile(path).into());
@@ -1182,7 +1222,8 @@ impl FileSystem for Stdfs
     }
 
     /// Up cast the trait type to the enum wrapper
-    fn upcast(self) -> Vfs {
+    fn upcast(self) -> Vfs
+    {
         Vfs::Stdfs(self)
     }
 }
@@ -1195,7 +1236,8 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_stdfs_abs() -> RvResult<()> {
+    fn test_stdfs_abs() -> RvResult<()>
+    {
         let cwd = Stdfs::cwd()?;
         let prev = Stdfs::dir(&cwd)?;
 
@@ -1230,12 +1272,18 @@ mod tests
         assert_eq!(Stdfs::abs("/../../foo")?, PathBuf::from("/foo"));
 
         // Move up until invalid
-        assert_eq!(Stdfs::abs("../../../../../../../foo").unwrap_err().to_string(), PathError::ParentNotFound(PathBuf::from("/")).to_string());
+        assert_eq!(
+            Stdfs::abs("../../../../../../../foo")
+                .unwrap_err()
+                .to_string(),
+            PathError::ParentNotFound(PathBuf::from("/")).to_string()
+        );
         Ok(())
     }
 
     #[test]
-    fn test_stdfs_clean() {
+    fn test_stdfs_clean()
+    {
         let tests = vec![
             // Root
             ("/", "/"),
@@ -1286,8 +1334,9 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_dirname() {
-        assert_eq!(Stdfs::dir("/foo/").unwrap(), PathBuf::from("/").as_path(), );
+    fn test_stdfs_dirname()
+    {
+        assert_eq!(Stdfs::dir("/foo/").unwrap(), PathBuf::from("/").as_path(),);
         assert_eq!(Stdfs::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
     }
 
@@ -1309,10 +1358,16 @@ mod tests
         let home = Stdfs::home_dir()?;
 
         // Multiple home symbols should fail
-        assert_eq!(Stdfs::expand("~/~").unwrap_err().to_string(), PathError::multiple_home_symbols("~/~").to_string());
+        assert_eq!(
+            Stdfs::expand("~/~").unwrap_err().to_string(),
+            PathError::multiple_home_symbols("~/~").to_string()
+        );
 
         // Only home expansion at the begining of the path is allowed
-        assert_eq!(Stdfs::expand("foo/~").unwrap_err().to_string(), PathError::invalid_expansion("foo/~").to_string());
+        assert_eq!(
+            Stdfs::expand("foo/~").unwrap_err().to_string(),
+            PathError::invalid_expansion("foo/~").to_string()
+        );
 
         // Tilda only
         assert_eq!(Stdfs::expand("~")?, PathBuf::from(&home));
@@ -1324,15 +1379,28 @@ mod tests
         assert_eq!(Stdfs::expand("${HOME}")?, PathBuf::from(&home));
         assert_eq!(Stdfs::expand("${HOME}/foo")?, PathBuf::from(&home).join("foo"));
         assert_eq!(Stdfs::expand("/foo/${HOME}")?, PathBuf::from("/foo").join(&home));
-        assert_eq!(Stdfs::expand("/foo/${HOME}/bar")?, PathBuf::from("/foo").join(&home).join("bar"));
-        assert_eq!(Stdfs::expand("/foo${HOME}/bar")?, PathBuf::from("/foo".to_string() + &home.to_string()? + &"/bar".to_string()));
-        assert_eq!(Stdfs::expand("/foo${HOME}${HOME}")?, PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?));
-        assert_eq!(Stdfs::expand("/foo$HOME$HOME")?, PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?));
+        assert_eq!(
+            Stdfs::expand("/foo/${HOME}/bar")?,
+            PathBuf::from("/foo").join(&home).join("bar")
+        );
+        assert_eq!(
+            Stdfs::expand("/foo${HOME}/bar")?,
+            PathBuf::from("/foo".to_string() + &home.to_string()? + &"/bar".to_string())
+        );
+        assert_eq!(
+            Stdfs::expand("/foo${HOME}${HOME}")?,
+            PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?)
+        );
+        assert_eq!(
+            Stdfs::expand("/foo$HOME$HOME")?,
+            PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?)
+        );
         Ok(())
     }
 
     #[test]
-    fn test_stdfs_has_prefix() {
+    fn test_stdfs_has_prefix()
+    {
         let path = PathBuf::from("/foo/bar");
         assert_eq!(Stdfs::has_prefix(&path, "/foo"), true);
         assert_eq!(Stdfs::has_prefix(&path, "foo"), false);
@@ -1370,8 +1438,9 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_trim_first() {
-        assert_eq!(Stdfs::trim_first("/"), PathBuf::new(), );
+    fn test_stdfs_trim_first()
+    {
+        assert_eq!(Stdfs::trim_first("/"), PathBuf::new(),);
         assert_eq!(Stdfs::trim_first("/foo"), PathBuf::from("foo"));
     }
 

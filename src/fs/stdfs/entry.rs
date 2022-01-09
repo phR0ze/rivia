@@ -1,9 +1,3 @@
-use crate::{
-    errors::*,
-    fs::{VfsEntry, EntryIter, Entry, Stdfs},
-    trying,
-};
-
 use std::{
     cmp::Ordering,
     ffi::OsStr,
@@ -11,6 +5,12 @@ use std::{
     fs,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
+};
+
+use crate::{
+    errors::*,
+    fs::{Entry, EntryIter, Stdfs, VfsEntry},
+    trying,
 };
 
 /// # StdfsEntry provides a virtual filesystem backend implementation for a Stdfs Entry.
@@ -39,7 +39,8 @@ use std::{
 /// to. With Paths controlling this behavior Entry should behave intuitiveely. However if different
 /// behavior is desired checking the `follow` and `is_
 #[derive(Debug, PartialEq, Eq)]
-pub struct StdfsEntry {
+pub struct StdfsEntry
+{
     path: PathBuf, // path of the entry
     alt: PathBuf,  // alternate path for the entry, used with links
     dir: bool,     // is this entry a dir
@@ -50,8 +51,10 @@ pub struct StdfsEntry {
     cached: bool,  // tracsk if properties have been cached
 }
 
-impl Default for StdfsEntry {
-    fn default() -> Self {
+impl Default for StdfsEntry
+{
+    fn default() -> Self
+    {
         Self {
             path: PathBuf::new(),
             alt: PathBuf::new(),
@@ -65,8 +68,10 @@ impl Default for StdfsEntry {
     }
 }
 
-impl Clone for StdfsEntry {
-    fn clone(&self) -> Self {
+impl Clone for StdfsEntry
+{
+    fn clone(&self) -> Self
+    {
         Self {
             path: self.path.clone(),
             alt: self.alt.clone(),
@@ -92,7 +97,16 @@ impl StdfsEntry
         path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool,
     ) -> Self
     {
-        StdfsEntry { path: path.into(), alt: alt.into(), dir, file, link, mode, follow, cached }
+        StdfsEntry {
+            path: path.into(),
+            alt: alt.into(),
+            dir,
+            file,
+            link,
+            mode,
+            follow,
+            cached,
+        }
     }
 
     /// Create a Stdfs entry from the given path. The path is always expanded, cleaned and
@@ -102,7 +116,8 @@ impl StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn from<T: AsRef<Path>>(path: T) -> RvResult<Self> {
+    pub fn from<T: AsRef<Path>>(path: T) -> RvResult<Self>
+    {
         let path = Stdfs::abs(path)?;
         let mut link = false;
         let mut alt = PathBuf::new();
@@ -146,7 +161,8 @@ impl StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter> {
+    pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter>
+    {
         Ok(EntryIter {
             path: path.to_path_buf(),
             cached: false,
@@ -161,7 +177,8 @@ impl StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn follow(mut self, follow: bool) -> Self {
+    pub fn follow(mut self, follow: bool) -> Self
+    {
         if follow && !self.follow {
             self.follow = true;
             if self.link {
@@ -174,7 +191,8 @@ impl StdfsEntry
     }
 }
 
-impl Entry for StdfsEntry {
+impl Entry for StdfsEntry
+{
     /// `path` reports the actual file or directory when `is_symlink` reports false. When
     /// `is_symlink` reports true and `follow` reports true `path` will report the actual file
     /// or directory that the link points to and `alt` will report the link's path. When
@@ -185,7 +203,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn path(&self) -> &Path {
+    fn path(&self) -> &Path
+    {
         &self.path
     }
 
@@ -195,7 +214,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn path_buf(self) -> PathBuf {
+    fn path_buf(self) -> PathBuf
+    {
         self.path
     }
 
@@ -209,7 +229,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn alt(&self) -> &Path {
+    fn alt(&self) -> &Path
+    {
         &self.alt
     }
 
@@ -219,7 +240,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn alt_buf(self) -> PathBuf {
+    fn alt_buf(self) -> PathBuf
+    {
         self.alt
     }
 
@@ -229,7 +251,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn follow(self, follow: bool) -> VfsEntry {
+    fn follow(self, follow: bool) -> VfsEntry
+    {
         VfsEntry::Stdfs(self.follow(follow))
     }
 
@@ -239,7 +262,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn following(&self) -> bool {
+    fn following(&self) -> bool
+    {
         self.follow
     }
 
@@ -249,7 +273,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_dir(&self) -> bool {
+    fn is_dir(&self) -> bool
+    {
         self.dir
     }
 
@@ -259,7 +284,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_file(&self) -> bool {
+    fn is_file(&self) -> bool
+    {
         self.file
     }
 
@@ -269,7 +295,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_symlink(&self) -> bool {
+    fn is_symlink(&self) -> bool
+    {
         self.link
     }
 
@@ -279,7 +306,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn mode(&self) -> u32 {
+    fn mode(&self) -> u32
+    {
         self.mode
     }
 
@@ -290,7 +318,8 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn iter(&self) -> RvResult<EntryIter> {
+    fn iter(&self) -> RvResult<EntryIter>
+    {
         StdfsEntry::iter(&self.path, false)
     }
 
@@ -300,17 +329,20 @@ impl Entry for StdfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn upcast(self) -> VfsEntry {
+    fn upcast(self) -> VfsEntry
+    {
         VfsEntry::Stdfs(self)
     }
 }
 
 #[derive(Debug)]
 struct StdfsEntryIter(fs::ReadDir);
-impl Iterator for StdfsEntryIter {
+impl Iterator for StdfsEntryIter
+{
     type Item = RvResult<VfsEntry>;
 
-    fn next(&mut self) -> Option<RvResult<VfsEntry>> {
+    fn next(&mut self) -> Option<RvResult<VfsEntry>>
+    {
         if let Some(value) = self.0.next() {
             return Some(match StdfsEntry::from(&trying!(value).path()) {
                 Ok(x) => Ok(x.upcast()),

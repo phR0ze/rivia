@@ -1,10 +1,11 @@
-use crate::{
-    errors::*,
-    fs::{Memfs, Stdfs},
-};
 use std::{
     fmt::Debug,
     path::{Path, PathBuf},
+};
+
+use crate::{
+    errors::*,
+    fs::{Memfs, Stdfs},
 };
 
 // Vfs trait
@@ -16,7 +17,6 @@ use std::{
 /// functionality only purely in memory.
 pub trait FileSystem: Debug+Send+Sync+'static
 {
-
     /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>;
 
@@ -37,7 +37,6 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Up cast the trait type to the enum wrapper
     fn upcast(self) -> Vfs;
 }
-
 
 /// Vfs enum wrapper provides easy access to the underlying filesystem type
 #[derive(Debug)]
@@ -110,8 +109,8 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_fs_stdfs_read_write() -> RvResult<()> {
-
+    fn test_fs_stdfs_read_write() -> RvResult<()>
+    {
         // Manually doing this as I want to show the switching of vfs backends
         let tmpdir = Stdfs::mash(testing::TEST_TEMP_DIR, "test_fs_stdfs_read_write");
         assert_stdfs_remove_all!(&tmpdir);

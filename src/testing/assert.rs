@@ -2,12 +2,14 @@
 //!
 //! ## For testing only
 //! All code in this module should only ever be used in testing and not in production.
-use crate::errors::*;
-use lazy_static::lazy_static;
 use std::{
     panic,
     sync::{Arc, Mutex},
 };
+
+use lazy_static::lazy_static;
+
+use crate::errors::*;
 
 // Setup a simple counter to track if a custom panic handler should be used. Mutex is used to ensure
 // a single thread is accessing the buffer at a time, but mutex itself is not thread safe so we
@@ -19,7 +21,8 @@ lazy_static! {
 /// Capture any unwinding panics, i.e. doesn't catch aborts, that may occur while executing the
 /// given closure. Any panics captured will be converted into a FnResult with the SimpleError::Msg
 /// type returned containing the panic output. This function is multi-thread safe.
-pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()> {
+pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()>
+{
     {
         // Lock and increment the panic handler tracker within a block to trigger unlock
         let arc = USE_PANIC_HANDLER.clone();
@@ -72,12 +75,17 @@ pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()> {
 #[macro_export]
 macro_rules! assert_stdfs_setup_func {
     () => {
-        fn setup<T: AsRef<Path>, U: AsRef<Path>>(root: T, func_name: U) -> PathBuf {
+        fn setup<T: AsRef<Path>, U: AsRef<Path>>(root: T, func_name: U) -> PathBuf
+        {
             // Validate the root path and function name
             if Stdfs::is_empty(root.as_ref()) {
                 panic_msg!("assert_stdfs_setup_func!", "root path is empty", root.as_ref());
             } else if Stdfs::is_empty(func_name.as_ref()) {
-                panic_msg!("assert_stdfs_setup_func!", "function name is empty", func_name.as_ref());
+                panic_msg!(
+                    "assert_stdfs_setup_func!",
+                    "function name is empty",
+                    func_name.as_ref()
+                );
             }
 
             // Resolve absolute path of target
@@ -95,18 +103,22 @@ macro_rules! assert_stdfs_setup_func {
             // Create the target directory
             match Stdfs::mkdir_p(&target) {
                 Ok(dir) => dir,
-                _ => panic_msg!("assert_stdfs_setup_func!", "failed while creating directory", &target),
+                _ => panic_msg!(
+                    "assert_stdfs_setup_func!",
+                    "failed while creating directory",
+                    &target
+                ),
             }
         }
     };
 }
 
-/// Call the `setup` function created by `assert_stdfs_setup_func!` with default `root` and `func_name`
-/// based on the function context the setup function is run from or optionally override those
-/// values. `root` will default to `TEST_TEMP_DIR` and `func_name` defaults to the function name
-/// using the `function!` macro. If only one override is given it is assumed to be the `func_name`
-/// to be passed into the `assert_stdfs_setup_func` function. If two parameters are given the first is
-/// assumed to be the `root` and the second to be the `func_name`.
+/// Call the `setup` function created by `assert_stdfs_setup_func!` with default `root` and
+/// `func_name` based on the function context the setup function is run from or optionally override
+/// those values. `root` will default to `TEST_TEMP_DIR` and `func_name` defaults to the function
+/// name using the `function!` macro. If only one override is given it is assumed to be the
+/// `func_name` to be passed into the `assert_stdfs_setup_func` function. If two parameters are
+/// given the first is assumed to be the `root` and the second to be the `func_name`.
 ///
 /// WARNING: since doc tests always have a default function name of `rust_out::main` its required
 /// to override the `func_name` param to get a unique directory to work in as this is not possible
@@ -443,8 +455,8 @@ macro_rules! assert_stdfs_remove {
     };
 }
 
-/// Assert the removal of the target path. Assertion fails if `Stdfs::remove_all` fails or the target
-/// path still exists after the call to `Stdfs::remove_all`.
+/// Assert the removal of the target path. Assertion fails if `Stdfs::remove_all` fails or the
+/// target path still exists after the call to `Stdfs::remove_all`.
 ///
 /// ### Examples
 /// ```
@@ -483,12 +495,7 @@ macro_rules! assert_stdfs_remove_all {
 #[macro_export]
 macro_rules! panic_msg {
     ($name:expr, $msg:expr, $target:expr) => {
-        panic!(
-            "\n{}: {}\n  target: {}\n",
-            $name,
-            $msg,
-            format!("{:?}", $target)
-        )
+        panic!("\n{}: {}\n  target: {}\n", $name, $msg, format!("{:?}", $target))
     };
 }
 
@@ -522,7 +529,8 @@ mod tests
     assert_stdfs_setup_func!();
 
     #[test]
-    fn test_assert_stdfs_exists_and_no_exists() {
+    fn test_assert_stdfs_exists_and_no_exists()
+    {
         let tmpdir = assert_stdfs_setup!();
 
         // Test file exists
@@ -595,7 +603,8 @@ mod tests
     }
 
     #[test]
-    fn test_assert_stdfs_is_dir_no_dir() {
+    fn test_assert_stdfs_is_dir_no_dir()
+    {
         let tmpdir = assert_stdfs_setup!();
         let dir1 = Stdfs::mash(&tmpdir, "dir1");
         let dir2 = Stdfs::mash(&tmpdir, "dir2");
@@ -647,7 +656,8 @@ mod tests
     }
 
     #[test]
-    fn test_assert_stdfs_is_file_no_file() {
+    fn test_assert_stdfs_is_file_no_file()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let file2 = Stdfs::mash(&tmpdir, "file2");
@@ -699,7 +709,8 @@ mod tests
     }
 
     #[test]
-    fn test_assert_stdfs_remove() {
+    fn test_assert_stdfs_remove()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
 
@@ -734,8 +745,8 @@ mod tests
         // let result = testing::capture_panic(|| {
         //     assert_stdfs_remove!(&file1);
         // });
-        // assert_stdfs_eq!(to_string(result), format!("\nassert_stdfs_remove!: failed removing file\n target:
-        // {:?}\n",
+        // assert_stdfs_eq!(to_string(result), format!("\nassert_stdfs_remove!: failed removing
+        // file\n target: {:?}\n",
         // &file1));
         // assert!(Stdfs::chmod(&file1, 0o777).is_ok());
 
@@ -779,7 +790,8 @@ mod tests
     }
 
     #[test]
-    fn test_assert_stdfs_touch() {
+    fn test_assert_stdfs_touch()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let dir1 = Stdfs::mash(&tmpdir, "dir1");
@@ -812,7 +824,8 @@ mod tests
     }
 
     #[test]
-    fn test_assert_stdfs_remove_all() {
+    fn test_assert_stdfs_remove_all()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
 
@@ -832,14 +845,19 @@ mod tests
     }
 
     #[test]
-    fn test_assert_stdfs_setup() {
+    fn test_assert_stdfs_setup()
+    {
         // Defaults
         {
             let tmpdir = assert_stdfs_setup!();
             assert_stdfs_mkdir_p!(&tmpdir);
             assert_eq!(
                 tmpdir,
-                Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup")).unwrap()
+                Stdfs::abs(Stdfs::mash(
+                    &PathBuf::from(testing::TEST_TEMP_DIR),
+                    "test_assert_stdfs_setup"
+                ))
+                .unwrap()
             );
             assert_stdfs_remove_all!(&tmpdir);
         }
@@ -849,7 +867,11 @@ mod tests
             let func_name = "test_assert_stdfs_setup_alt_func";
             let tmpdir = assert_stdfs_setup!(&func_name);
             assert_stdfs_mkdir_p!(&tmpdir);
-            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), &func_name)).unwrap());
+            assert_eq!(
+                tmpdir,
+                Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), &func_name))
+                    .unwrap()
+            );
             assert_stdfs_remove_all!(&tmpdir);
         }
 
@@ -865,12 +887,16 @@ mod tests
     }
 
     #[test]
-    fn test_assert_stdfs_setup_func() {
+    fn test_assert_stdfs_setup_func()
+    {
         // root path is empty
         let result = testing::capture_panic(|| {
             assert_stdfs_setup!("", "foo");
         });
-        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_setup_func!: root path is empty\n  target: \"\"\n");
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_stdfs_setup_func!: root path is empty\n  target: \"\"\n"
+        );
 
         // func name is empty
         let result = testing::capture_panic(|| {
@@ -891,7 +917,11 @@ mod tests
         );
 
         // fail to remove directory
-        let path = Stdfs::abs(Stdfs::mash(PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup_func_perms")).unwrap();
+        let path = Stdfs::abs(Stdfs::mash(
+            PathBuf::from(testing::TEST_TEMP_DIR),
+            "test_assert_stdfs_setup_func_perms",
+        ))
+        .unwrap();
         assert_eq!(Stdfs::mkdir_m(&path, 0o000).unwrap(), path); // no write priv
         assert_eq!(Stdfs::mode(&path).unwrap(), 0o40000);
         let result = testing::capture_panic(|| {

@@ -6,11 +6,11 @@
 //! use rivia::prelude::*;
 //! ```
 mod entry;
+mod fs;
 mod memfs;
 mod stdfs;
-mod fs;
 
 pub use entry::*;
+pub use fs::*;
 pub use memfs::*;
 pub use stdfs::*;
-pub use fs::*;

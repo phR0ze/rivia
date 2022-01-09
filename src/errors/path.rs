@@ -6,7 +6,8 @@ use std::{
 
 // An error indicating that something went wrong with a path operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum PathError {
+pub enum PathError
+{
     /// An error indicating that the path does not exist.
     DoesNotExist(PathBuf),
 
@@ -49,83 +50,101 @@ pub enum PathError {
     /// An error indicating that the path does not have a valid parent path.
     ParentNotFound(PathBuf),
 }
-impl PathError {
+impl PathError
+{
     /// Return an error indicating that the path does not exist
-    pub fn does_not_exist<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn does_not_exist<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::DoesNotExist(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path exists already
-    pub fn exists_already<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn exists_already<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::ExistsAlready(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path extension was not found
-    pub fn extension_not_found<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn extension_not_found<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::ExtensionNotFound(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating a failure to convert the path to a string
-    pub fn failed_to_string<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn failed_to_string<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::FailedToString(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path does not contain a filename
-    pub fn filename_not_found<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn filename_not_found<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::FileNameNotFound(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path is not a directory
-    pub fn is_not_dir<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn is_not_dir<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::IsNotDir(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path is not an executable
-    pub fn is_not_exec<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn is_not_exec<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::IsNotExec(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path is not a file
-    pub fn is_not_file<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn is_not_file<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::IsNotFile(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path is not a file or symlink to file
-    pub fn is_not_file_or_symlink_to_file<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn is_not_file_or_symlink_to_file<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::IsNotFileOrSymlinkToFile(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path failed to expand properly
-    pub fn invalid_expansion<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn invalid_expansion<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::InvalidExpansion(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that link looping was detected
-    pub fn link_looping<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn link_looping<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::LinkLooping(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path contains multiple user home symbols i.e. tilda
-    pub fn multiple_home_symbols<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn multiple_home_symbols<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::MultipleHomeSymbols(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path does not have a valid parent path
-    pub fn parent_not_found<T: AsRef<Path>>(path: T) -> PathError {
+    pub fn parent_not_found<T: AsRef<Path>>(path: T) -> PathError
+    {
         PathError::ParentNotFound(path.as_ref().to_path_buf())
     }
 }
 
 impl StdError for PathError {}
 
-impl AsRef<dyn StdError> for PathError {
-    fn as_ref(&self) -> &(dyn StdError+'static) {
+impl AsRef<dyn StdError> for PathError
+{
+    fn as_ref(&self) -> &(dyn StdError+'static)
+    {
         self
     }
 }
 
-impl fmt::Display for PathError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Display for PathError
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
         match *self {
             PathError::DoesNotExist(ref path) => {
                 write!(f, "path does not exist: {}", path.display())
@@ -166,26 +185,32 @@ impl fmt::Display for PathError {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::errors::*;
+mod tests
+{
     use std::path::{Path, PathBuf};
 
-    fn path_empty() -> RvResult<PathBuf> {
+    use crate::errors::*;
+
+    fn path_empty() -> RvResult<PathBuf>
+    {
         Err(PathError::Empty)?
     }
 
-    fn parent_not_found() -> RvResult<PathBuf> {
+    fn parent_not_found() -> RvResult<PathBuf>
+    {
         Err(PathError::parent_not_found("foo"))?
     }
 
     #[test]
-    fn test_new_path_empty() {
+    fn test_new_path_empty()
+    {
         assert!(path_empty().is_err());
         assert_eq!(path_empty().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::Empty));
     }
 
     #[test]
-    fn test_parent_not_found() {
+    fn test_parent_not_found()
+    {
         assert!(parent_not_found().is_err());
         assert_ne!(
             parent_not_found().unwrap_err().downcast_ref::<PathError>(),
@@ -196,13 +221,20 @@ mod tests {
             Some(&PathError::parent_not_found("foo"))
         );
         assert_eq!(
-            format!("{}", parent_not_found().unwrap_err().downcast_ref::<PathError>().unwrap()),
+            format!(
+                "{}",
+                parent_not_found()
+                    .unwrap_err()
+                    .downcast_ref::<PathError>()
+                    .unwrap()
+            ),
             "parent not found for path: foo"
         );
     }
 
     #[test]
-    fn test_other_errors() {
+    fn test_other_errors()
+    {
         assert_eq!(
             PathError::does_not_exist(Path::new("foo")),
             PathError::DoesNotExist(PathBuf::from("foo"))
@@ -303,7 +335,8 @@ mod tests {
     }
 
     #[test]
-    fn test_backtrace() {
+    fn test_backtrace()
+    {
         let err = path_empty().unwrap_err();
         println!("{:?}", err);
     }

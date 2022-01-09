@@ -1,8 +1,9 @@
-use crate::errors::*;
 use std::{ffi::OsStr, path::Path, str};
 
-pub trait StringExt {
+use crate::errors::*;
 
+pub trait StringExt
+{
     /// Returns the length in characters rather than bytes i.e. this is a human understandable
     /// value. However it is more costly to perform.
     ///
@@ -27,12 +28,15 @@ pub trait StringExt {
     fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String;
 }
 
-impl StringExt for str {
-    fn size(&self) -> usize {
+impl StringExt for str
+{
+    fn size(&self) -> usize
+    {
         self.chars().count()
     }
 
-    fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String {
+    fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String
+    {
         let target = suffix.into();
         match self.ends_with(&target) {
             true => self[..self.len() - target.len()].to_owned(),
@@ -41,12 +45,15 @@ impl StringExt for str {
     }
 }
 
-impl StringExt for String {
-    fn size(&self) -> usize {
+impl StringExt for String
+{
+    fn size(&self) -> usize
+    {
         self.chars().count()
     }
 
-    fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String {
+    fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String
+    {
         let target = suffix.into();
         match self.ends_with(&target) {
             true => self[..self.len() - target.len()].to_owned(),
@@ -55,7 +62,8 @@ impl StringExt for String {
     }
 }
 
-pub trait ToStringExt {
+pub trait ToStringExt
+{
     /// Returns a new [`String`] from the given type.
     ///
     /// ### Examples
@@ -68,15 +76,21 @@ pub trait ToStringExt {
     fn to_string(&self) -> RvResult<String>;
 }
 
-impl ToStringExt for Path {
-    fn to_string(&self) -> RvResult<String> {
-        let _str = self.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
+impl ToStringExt for Path
+{
+    fn to_string(&self) -> RvResult<String>
+    {
+        let _str = self
+            .to_str()
+            .ok_or_else(|| PathError::failed_to_string(self))?;
         Ok(String::from(_str))
     }
 }
 
-impl ToStringExt for OsStr {
-    fn to_string(&self) -> RvResult<String> {
+impl ToStringExt for OsStr
+{
+    fn to_string(&self) -> RvResult<String>
+    {
         Ok(String::from(self.to_str().ok_or(StringError::FailedToString)?))
     }
 }
@@ -84,46 +98,54 @@ impl ToStringExt for OsStr {
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests {
-    use crate::prelude::*;
+mod tests
+{
     use std::{
         ffi::OsStr,
         path::{Path, PathBuf},
     };
 
+    use crate::prelude::*;
+
     #[test]
-    fn test_str_size() {
+    fn test_str_size()
+    {
         assert_eq!("foo".size(), 3);
         assert_eq!("ƒoo".len(), 4); // fancy f!
         assert_eq!("ƒoo".size(), 3); // fancy f!
     }
 
     #[test]
-    fn test_string_size() {
+    fn test_string_size()
+    {
         assert_eq!("foo".to_string().size(), 3);
         assert_eq!("ƒoo".to_string().len(), 4); // fancy f!
         assert_eq!("ƒoo".to_string().size(), 3); // fancy f!
     }
 
     #[test]
-    fn test_str_trim_suffix() {
+    fn test_str_trim_suffix()
+    {
         assert_eq!("foo".trim_suffix("oo"), "f");
         assert_eq!("ƒoo".trim_suffix("o"), "ƒo"); // fancy f!
     }
 
     #[test]
-    fn test_string_trim_suffix() {
+    fn test_string_trim_suffix()
+    {
         assert_eq!("foo".to_string().trim_suffix("oo"), "f");
         assert_eq!("ƒoo".to_string().trim_suffix("o"), "ƒo"); // fancy f!
     }
 
     #[test]
-    fn test_osstr_to_string() {
+    fn test_osstr_to_string()
+    {
         assert_eq!(OsStr::new("foo").to_string().unwrap(), "foo");
     }
 
     #[test]
-    fn test_path_to_string() {
+    fn test_path_to_string()
+    {
         assert_eq!(Path::new("/foo").to_string().unwrap(), "/foo");
         assert_eq!(PathBuf::from("/foo").to_string().unwrap(), "/foo");
     }

@@ -2,12 +2,13 @@ mod option;
 mod peekable;
 mod string;
 
+use std::{fmt, iter::Iterator};
+
 pub use option::*;
 pub use peekable::*;
 pub use string::*;
 
 use crate::errors::*;
-use std::{fmt, iter::Iterator};
 
 // Iterator extensions and utilities
 //--------------------------------------------------------------------------------------------------
@@ -62,8 +63,7 @@ pub trait IteratorExt: Iterator
     /// assert_eq!(vec![0, 1, 2].into_iter().consume().next(), None);
     /// ```
     fn consume(self) -> Self
-    where
-        Self: Sized;
+    where Self: Sized;
 
     /// Drop the first `n` items if positive from the iterator eagerly and then return the
     /// iterator. Drop the last `|n|` items if negative from the iterator eagerly and then
@@ -93,8 +93,7 @@ pub trait IteratorExt: Iterator
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
     fn first(self) -> Option<Self::Item>
-    where
-        Self: Sized;
+    where Self: Sized;
 
     /// If the iterator yields at least one element, the first element will be returned,
     /// otherwise an error will be returned.
@@ -106,8 +105,7 @@ pub trait IteratorExt: Iterator
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
     fn first_result(self) -> RvResult<Self::Item>
-    where
-        Self: Sized;
+    where Self: Sized;
 
     /// If the iterator yields at least one element, the last element will be returned,
     /// otherwise an error will be returned.
@@ -119,8 +117,7 @@ pub trait IteratorExt: Iterator
     /// assert_eq!((0..10).filter(|&x| x == 2).last().unwrap(), 2);
     /// ```
     fn last_result(self) -> RvResult<Self::Item>
-    where
-        Self: Sized;
+    where Self: Sized;
 
     /// If the iterator yields a single element, that element will be returned, otherwise an
     /// error will be returned.
@@ -132,8 +129,7 @@ pub trait IteratorExt: Iterator
     /// assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
     /// ```
     fn single(self) -> RvResult<Self::Item>
-    where
-        Self: Sized;
+    where Self: Sized;
 
     /// Slice returns this iterator eagerly to only iterate over the range of elements called out
     /// by the given indices. Allows for negative notation.
@@ -172,18 +168,15 @@ pub trait IteratorExt: Iterator
     /// assert_eq!((0..10).filter(|&x| x == 2).some(), true);
     /// ```
     fn some(self) -> bool
-    where
-        Self: Sized;
+    where Self: Sized;
 }
 
 impl<T: ?Sized> IteratorExt for T
-where
-    T: Iterator,
+where T: Iterator
 {
     #[allow(clippy::all)]
     fn consume(mut self) -> Self
-    where
-        Self: Sized,
+    where Self: Sized
     {
         let mut iter = (&mut self).peekable();
         while let Some(_) = iter.next() {}
@@ -208,15 +201,13 @@ where
     }
 
     fn first(mut self) -> Option<Self::Item>
-    where
-        Self: Sized,
+    where Self: Sized
     {
         self.next()
     }
 
     fn first_result(mut self) -> RvResult<Self::Item>
-    where
-        Self: Sized,
+    where Self: Sized
     {
         match self.next() {
             Some(first) => Ok(first),
@@ -225,8 +216,7 @@ where
     }
 
     fn last_result(self) -> RvResult<Self::Item>
-    where
-        Self: Sized,
+    where Self: Sized
     {
         match self.last() {
             Some(item) => Ok(item),
@@ -235,8 +225,7 @@ where
     }
 
     fn single(mut self) -> RvResult<Self::Item>
-    where
-        Self: Sized,
+    where Self: Sized
     {
         match self.next() {
             Some(item) => match self.next() {
@@ -288,21 +277,23 @@ where
     }
 
     fn some(mut self) -> bool
-    where
-        Self: Sized,
+    where Self: Sized
     {
         self.next().is_some()
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::iters::*;
+mod tests
+{
     use std::ffi::OsStr;
     use std::path::{Component, PathBuf};
 
+    use crate::iters::*;
+
     #[test]
-    fn test_slice() {
+    fn test_slice()
+    {
         // Both negative
         assert_eq!(vec![0, 1, 2, 3].into_iter().slice(-1, -5).next(), None); // right out of bounds negatively consumes all
         assert_iter_eq(vec![0, 1, 2, 3], vec![0, 1, 2, 3].into_iter().slice(-4, -1)); // get all
@@ -342,17 +333,20 @@ mod tests {
         assert_iter_eq(vec![1, 2, 3], vec![0, 1, 2, 3].into_iter().slice(1, -1)); // get all but first
         assert_iter_eq(vec![1, 2], vec![0, 1, 2, 3].into_iter().slice(1, -2)); // get middle
         assert_eq!(vec![0, 1, 2, 3].into_iter().slice(3, -2).next(), None); // mutually exclusive consumes everything
-        assert_eq!(vec![0, 1, 2, 3].into_iter().slice(4, -1).next(), None); // left out of bounds consumes everything
+        assert_eq!(vec![0, 1, 2, 3].into_iter().slice(4, -1).next(), None); // left out of bounds
+                                                                            // consumes everything
     }
 
     #[test]
-    fn test_consume() {
+    fn test_consume()
+    {
         assert_eq!(vec![0].into_iter().nth(0), Some(0));
         assert_eq!(vec![0, 1, 2].into_iter().consume().nth(0), None);
     }
 
     #[test]
-    fn test_drop() {
+    fn test_drop()
+    {
         // Start
         assert_iter_eq(vec![2, 3], vec![1, 2, 3].into_iter().drop(1));
         assert_iter_eq(
@@ -378,24 +372,24 @@ mod tests {
     }
 
     #[test]
-    fn test_eq() {
+    fn test_eq()
+    {
         assert_iter_eq(vec![1, 2], vec![1, 2]);
         assert!(std::panic::catch_unwind(|| assert_iter_eq(vec![1, 2], vec![1, 3])).is_err());
         assert_iter_eq(
             PathBuf::from("foo/bar").components(),
             PathBuf::from("foo/bar").components(),
         );
-        assert!(
-            std::panic::catch_unwind(|| assert_iter_eq(
-                PathBuf::from("foo/bar").components(),
-                PathBuf::from("bar").components()
-            ))
-            .is_err()
-        );
+        assert!(std::panic::catch_unwind(|| assert_iter_eq(
+            PathBuf::from("foo/bar").components(),
+            PathBuf::from("bar").components()
+        ))
+        .is_err());
     }
 
     #[test]
-    fn test_first() {
+    fn test_first()
+    {
         assert_eq!(
             Component::Normal(OsStr::new("foo")),
             PathBuf::from("foo/bar").components().first().unwrap()
@@ -407,19 +401,27 @@ mod tests {
     }
 
     #[test]
-    fn test_first_result() {
+    fn test_first_result()
+    {
         assert_eq!(
             Component::Normal(OsStr::new("foo")),
-            PathBuf::from("foo/bar").components().first_result().unwrap()
+            PathBuf::from("foo/bar")
+                .components()
+                .first_result()
+                .unwrap()
         );
         assert_ne!(
             Component::Normal(OsStr::new("bar")),
-            PathBuf::from("foo/bar").components().first_result().unwrap()
+            PathBuf::from("foo/bar")
+                .components()
+                .first_result()
+                .unwrap()
         );
     }
 
     #[test]
-    fn test_last_result() {
+    fn test_last_result()
+    {
         assert_eq!(
             Component::Normal(OsStr::new("bar")),
             PathBuf::from("foo/bar").components().last_result().unwrap()
@@ -431,20 +433,30 @@ mod tests {
     }
 
     #[test]
-    fn test_single() {
+    fn test_single()
+    {
         assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
         assert_eq!(
-            (0..10).filter(|&x| x > 2).single().unwrap_err().downcast_ref::<IterError>(),
+            (0..10)
+                .filter(|&x| x > 2)
+                .single()
+                .unwrap_err()
+                .downcast_ref::<IterError>(),
             Some(&IterError::multiple_items_found())
         );
         assert_eq!(
-            (0..10).filter(|&x| x > 2 && x < 5).single().unwrap_err().downcast_ref::<IterError>(),
+            (0..10)
+                .filter(|&x| x > 2 && x < 5)
+                .single()
+                .unwrap_err()
+                .downcast_ref::<IterError>(),
             Some(&IterError::multiple_items_found())
         );
     }
 
     #[test]
-    fn test_some() {
+    fn test_some()
+    {
         assert_eq!((0..10).filter(|&x| x == 2).some(), true);
         assert_eq!((0..10).filter(|&x| x == 11).some(), false);
     }

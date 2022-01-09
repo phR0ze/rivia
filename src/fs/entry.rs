@@ -1,8 +1,3 @@
-use crate::{
-    errors::*,
-    fs::{MemfsEntry, StdfsEntry}, 
-};
-
 use std::{
     cmp::Ordering,
     ffi::OsStr,
@@ -10,6 +5,11 @@ use std::{
     fs,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
+};
+
+use crate::{
+    errors::*,
+    fs::{MemfsEntry, StdfsEntry},
 };
 
 /// Entry provides a virtual filesystem trait for a single filesystem item. It is implemented
@@ -67,7 +67,8 @@ pub trait Entry: Debug+Send+Sync+'static
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn file_name(&self) -> Option<&OsStr> {
+    fn file_name(&self) -> Option<&OsStr>
+    {
         self.path().file_name()
     }
 
@@ -118,7 +119,8 @@ pub trait Entry: Debug+Send+Sync+'static
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_symlink_dir(&self) -> bool {
+    fn is_symlink_dir(&self) -> bool
+    {
         self.is_symlink() && self.is_dir()
     }
 
@@ -129,7 +131,8 @@ pub trait Entry: Debug+Send+Sync+'static
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_symlink_file(&self) -> bool {
+    fn is_symlink_file(&self) -> bool
+    {
         self.is_symlink() && self.is_file()
     }
 
@@ -161,13 +164,16 @@ pub trait Entry: Debug+Send+Sync+'static
 
 /// Entry enum wrapper provides easy access to the underlying entry type
 #[derive(Debug)]
-pub enum VfsEntry {
+pub enum VfsEntry
+{
     Stdfs(StdfsEntry),
     Memfs(MemfsEntry),
 }
 
-impl Clone for VfsEntry {
-    fn clone(&self) -> Self {
+impl Clone for VfsEntry
+{
+    fn clone(&self) -> Self
+    {
         match self {
             VfsEntry::Stdfs(x) => VfsEntry::Stdfs(x.clone()),
             VfsEntry::Memfs(x) => VfsEntry::Memfs(x.clone()),
@@ -175,7 +181,8 @@ impl Clone for VfsEntry {
     }
 }
 
-impl Entry for VfsEntry {
+impl Entry for VfsEntry
+{
     /// `path` reports the actual file or directory path when `is_symlink` reports false. When
     /// `is_symlink` reports true and `follow` reports true `path` will report the actual file
     /// or directory that the link points to and `alt` will report the link's path. When
@@ -186,7 +193,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn path(&self) -> &Path {
+    fn path(&self) -> &Path
+    {
         match self {
             VfsEntry::Stdfs(x) => x.path(),
             VfsEntry::Memfs(x) => x.path(),
@@ -199,7 +207,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn path_buf(self) -> PathBuf {
+    fn path_buf(self) -> PathBuf
+    {
         match self {
             VfsEntry::Stdfs(x) => x.path_buf(),
             VfsEntry::Memfs(x) => x.path_buf(),
@@ -216,7 +225,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn alt(&self) -> &Path {
+    fn alt(&self) -> &Path
+    {
         match self {
             VfsEntry::Stdfs(x) => x.alt(),
             VfsEntry::Memfs(x) => x.alt(),
@@ -229,7 +239,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn alt_buf(self) -> PathBuf {
+    fn alt_buf(self) -> PathBuf
+    {
         match self {
             VfsEntry::Stdfs(x) => x.alt_buf(),
             VfsEntry::Memfs(x) => x.alt_buf(),
@@ -242,7 +253,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn follow(self, follow: bool) -> VfsEntry {
+    fn follow(self, follow: bool) -> VfsEntry
+    {
         match self {
             VfsEntry::Stdfs(x) => x.follow(follow).upcast(),
             VfsEntry::Memfs(x) => x.follow(follow).upcast(),
@@ -255,7 +267,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn following(&self) -> bool {
+    fn following(&self) -> bool
+    {
         match self {
             VfsEntry::Stdfs(x) => x.following(),
             VfsEntry::Memfs(x) => x.following(),
@@ -268,7 +281,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_dir(&self) -> bool {
+    fn is_dir(&self) -> bool
+    {
         match self {
             VfsEntry::Stdfs(x) => x.is_dir(),
             VfsEntry::Memfs(x) => x.is_dir(),
@@ -281,7 +295,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_file(&self) -> bool {
+    fn is_file(&self) -> bool
+    {
         match self {
             VfsEntry::Stdfs(x) => x.is_file(),
             VfsEntry::Memfs(x) => x.is_file(),
@@ -294,7 +309,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn is_symlink(&self) -> bool {
+    fn is_symlink(&self) -> bool
+    {
         match self {
             VfsEntry::Stdfs(x) => x.is_symlink(),
             VfsEntry::Memfs(x) => x.is_symlink(),
@@ -307,7 +323,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn mode(&self) -> u32 {
+    fn mode(&self) -> u32
+    {
         match self {
             VfsEntry::Stdfs(x) => x.mode(),
             VfsEntry::Memfs(x) => x.mode(),
@@ -321,7 +338,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn iter(&self) -> RvResult<EntryIter> {
+    fn iter(&self) -> RvResult<EntryIter>
+    {
         match self {
             VfsEntry::Stdfs(x) => x.iter(),
             VfsEntry::Memfs(x) => x.iter(),
@@ -334,7 +352,8 @@ impl Entry for VfsEntry {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn upcast(self) -> VfsEntry {
+    fn upcast(self) -> VfsEntry
+    {
         match self {
             VfsEntry::Stdfs(x) => x.upcast(),
             VfsEntry::Memfs(x) => x.upcast(),
@@ -359,13 +378,15 @@ pub struct EntryIter
 impl EntryIter
 {
     /// Return a reference to the internal path being iterated over
-    pub fn path(&self) -> &Path {
+    pub fn path(&self) -> &Path
+    {
         &self.path
     }
 
     /// Reads the remaining portion of the VFS backend iterator into memory then creates a new
     /// EntryIter that will iterate over the new cached entries.
-    pub fn cache(&mut self) {
+    pub fn cache(&mut self)
+    {
         if !self.cached {
             self.cached = true;
             self.iter = Box::new(self.collect::<Vec<_>>().into_iter());
@@ -373,7 +394,8 @@ impl EntryIter
     }
 
     /// Return the current cached state
-    pub fn cached(&self) -> bool {
+    pub fn cached(&self) -> bool
+    {
         self.cached
     }
 
@@ -383,7 +405,8 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn dirs_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering) {
+    pub fn dirs_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
+    {
         self.cached = true;
         let (mut dirs, mut files) = self._split();
         self._sort(&mut dirs, &cmp);
@@ -397,7 +420,8 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn files_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering) {
+    pub fn files_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
+    {
         self.cached = true;
         let (mut dirs, mut files) = self._split();
         self._sort(&mut dirs, &cmp);
@@ -412,13 +436,15 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn follow(mut self, follow: bool) -> Self {
+    pub fn follow(mut self, follow: bool) -> Self
+    {
         self.following = follow;
         self
     }
 
     /// Return the current following state
-    pub fn following(&self) -> bool {
+    pub fn following(&self) -> bool
+    {
         self.following
     }
 
@@ -428,7 +454,8 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn sort(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering) {
+    pub fn sort(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
+    {
         self.cached = true;
         let mut entries = self.collect::<Vec<_>>();
         self._sort(&mut entries, cmp);
@@ -437,8 +464,10 @@ impl EntryIter
 
     /// Sort the given entries with the given sorter function
     fn _sort(
-        &mut self, entries: &mut Vec<RvResult<VfsEntry>>, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering,
-    ) {
+        &mut self, entries: &mut Vec<RvResult<VfsEntry>>,
+        cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering,
+    )
+    {
         entries.sort_by(|x, y| match (x, y) {
             (&Ok(ref x), &Ok(ref y)) => cmp(x, y),
             (&Err(_), &Err(_)) => Ordering::Equal,
@@ -448,7 +477,8 @@ impl EntryIter
     }
 
     /// Split the files and directories out
-    fn _split(&mut self) -> (Vec<RvResult<VfsEntry>>, Vec<RvResult<VfsEntry>>) {
+    fn _split(&mut self) -> (Vec<RvResult<VfsEntry>>, Vec<RvResult<VfsEntry>>)
+    {
         let mut dirs: Vec<RvResult<VfsEntry>> = vec![];
         let mut files: Vec<RvResult<VfsEntry>> = vec![];
         for x in self.collect::<Vec<_>>() {
@@ -467,10 +497,12 @@ impl EntryIter
     }
 }
 
-impl Iterator for EntryIter {
+impl Iterator for EntryIter
+{
     type Item = RvResult<VfsEntry>;
 
-    fn next(&mut self) -> Option<RvResult<VfsEntry>> {
+    fn next(&mut self) -> Option<RvResult<VfsEntry>>
+    {
         match self.iter.next() {
             Some(x) => Some(match x {
                 Ok(y) => Ok(if self.following {
@@ -509,7 +541,8 @@ mod tests
     // }
 
     #[test]
-    fn test_stdfs_entry_dirs_first_files_first() {
+    fn test_stdfs_entry_dirs_first_files_first()
+    {
         let tmpdir = assert_stdfs_setup!();
         let dir1 = Stdfs::mash(&tmpdir, "dir1");
         let dir2 = Stdfs::mash(&tmpdir, "dir2");
@@ -545,7 +578,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_sort() {
+    fn test_stdfs_entry_sort()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let file2 = Stdfs::mash(&tmpdir, "file2");
@@ -565,7 +599,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_iter() {
+    fn test_stdfs_entry_iter()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let file2 = Stdfs::mash(&tmpdir, "file2");
@@ -592,7 +627,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_is_dir() {
+    fn test_stdfs_entry_is_dir()
+    {
         let tmpdir = assert_stdfs_setup!();
         let dir1 = Stdfs::mash(&tmpdir, "dir1");
         let file1 = Stdfs::mash(&tmpdir, "file1");
@@ -622,7 +658,9 @@ mod tests
 
         // invalid directory
         assert_eq!(
-            StdfsEntry::from(&PathBuf::from("/foobar")).unwrap_err().to_string(),
+            StdfsEntry::from(&PathBuf::from("/foobar"))
+                .unwrap_err()
+                .to_string(),
             "No such file or directory (os error 2)"
         );
 
@@ -630,7 +668,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_is_file() {
+    fn test_stdfs_entry_is_file()
+    {
         let tmpdir = assert_stdfs_setup!();
         let dir1 = Stdfs::mash(&tmpdir, "dir1");
         let file1 = Stdfs::mash(&tmpdir, "file1");
@@ -662,7 +701,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_is_symlink() {
+    fn test_stdfs_entry_is_symlink()
+    {
         let tmpdir = assert_stdfs_setup!();
         let dir1 = Stdfs::mash(&tmpdir, "dir1");
         let file1 = Stdfs::mash(&tmpdir, "file1");
@@ -702,7 +742,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_is_symlink_dir() {
+    fn test_stdfs_entry_is_symlink_dir()
+    {
         let tmpdir = assert_stdfs_setup!();
         let dir1 = Stdfs::mash(&tmpdir, "dir1");
         let link1 = Stdfs::mash(&tmpdir, "link1");
@@ -726,7 +767,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_is_symlink_file() {
+    fn test_stdfs_entry_is_symlink_file()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let link1 = Stdfs::mash(&tmpdir, "link1");
@@ -751,7 +793,8 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_entry_readlink_abs() {
+    fn test_stdfs_entry_readlink_abs()
+    {
         let tmpdir = assert_stdfs_setup!();
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let link1 = Stdfs::mash(&tmpdir, "link1");

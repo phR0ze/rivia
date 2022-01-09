@@ -10,8 +10,8 @@
 pub mod testing;
 
 pub mod errors;
-pub mod iters;
 pub mod fs;
+pub mod iters;
 
 /// All essential symbols in a simple consumable way
 ///
@@ -19,30 +19,21 @@ pub mod fs;
 /// ```
 /// use rivia::prelude::*;
 /// ```
-pub mod prelude {
+pub mod prelude
+{
 
     // Export macros by name
+    // Re-exports
+    pub use std::path::{Path, PathBuf};
+
     pub use crate::{
         assert_stdfs_exists, assert_stdfs_is_dir, assert_stdfs_is_file, assert_stdfs_mkdir_p,
-        assert_stdfs_touch, assert_stdfs_no_dir, assert_stdfs_no_exists, assert_stdfs_no_file,
-        assert_stdfs_remove, assert_stdfs_remove_all, assert_stdfs_setup, assert_stdfs_setup_func, 
-        cfgblock,
-        function,
-        trying,
+        assert_stdfs_no_dir, assert_stdfs_no_exists, assert_stdfs_no_file, assert_stdfs_remove,
+        assert_stdfs_remove_all, assert_stdfs_setup, assert_stdfs_setup_func, assert_stdfs_touch,
+        cfgblock, function, trying,
     };
-
     // Export internal types
-    pub use crate::{
-        errors::*,
-        fs::*,
-        iters::*,
-        testing,
-    };
-
-    // Re-exports
-    pub use std::{
-        path::{Path, PathBuf},
-    };
+    pub use crate::{errors::*, fs::*, iters::*, testing};
 }
 
 /// Provides the ability to define `#[cfg]` statements for multiple items
@@ -96,7 +87,8 @@ macro_rules! function {
         // function's fully qualified name, which includes our target.
         // https://doc.rust-lang.org/std/any/fn.type_name.html
         fn _f() {}
-        fn type_of<T>(_: T) -> &'static str {
+        fn type_of<T>(_: T) -> &'static str
+        {
             std::any::type_name::<T>()
         }
 
@@ -138,12 +130,15 @@ macro_rules! trying {
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests {
+mod tests
+{
     use crate::prelude::*;
 
     #[test]
-    fn test_function_macro() {
-        fn indirect_func_name() -> &'static str {
+    fn test_function_macro()
+    {
+        fn indirect_func_name() -> &'static str
+        {
             function!()
         }
         assert_eq!(function!(), "test_function_macro");
@@ -151,8 +146,10 @@ mod tests {
     }
 
     #[test]
-    fn test_trying_macro() {
-        fn trying_func<T: AsRef<Path>>(path: T) -> Option<RvResult<PathBuf>> {
+    fn test_trying_macro()
+    {
+        fn trying_func<T: AsRef<Path>>(path: T) -> Option<RvResult<PathBuf>>
+        {
             Some(Ok(trying!(Stdfs::abs(path.as_ref()))))
         }
         assert_eq!(trying_func("").unwrap().unwrap_err().to_string(), "path empty");
