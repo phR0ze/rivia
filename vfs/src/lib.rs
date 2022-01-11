@@ -1,5 +1,5 @@
 //! `rivia-vfs` is a virtual filesystem implementation with an emphasis on ergonomics.
-//! 
+//!
 //! The intent of `rivia-vfs` is to provide a trait that can be implemented to provide
 //! a common set of functionality across different backend technologies e.g. std::fs or
 //! memory based implementations and a simple mechanism for switching out one vfs
@@ -24,14 +24,15 @@
 // pub use memfs::*;
 // pub use stdfs::*;
 
-use rivia::prelude::*;
-use lazy_static::lazy_static;
 use std::{
     fmt::Debug,
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
+
+use lazy_static::lazy_static;
+use rivia::prelude::*;
 
 /// All essential symbols in a simple consumable form
 ///
@@ -44,7 +45,8 @@ pub mod prelude
     pub use rivia::prelude::*;
 
     // Nest global vfs functions for ergonomics
-    pub mod vfs {
+    pub mod vfs
+    {
         pub use crate::*;
     }
 
@@ -52,8 +54,7 @@ pub mod prelude
     pub use std::path::{Path, PathBuf};
 }
 
-lazy_static!
-{
+lazy_static! {
     /// VFS is a virtual filesystem singleton providing an implementation of Vfs that defaults to
     /// Stdfs but can be changed dynamically to any implementation of the Vfs trait.
     ///
@@ -62,6 +63,7 @@ lazy_static!
     /// desired following the promoting pattern rather than interior mutability i.e. Arc<RwLock>>.
     /// Since changing the backend will be a rare occurance RwLock is used here rather than Mutex
     /// to provide many readers but only one writer which should be as efficient as possible.
+    /// https://blog.sentry.io/2018/04/05/you-cant-rust-that
     pub static ref VFS: RwLock<Arc<Vfs>> = RwLock::new(Arc::new(Vfs::new_stdfs()));
 }
 
@@ -79,7 +81,6 @@ lazy_static!
 //     // fn open(&self, path: &Path) -> RvResult<()>;
 //     // fn mkfile(&self, path: &Path) -> RvResult<Box<dyn Write>>;
 // }
-
 
 // Vfs convenience functions
 // -------------------------------------------------------------------------------------------------
@@ -111,8 +112,12 @@ pub fn set(vfs: Vfs) -> RvResult<()>
 /// let home = sys::home_dir().unwrap();
 /// assert_eq!(sys::abs("~").unwrap(), PathBuf::from(&home));
 /// ```
-pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
-    VFS.read().map_err(|_| VfsError::Unavailable)?.clone().abs(path.as_ref())
+pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+{
+    VFS.read()
+        .map_err(|_| VfsError::Unavailable)?
+        .clone()
+        .abs(path.as_ref())
 }
 
 // /// Expand all environment variables in the path as well as the home directory.
@@ -139,7 +144,8 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_vfs_abs() -> RvResult<()> {
+    fn test_vfs_abs() -> RvResult<()>
+    {
         let cwd = Stdfs::cwd()?;
 
         assert_eq!(vfs::abs(Path::new("foo"))?, Stdfs::mash(&cwd, "foo"));

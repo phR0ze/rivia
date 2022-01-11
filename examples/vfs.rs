@@ -19,4 +19,7 @@ fn main()
 
     println!("Data: {}", data);
     Stdfs::remove(file1).unwrap();
+
+    let vfs = Memfs::new();
+    vfs.exists("/foo/bar/flue");
 }

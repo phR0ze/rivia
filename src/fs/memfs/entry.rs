@@ -1,13 +1,20 @@
 use std::{
+    cmp,
+    collections::HashMap,
     fmt::Debug,
-    fs,
+    fs, io,
     path::{Path, PathBuf},
+    sync::{Arc, RwLock},
 };
 
 use crate::{
     errors::*,
     fs::{Entry, EntryIter, VfsEntry},
 };
+
+// Simple type to use when referring to the multi-thread safe locked hashmap that is
+// the memory filesystem's backend storage.
+pub(crate) type MemfsDir = Arc<RwLock<HashMap<PathBuf, MemfsEntry>>>;
 
 /// MemfsEntry is an implementation a virtual filesystem trait for a single filesystem item. It is
 /// implemented
@@ -16,37 +23,21 @@ use crate::{
 /// ```
 /// use rivia::prelude::*;
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct MemfsEntry
 {
-    data: Vec<u8>, // memory file data
-    path: PathBuf, // path of the entry
-    alt: PathBuf,  // alternate path for the entry, used with links
-    dir: bool,     // is this entry a dir
-    file: bool,    // is this entry a file
-    link: bool,    // is this entry a link
-    mode: u32,     // permission mode of the entry
-    follow: bool,  // tracks if the path and alt have been switched
-    cached: bool,  // tracks if properties have been cached
-}
+    pub(crate) fs: MemfsDir,  // multi-thread safe filesystem storage
+    pub(crate) data: Vec<u8>, // memory file data
+    pub(crate) pos: u64,      // position in the file when reading or writing
 
-impl Default for MemfsEntry
-{
-    /// Defaults to an empty directory
-    fn default() -> Self
-    {
-        Self {
-            data: vec![],
-            path: PathBuf::new(),
-            alt: PathBuf::new(),
-            dir: true, // Set directory to true by default
-            file: false,
-            link: false,
-            mode: 0,
-            follow: false,
-            cached: false,
-        }
-    }
+    pub(crate) path: PathBuf, // path of the entry
+    pub(crate) alt: PathBuf,  // alternate path for the entry, used with links
+    pub(crate) dir: bool,     // is this entry a dir
+    pub(crate) file: bool,    // is this entry a file
+    pub(crate) link: bool,    // is this entry a link
+    pub(crate) mode: u32,     // permission mode of the entry
+    pub(crate) follow: bool,  // tracks if the path and alt have been switched
+    pub(crate) cached: bool,  // tracks if properties have been cached
 }
 
 impl Clone for MemfsEntry
@@ -54,7 +45,9 @@ impl Clone for MemfsEntry
     fn clone(&self) -> Self
     {
         Self {
+            fs: self.fs.clone(),
             data: self.data.clone(),
+            pos: self.pos,
             path: self.path.clone(),
             alt: self.alt.clone(),
             dir: self.dir,
@@ -69,18 +62,20 @@ impl Clone for MemfsEntry
 
 impl MemfsEntry
 {
-    /// Create a Memfs entry for the given path
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
     pub(crate) fn new<T: Into<PathBuf>>(path: T) -> Self
     {
-        MemfsEntry {
+        Self {
+            fs: Arc::new(RwLock::new(HashMap::new())),
             data: vec![],
+            pos: 0,
             path: path.into(),
-            ..Default::default()
+            alt: PathBuf::new(),
+            dir: true, // directory by default
+            file: false,
+            link: false,
+            mode: 0,
+            follow: false,
+            cached: false,
         }
     }
 
@@ -102,6 +97,13 @@ impl MemfsEntry
         self.link = false;
         self.file = true;
         self
+    }
+
+    /// Len reports the length of the data in bytes until the end of the file from the current
+    /// position.
+    pub fn len(&self) -> u64
+    {
+        self.data.len() as u64 - self.pos
     }
 
     /// Set the entry to be a link
@@ -293,6 +295,70 @@ impl Entry for MemfsEntry
     }
 }
 
+// Implement the Read trait for the MemfsEntry
+impl io::Read for MemfsEntry
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
+    {
+        // Ensure that we are working with a valid file
+        if self.dir || self.link {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("Target path '{}' is not a readable file", self.path.display()),
+            ));
+        }
+
+        let pos = self.pos as usize;
+
+        // Determine how much data to read from the file
+        let len = cmp::min(buf.len(), self.len() as usize);
+
+        // Read the indicated data length
+        buf[..len].copy_from_slice(&self.data.as_slice()[pos..pos + len]);
+
+        // Advance the position in the file
+        self.pos += len as u64;
+
+        // Return the length of data read
+        Ok(len)
+    }
+}
+
+// Implement the Seek trait for the MemfsEntry
+impl io::Seek for MemfsEntry
+{
+    fn seek(&mut self, pos: io::SeekFrom) -> std::io::Result<u64>
+    {
+        match pos {
+            io::SeekFrom::Start(offset) => self.pos = offset,
+            io::SeekFrom::Current(offset) => self.pos = (self.pos as i64 + offset) as u64,
+            io::SeekFrom::End(offset) => self.pos = (self.data.len() as i64 + offset) as u64,
+        }
+        Ok(self.pos)
+    }
+}
+
+// Implement the Write trait for the MemfsEntry
+impl io::Write for MemfsEntry
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize>
+    {
+        // Ensure that we are working with a valid file
+        if self.dir || self.link {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("Target path '{}' is not a writable file", self.path.display()),
+            ));
+        }
+        self.data.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()>
+    {
+        self.data.flush()
+    }
+}
+
 #[derive(Debug)]
 struct MemfsEntryIter(fs::ReadDir);
 impl Iterator for MemfsEntryIter
@@ -316,13 +382,87 @@ impl Iterator for MemfsEntryIter
 #[cfg(test)]
 mod tests
 {
+    use std::collections::HashMap;
+    use std::sync::{Arc, RwLock};
+
     use crate::prelude::*;
 
     #[test]
-    fn test_root_dir() -> RvResult<()>
+    fn test_dir() -> RvResult<()>
     {
-        let memfs = Memfs::new();
-        let data = memfs.read_all(Path::new("/"))?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_not_readable_writable_file() -> RvResult<()>
+    {
+        let fs = Arc::new(RwLock::new(HashMap::new()));
+        let mut memfile = MemfsEntry::new("foo", fs);
+
+        // Not readable
+        let mut buf = [0; 1];
+        assert_eq!(
+            memfile.read(&mut buf).unwrap_err().to_string(),
+            "Target path 'foo' is not a readable file"
+        );
+
+        // Not writable
+        assert_eq!(
+            memfile.write(b"foobar1, ").unwrap_err().to_string(),
+            "Target path 'foo' is not a writable file"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_file_read_write_seek_len() -> RvResult<()>
+    {
+        let fs = Arc::new(RwLock::new(HashMap::new()));
+        let mut memfile = MemfsEntry::new("foo", fs).file();
+
+        // Write out the data
+        assert_eq!(memfile.len(), 0);
+        memfile.write(b"foobar1, ")?;
+        assert_eq!(memfile.data, b"foobar1, ");
+        assert_eq!(memfile.len(), 9);
+
+        // Write out using the write macro
+        write!(memfile, "foobar2, ")?;
+        assert_eq!(memfile.len(), 18);
+        assert_eq!(memfile.data, b"foobar1, foobar2, ");
+
+        memfile.write(b"foobar3")?;
+        assert_eq!(memfile.len(), 25);
+        assert_eq!(memfile.data, b"foobar1, foobar2, foobar3");
+
+        // read 1 byte
+        let mut buf = [0; 1];
+        memfile.read(&mut buf)?;
+        assert_eq!(memfile.len(), 24);
+        assert_eq!(&buf, b"f");
+
+        // Seek back to start and try again
+        memfile.seek(SeekFrom::Start(0))?;
+        assert_eq!(memfile.len(), 25);
+        let mut buf = [0; 9];
+        memfile.read(&mut buf)?;
+        assert_eq!(memfile.len(), 16);
+        assert_eq!(&buf, b"foobar1, ");
+
+        // Read the remaining data
+        let mut buf = Vec::new();
+        memfile.read_to_end(&mut buf)?;
+        assert_eq!(memfile.len(), 0);
+        assert_eq!(&buf, b"foobar2, foobar3");
+
+        // rewind and read into a String
+        let mut buf = String::new();
+        memfile.rewind()?;
+        assert_eq!(memfile.len(), 25);
+        memfile.read_to_string(&mut buf)?;
+        assert_eq!(memfile.len(), 0);
+        assert_eq!(buf, "foobar1, foobar2, foobar3".to_string());
+
         Ok(())
     }
 }

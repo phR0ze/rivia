@@ -21,11 +21,13 @@ pub mod iters;
 /// ```
 pub mod prelude
 {
+    // Re-exports
+    pub use std::{
+        io::{Read, Seek, SeekFrom, Write},
+        path::{Path, PathBuf},
+    };
 
     // Export macros by name
-    // Re-exports
-    pub use std::path::{Path, PathBuf};
-
     pub use crate::{
         assert_stdfs_exists, assert_stdfs_is_dir, assert_stdfs_is_file, assert_stdfs_mkdir_p,
         assert_stdfs_no_dir, assert_stdfs_no_exists, assert_stdfs_no_file, assert_stdfs_remove,

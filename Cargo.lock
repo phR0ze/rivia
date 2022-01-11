@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "rivia"
-version = "0.0.25"
+version = "0.0.26"
 dependencies = [
  "lazy_static",
  "nix",

@@ -1,5 +1,5 @@
-//! `errors` provides a common set of errors across the rivia crates to reduce the verbosity
-//! of error handling
+//! `errors` provides a common set of errors across the rivia crates to reduce the verbosity of
+//! error handling
 //!
 //! ### Using the Rivia Core crate
 //! ```
