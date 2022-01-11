@@ -147,38 +147,44 @@ impl fmt::Display for PathError
     {
         match *self {
             PathError::DoesNotExist(ref path) => {
-                write!(f, "path does not exist: {}", path.display())
+                write!(f, "Target path does not exist: {}", path.display())
             },
             PathError::Empty => write!(f, "path empty"),
             PathError::ExistsAlready(ref path) => {
-                write!(f, "path exists already: {}", path.display())
+                write!(f, "Target path exists already: {}", path.display())
             },
             PathError::ExtensionNotFound(ref path) => {
-                write!(f, "path extension not found: {}", path.display())
+                write!(f, "Target path extension not found: {}", path.display())
             },
             PathError::FailedToString(ref path) => {
-                write!(f, "failed to convert to string for path: {}", path.display())
+                write!(f, "Target path failed to convert to string: {}", path.display())
             },
             PathError::FileNameNotFound(ref path) => {
-                write!(f, "filename not found for path: {}", path.display())
+                write!(f, "Target path filename not found: {}", path.display())
             },
             PathError::InvalidExpansion(ref path) => {
-                write!(f, "invalid expansion for path: {}", path.display())
+                write!(f, "Target path has an invalid expansion: {}", path.display())
             },
-            PathError::IsNotDir(ref path) => write!(f, "is not a directory: {}", path.display()),
-            PathError::IsNotExec(ref path) => write!(f, "is not an executable: {}", path.display()),
-            PathError::IsNotFile(ref path) => write!(f, "is not a file: {}", path.display()),
+            PathError::IsNotDir(ref path) => {
+                write!(f, "Target path is not a directory: {}", path.display())
+            },
+            PathError::IsNotExec(ref path) => {
+                write!(f, "Target path is not an executable: {}", path.display())
+            },
+            PathError::IsNotFile(ref path) => {
+                write!(f, "Target path is not a file: {}", path.display())
+            },
             PathError::IsNotFileOrSymlinkToFile(ref path) => {
-                write!(f, "is not a file or a symlink to a file: {}", path.display())
+                write!(f, "Target path is not a file or a symlink to a file: {}", path.display())
             },
             PathError::LinkLooping(ref path) => {
-                write!(f, "link looping detected for path: {}", path.display())
+                write!(f, "Target path causes link looping: {}", path.display())
             },
             PathError::MultipleHomeSymbols(ref path) => {
-                write!(f, "multiple home symbols for path: {}", path.display())
+                write!(f, "Target path has multiple home symbols: {}", path.display())
             },
             PathError::ParentNotFound(ref path) => {
-                write!(f, "parent not found for path: {}", path.display())
+                write!(f, "Target path's parent not found: {}", path.display())
             },
         }
     }
@@ -228,7 +234,7 @@ mod tests
                     .downcast_ref::<PathError>()
                     .unwrap()
             ),
-            "parent not found for path: foo"
+            "Target path's parent not found: foo"
         );
     }
 
@@ -241,7 +247,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::DoesNotExist(PathBuf::from("foo"))),
-            "path does not exist: foo"
+            "Target path does not exist: foo"
         );
         assert_eq!(format!("{}", PathError::Empty), "path empty");
         assert_eq!(
@@ -250,7 +256,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::ExistsAlready(PathBuf::from("foo"))),
-            "path exists already: foo"
+            "Target path exists already: foo"
         );
         assert_eq!(
             PathError::extension_not_found(Path::new("foo")),
@@ -258,7 +264,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::ExtensionNotFound(PathBuf::from("foo"))),
-            "path extension not found: foo"
+            "Target path extension not found: foo"
         );
         assert_eq!(
             PathError::failed_to_string(Path::new("foo")),
@@ -266,7 +272,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::failed_to_string(PathBuf::from("foo"))),
-            "failed to convert to string for path: foo"
+            "Target path failed to convert to string: foo"
         );
         assert_eq!(
             PathError::filename_not_found(Path::new("foo")),
@@ -274,7 +280,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::filename_not_found(PathBuf::from("foo"))),
-            "filename not found for path: foo"
+            "Target path filename not found: foo"
         );
         assert_eq!(
             PathError::invalid_expansion(Path::new("foo")),
@@ -282,7 +288,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::invalid_expansion(PathBuf::from("foo"))),
-            "invalid expansion for path: foo"
+            "Target path has an invalid expansion: foo"
         );
         assert_eq!(
             PathError::is_not_dir(Path::new("foo")),
@@ -290,7 +296,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::is_not_dir(PathBuf::from("foo"))),
-            "is not a directory: foo"
+            "Target path is not a directory: foo"
         );
         assert_eq!(
             PathError::is_not_exec(Path::new("foo")),
@@ -298,7 +304,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::is_not_exec(PathBuf::from("foo"))),
-            "is not an executable: foo"
+            "Target path is not an executable: foo"
         );
         assert_eq!(
             PathError::is_not_file(Path::new("foo")),
@@ -306,7 +312,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::is_not_file(PathBuf::from("foo"))),
-            "is not a file: foo"
+            "Target path is not a file: foo"
         );
         assert_eq!(
             PathError::is_not_file_or_symlink_to_file(Path::new("foo")),
@@ -314,7 +320,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::is_not_file_or_symlink_to_file(PathBuf::from("foo"))),
-            "is not a file or a symlink to a file: foo"
+            "Target path is not a file or a symlink to a file: foo"
         );
         assert_eq!(
             PathError::link_looping(Path::new("foo")),
@@ -322,7 +328,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::link_looping(PathBuf::from("foo"))),
-            "link looping detected for path: foo"
+            "Target path causes link looping: foo"
         );
         assert_eq!(
             PathError::multiple_home_symbols(Path::new("foo")),
@@ -330,7 +336,7 @@ mod tests
         );
         assert_eq!(
             format!("{}", PathError::multiple_home_symbols(PathBuf::from("foo"))),
-            "multiple home symbols for path: foo"
+            "Target path has multiple home symbols: foo"
         );
     }
 

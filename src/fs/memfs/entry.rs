@@ -120,8 +120,22 @@ pub struct MemfsEntry
 
 impl MemfsEntry
 {
-    /// # Errors
-    /// If the entry is a file with data a PathError::IsNotDir(PathBuf) error is returned
+    // Add an entry to this directory
+    //
+    // # Errors
+    // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
+    //
+    // # Examples
+    // ```
+    // ```
+    pub(crate) fn add(&mut self, entry: MemfsEntry) -> RvResult<()>
+    {
+        if self.is_file || self.is_link {
+            return Err(PathError::IsNotDir(self.path.clone()).into());
+        }
+        self.dir.write().unwrap().insert(entry);
+        Ok(())
+    }
 
     /// Len reports the length of the data in bytes until the end of the file from the current
     /// position.
@@ -455,11 +469,23 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_dir() -> RvResult<()>
+    fn test_add() -> RvResult<()>
     {
+        // Not a directory will fail
+        let mut memfile = MemfsEntryOpts::new("foo").file().entry();
+        assert_eq!(
+            memfile
+                .add(MemfsEntryOpts::new("").entry())
+                .unwrap_err()
+                .to_string(),
+            "Target path is not a directory: foo"
+        );
+
+        // Add a file to a directory
         let mut memfile = MemfsEntryOpts::new("/").entry();
-        let dir = memfile.dir.write().unwrap();
-        assert_eq!(dir.len(), 0);
+        assert_eq!(memfile.dir.write().unwrap().len(), 0);
+        memfile.add(MemfsEntryOpts::new("foo").entry())?;
+        assert_eq!(memfile.dir.write().unwrap().len(), 1);
         Ok(())
     }
 

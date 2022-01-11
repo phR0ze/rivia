@@ -41,19 +41,19 @@ impl fmt::Display for VfsError
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match *self {
-            VfsError::FailedToExtractString => write!(f, "failed to extract string from file"),
-            VfsError::InvalidChmod(ref sym) => write!(f, "invalid chmod symbols given: {}", sym),
-            VfsError::InvalidChmodGroup(ref sym) => write!(f, "invalid chmod group given: {}", sym),
+            VfsError::FailedToExtractString => write!(f, "Failed to extract string from file"),
+            VfsError::InvalidChmod(ref sym) => write!(f, "Invalid chmod symbols given: {}", sym),
+            VfsError::InvalidChmodGroup(ref sym) => write!(f, "Invalid chmod group given: {}", sym),
             VfsError::InvalidChmodOp(ref sym) => {
-                write!(f, "invalid chmod operation given: {}", sym)
+                write!(f, "Invalid chmod operation given: {}", sym)
             },
             VfsError::InvalidChmodPermissions(ref sym) => {
-                write!(f, "invalid chmod permissions given: {}", sym)
+                write!(f, "Invalid chmod permissions given: {}", sym)
             },
             VfsError::InvalidChmodTarget(ref sym) => {
-                write!(f, "invalid chmod target given: {}", sym)
+                write!(f, "Invalid chmod target given: {}", sym)
             },
-            VfsError::Unavailable => write!(f, "virtual filesystem is unavailable"),
+            VfsError::Unavailable => write!(f, "Virtual filesystem is unavailable"),
         }
     }
 }
@@ -83,28 +83,28 @@ mod tests
     {
         assert_eq!(
             VfsError::FailedToExtractString.to_string(),
-            "failed to extract string from file"
+            "Failed to extract string from file"
         );
         assert_eq!(
             VfsError::InvalidChmod("foo".to_string()).to_string(),
-            "invalid chmod symbols given: foo"
+            "Invalid chmod symbols given: foo"
         );
         assert_eq!(
             VfsError::InvalidChmodGroup("foo".to_string()).to_string(),
-            "invalid chmod group given: foo"
+            "Invalid chmod group given: foo"
         );
         assert_eq!(
             VfsError::InvalidChmodOp("foo".to_string()).to_string(),
-            "invalid chmod operation given: foo"
+            "Invalid chmod operation given: foo"
         );
         assert_eq!(
             VfsError::InvalidChmodPermissions("foo".to_string()).to_string(),
-            "invalid chmod permissions given: foo"
+            "Invalid chmod permissions given: foo"
         );
         assert_eq!(
             VfsError::InvalidChmodTarget("foo".to_string()).to_string(),
-            "invalid chmod target given: foo"
+            "Invalid chmod target given: foo"
         );
-        assert_eq!(VfsError::Unavailable.to_string(), "virtual filesystem is unavailable");
+        assert_eq!(VfsError::Unavailable.to_string(), "Virtual filesystem is unavailable");
     }
 }
