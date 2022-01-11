@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{FileSystem, MemfsEntry, MemfsEntryOpts, Stdfs, Vfs},
+    fs::{Entry, FileSystem, MemfsEntry, MemfsEntryOpts, Stdfs, Vfs},
     iters::*,
 };
 
@@ -51,6 +51,38 @@ impl Memfs
         //     Err(_) => false,
         // }
         false
+    }
+
+    /// Creates the given directory and any parent directories needed, handling path expansion and
+    /// returning an absolute path created.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    pub fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        let abs = self.abs(path.as_ref())?;
+        let entry = &self.root;
+
+        // Build up the path to report with
+        let mut path = PathBuf::from(Component::RootDir.as_os_str());
+
+        for component in abs.components() {
+            if let Component::Normal(x) = component {
+                path.push(&x);
+
+                // Non directories are invalid at this point
+                if !entry.is_dir() {
+                    return Err(PathError::IsNotDir(path).into());
+                }
+
+                // Lookup the given directory component
+                //entry.dir.read().unwrap().get();
+                println!("Path: {:?}", x);
+            }
+        }
+        Ok(path)
     }
 
     // Get the indicated entry if it exists
@@ -144,6 +176,22 @@ mod tests
         let memfs = Memfs::new();
         memfs.write_all(Path::new("foo"), b"foobar")?;
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_remove() -> RvResult<()>
+    {
+        // Add a file to a directory
+        let mut memfile1 = MemfsEntryOpts::new("/").entry();
+        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
+        let memfile2 = MemfsEntryOpts::new("foo").entry();
+        memfile1.add(memfile2.clone())?;
+        assert_eq!(memfile1.dir.write().unwrap().len(), 1);
+
+        // Remove a file from a directory
+        memfile1.remove(&memfile2)?;
+        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
         Ok(())
     }
 

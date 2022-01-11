@@ -137,9 +137,25 @@ impl MemfsEntry
         Ok(())
     }
 
+    // Remove an entry from this directory
+    //
+    // # Errors
+    // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
+    //
+    // # Examples
+    // ```
+    // ```
+    pub(crate) fn remove(&mut self, entry: &MemfsEntry) -> RvResult<bool>
+    {
+        if self.is_file || self.is_link {
+            return Err(PathError::IsNotDir(self.path.clone()).into());
+        }
+        Ok(self.dir.write().unwrap().remove(entry))
+    }
+
     /// Len reports the length of the data in bytes until the end of the file from the current
     /// position.
-    pub fn len(&self) -> u64
+    pub(crate) fn len(&self) -> u64
     {
         self.data.len() as u64 - self.pos
     }
@@ -151,7 +167,7 @@ impl MemfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter>
+    pub(crate) fn iter(path: &Path, follow: bool) -> RvResult<EntryIter>
     {
         Ok(EntryIter {
             path: path.to_path_buf(),
@@ -167,7 +183,7 @@ impl MemfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn follow(mut self, follow: bool) -> Self
+    pub(crate) fn follow(mut self, follow: bool) -> Self
     {
         if follow && !self.follow {
             self.follow = true;
@@ -469,9 +485,62 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_add() -> RvResult<()>
+    fn test_add_remove() -> RvResult<()>
     {
-        // Not a directory will fail
+        // Add a file to a directory
+        let mut memfile1 = MemfsEntryOpts::new("/").entry();
+        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
+        let memfile2 = MemfsEntryOpts::new("foo").entry();
+        memfile1.add(memfile2.clone())?;
+        assert_eq!(memfile1.dir.write().unwrap().len(), 1);
+
+        // Remove a file from a directory
+        memfile1.remove(&memfile2)?;
+        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_non_existing()
+    {
+        let mut memfile = MemfsEntryOpts::new("foo").entry();
+        assert_eq!(
+            memfile
+                .remove(&MemfsEntryOpts::new("blah").entry())
+                .unwrap(),
+            false
+        );
+    }
+
+    #[test]
+    fn test_remove_from_file_fails()
+    {
+        let mut memfile = MemfsEntryOpts::new("foo").file().entry();
+        assert_eq!(
+            memfile
+                .remove(&MemfsEntryOpts::new("").entry())
+                .unwrap_err()
+                .to_string(),
+            "Target path is not a directory: foo"
+        );
+    }
+
+    #[test]
+    fn test_add_to_link_fails()
+    {
+        let mut memfile = MemfsEntryOpts::new("foo").link().entry();
+        assert_eq!(
+            memfile
+                .add(MemfsEntryOpts::new("").entry())
+                .unwrap_err()
+                .to_string(),
+            "Target path is not a directory: foo"
+        );
+    }
+
+    #[test]
+    fn test_add_to_file_fails()
+    {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
         assert_eq!(
             memfile
@@ -480,13 +549,6 @@ mod tests
                 .to_string(),
             "Target path is not a directory: foo"
         );
-
-        // Add a file to a directory
-        let mut memfile = MemfsEntryOpts::new("/").entry();
-        assert_eq!(memfile.dir.write().unwrap().len(), 0);
-        memfile.add(MemfsEntryOpts::new("foo").entry())?;
-        assert_eq!(memfile.dir.write().unwrap().len(), 1);
-        Ok(())
     }
 
     #[test]
