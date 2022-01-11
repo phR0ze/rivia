@@ -11,12 +11,12 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{Entry, EntryIter, VfsEntry},
+    fs::{Entry, EntryIter, Stdfs, VfsEntry},
 };
 
 // Simple type to use when referring to the multi-thread safe locked hashmap that is a directory on
 // the memory filesystem.
-pub(crate) type MemfsDir = Arc<RwLock<HashMap<PathBuf, MemfsEntry>>>;
+pub(crate) type MemfsDir = Arc<RwLock<HashMap<String, MemfsEntry>>>;
 
 // MemfsEntryOpts implements the builder pattern to provide advanced options for creating
 // MemfsEntry instances
@@ -133,7 +133,24 @@ impl MemfsEntry
         if self.is_file || self.is_link {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        self.dir.write().unwrap().insert(entry.path.clone(), entry);
+        self.dir.write().unwrap().insert(Stdfs::base(entry.path)?, entry);
+        Ok(())
+    }
+
+    // Get an entry from this directory
+    //
+    // # Errors
+    // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
+    //
+    // # Examples
+    // ```
+    // ```
+    pub(crate) fn get<T: AsRef<Path>>(&mut self, name: T) -> RvResult<()>
+    {
+        if self.is_file || self.is_link {
+            return Err(PathError::IsNotDir(self.path.clone()).into());
+        }
+        // self.dir.write().unwrap().insert(entry.path.clone(), entry);
         Ok(())
     }
 
@@ -150,7 +167,7 @@ impl MemfsEntry
         if self.is_file || self.is_link {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        Ok(self.dir.write().unwrap().remove(path.as_ref()))
+        Ok(self.dir.write().unwrap().remove(&Stdfs::base(path.as_ref())?))
     }
 
     /// Len reports the length of the data in bytes until the end of the file from the current
@@ -522,10 +539,7 @@ mod tests
     {
         let mut memfile = MemfsEntryOpts::new("foo").link().entry();
         assert_eq!(
-            memfile
-                .add(MemfsEntryOpts::new("").entry())
-                .unwrap_err()
-                .to_string(),
+            memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(),
             "Target path is not a directory: foo"
         );
     }
@@ -535,10 +549,7 @@ mod tests
     {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
         assert_eq!(
-            memfile
-                .add(MemfsEntryOpts::new("").entry())
-                .unwrap_err()
-                .to_string(),
+            memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(),
             "Target path is not a directory: foo"
         );
     }

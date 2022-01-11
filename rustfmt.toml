@@ -14,7 +14,7 @@ array_width = 60
 # Maximum width of the args of a function-like attributes before falling back to vertical formatting.
 # Default value: 70
 # Possible values: any positive integer that is less than or equal to the value specified for max_width
-attr_fn_like_width = 70
+attr_fn_like_width = 100
 
 # Where to put a binary operator when a binary expression goes multiline.
 # Default value: "Front"
@@ -41,7 +41,7 @@ brace_style = "AlwaysNextLine"
 # Maximum length of a chain to fit on a single line.
 # Default: 60
 # Possible values: any positive integer that is less than or equal to the value specified for max_width
-chain_width = 60
+chain_width = 100
 
 # Whether to use colored output or not.
 # Default value: "Auto"
@@ -325,7 +325,7 @@ struct_lit_width = 18
 
 struct_variant_width = 35
 
-single_line_if_else_max_width = 50
+single_line_if_else_max_width = 100
 
 # Number of spaces per tab
 # Default value: 4

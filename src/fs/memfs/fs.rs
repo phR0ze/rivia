@@ -78,7 +78,7 @@ impl Memfs
                 }
 
                 // Lookup the given directory component
-                //entry.dir.read().unwrap().get();
+                // entry.dir.read().unwrap().get("");
                 println!("Path: {:?}", x);
             }
         }
