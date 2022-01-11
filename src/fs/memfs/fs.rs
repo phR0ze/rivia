@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{FileSystem, MemfsEntry, Stdfs, Vfs},
+    fs::{FileSystem, MemfsEntry, MemfsEntryOpts, Stdfs, Vfs},
     iters::*,
 };
 
@@ -25,7 +25,7 @@ impl Memfs
     {
         Self {
             cwd: PathBuf::from("/"),
-            root: MemfsEntry::new("/"),
+            root: MemfsEntryOpts::new("/").entry(),
         }
     }
 
@@ -56,14 +56,14 @@ impl Memfs
     // Get the indicated entry if it exists
     pub(crate) fn get<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntry>
     {
-        let path = self.abs(path.as_ref())?;
-        let fs = self.fs.read().unwrap();
+        // let path = self.abs(path.as_ref())?;
+        // let fs = self.fs.read().unwrap();
 
-        for component in path.components() {
-            if let Component::Normal(x) = component {
-                println!("Path: {:?}", x);
-            }
-        }
+        // for component in path.components() {
+        //     if let Component::Normal(x) = component {
+        //         println!("Path: {:?}", x);
+        //     }
+        // }
         Err(PathError::Empty.into())
     }
 

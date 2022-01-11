@@ -1,8 +1,10 @@
 use std::{
-    cmp,
-    collections::HashMap,
+    cmp::{self, Ordering},
+    collections::HashSet,
     fmt::Debug,
-    fs, io,
+    fs,
+    hash::{Hash, Hasher},
+    io,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
@@ -12,12 +14,88 @@ use crate::{
     fs::{Entry, EntryIter, VfsEntry},
 };
 
-// Simple type to use when referring to the multi-thread safe locked hashmap that is
-// the memory filesystem's backend storage.
-pub(crate) type MemfsDir = Arc<RwLock<HashMap<PathBuf, MemfsEntry>>>;
+// Simple type to use when referring to the multi-thread safe locked hashmap that is a directory on
+// the memory filesystem.
+pub(crate) type MemfsDir = Arc<RwLock<HashSet<MemfsEntry>>>;
 
-/// MemfsEntry is an implementation a virtual filesystem trait for a single filesystem item. It is
-/// implemented
+// MemfsEntryOpts implements the builder pattern to provide advanced options for creating
+// MemfsEntry instances
+pub(crate) struct MemfsEntryOpts
+{
+    pub(crate) path: PathBuf, // path of the entry
+    pub(crate) alt: PathBuf,  // alternate path for the entry, used with links
+    pub(crate) dir: bool,     // is this entry a dir
+    pub(crate) file: bool,    // is this entry a file
+    pub(crate) link: bool,    // is this entry a link
+    pub(crate) mode: u32,     // permission mode of the entry
+}
+
+impl MemfsEntryOpts
+{
+    pub(crate) fn new<T: Into<PathBuf>>(path: T) -> Self
+    {
+        Self {
+            path: path.into(),
+            alt: PathBuf::new(),
+            dir: true, // directory by default
+            file: false,
+            link: false,
+            mode: 0,
+        }
+    }
+
+    pub(crate) fn alt<T: Into<PathBuf>>(mut self, path: T) -> Self
+    {
+        self.alt = path.into();
+        self
+    }
+
+    pub(crate) fn dir(mut self) -> Self
+    {
+        self.dir = true;
+        self.file = false;
+        self
+    }
+
+    pub(crate) fn file(mut self) -> Self
+    {
+        self.file = true;
+        self.dir = false;
+        self
+    }
+
+    pub(crate) fn link(mut self) -> Self
+    {
+        self.link = true;
+        self
+    }
+
+    pub(crate) fn mode(mut self, mode: u32) -> Self
+    {
+        self.mode = mode;
+        self
+    }
+
+    // Create a MemfsEntry instance from the MemfsEntryOpts instance
+    pub(crate) fn entry(self) -> MemfsEntry
+    {
+        MemfsEntry {
+            dir: Arc::new(RwLock::new(HashSet::new())),
+            data: vec![],
+            pos: 0,
+            path: self.path,
+            alt: self.alt,
+            is_dir: self.dir,
+            is_file: self.file,
+            is_link: self.link,
+            mode: self.mode,
+            follow: false,
+            cached: false,
+        }
+    }
+}
+
+/// MemfsEntry is an implementation of a single entry in a virtual filesystem.
 ///
 /// ### Example
 /// ```
@@ -26,91 +104,30 @@ pub(crate) type MemfsDir = Arc<RwLock<HashMap<PathBuf, MemfsEntry>>>;
 #[derive(Debug)]
 pub struct MemfsEntry
 {
-    pub(crate) fs: MemfsDir,  // multi-thread safe filesystem storage
+    pub(crate) dir: MemfsDir, // directory of entries
     pub(crate) data: Vec<u8>, // memory file data
     pub(crate) pos: u64,      // position in the file when reading or writing
 
     pub(crate) path: PathBuf, // path of the entry
     pub(crate) alt: PathBuf,  // alternate path for the entry, used with links
-    pub(crate) dir: bool,     // is this entry a dir
-    pub(crate) file: bool,    // is this entry a file
-    pub(crate) link: bool,    // is this entry a link
+    pub(crate) is_dir: bool,  // is this entry a dir
+    pub(crate) is_file: bool, // is this entry a file
+    pub(crate) is_link: bool, // is this entry a link
     pub(crate) mode: u32,     // permission mode of the entry
     pub(crate) follow: bool,  // tracks if the path and alt have been switched
     pub(crate) cached: bool,  // tracks if properties have been cached
 }
 
-impl Clone for MemfsEntry
-{
-    fn clone(&self) -> Self
-    {
-        Self {
-            fs: self.fs.clone(),
-            data: self.data.clone(),
-            pos: self.pos,
-            path: self.path.clone(),
-            alt: self.alt.clone(),
-            dir: self.dir,
-            file: self.file,
-            link: self.link,
-            mode: self.mode,
-            follow: self.follow,
-            cached: self.cached,
-        }
-    }
-}
-
 impl MemfsEntry
 {
-    pub(crate) fn new<T: Into<PathBuf>>(path: T) -> Self
-    {
-        Self {
-            fs: Arc::new(RwLock::new(HashMap::new())),
-            data: vec![],
-            pos: 0,
-            path: path.into(),
-            alt: PathBuf::new(),
-            dir: true, // directory by default
-            file: false,
-            link: false,
-            mode: 0,
-            follow: false,
-            cached: false,
-        }
-    }
-
-    /// Set the entry to be a directory. Will automatically set file and link to false. In order to
-    /// have a link that points to a directory you need to call link() after this call.
-    pub fn dir(mut self) -> Self
-    {
-        self.file = false;
-        self.link = false;
-        self.dir = true;
-        self
-    }
-
-    /// Set the entry to be a file. Will automatically set dir and link to false. In order to have a
-    /// link that points to a file you need to call link() after this call.
-    pub fn file(mut self) -> Self
-    {
-        self.dir = false;
-        self.link = false;
-        self.file = true;
-        self
-    }
+    /// # Errors
+    /// If the entry is a file with data a PathError::IsNotDir(PathBuf) error is returned
 
     /// Len reports the length of the data in bytes until the end of the file from the current
     /// position.
     pub fn len(&self) -> u64
     {
         self.data.len() as u64 - self.pos
-    }
-
-    /// Set the entry to be a link
-    pub fn link(mut self) -> Self
-    {
-        self.link = true;
-        self
     }
 
     /// Create an iterator from the given path to iterate over just the contents of this path
@@ -130,7 +147,7 @@ impl MemfsEntry
         })
     }
 
-    /// Switch the `path` and `alt` values if `is_symlink` reports true.
+    /// Switch the `path` and `alt` values if `is_link` reports true.
     ///
     /// ### Examples
     /// ```
@@ -140,7 +157,7 @@ impl MemfsEntry
     {
         if follow && !self.follow {
             self.follow = true;
-            if self.link {
+            if self.is_link {
                 let path = self.path;
                 self.path = self.alt;
                 self.alt = path;
@@ -235,7 +252,7 @@ impl Entry for MemfsEntry
     /// ```
     fn is_dir(&self) -> bool
     {
-        self.dir
+        self.is_dir
     }
 
     /// Regular files and symlinks that point to files will report true.
@@ -246,7 +263,7 @@ impl Entry for MemfsEntry
     /// ```
     fn is_file(&self) -> bool
     {
-        self.file
+        self.is_file
     }
 
     /// Links will report true
@@ -257,7 +274,7 @@ impl Entry for MemfsEntry
     /// ```
     fn is_symlink(&self) -> bool
     {
-        self.link
+        self.is_link
     }
 
     /// Reports the mode of the path
@@ -295,13 +312,66 @@ impl Entry for MemfsEntry
     }
 }
 
+impl Clone for MemfsEntry
+{
+    fn clone(&self) -> Self
+    {
+        Self {
+            dir: self.dir.clone(),
+            data: self.data.clone(),
+            pos: self.pos,
+            path: self.path.clone(),
+            alt: self.alt.clone(),
+            is_dir: self.is_dir,
+            is_file: self.is_file,
+            is_link: self.is_link,
+            mode: self.mode,
+            follow: self.follow,
+            cached: self.cached,
+        }
+    }
+}
+
+// Implement hashing requirements
+impl Eq for MemfsEntry {}
+impl PartialEq for MemfsEntry
+{
+    fn eq(&self, other: &Self) -> bool
+    {
+        self.path == other.path
+    }
+}
+impl Hash for MemfsEntry
+{
+    fn hash<T: Hasher>(&self, hasher: &mut T)
+    {
+        self.path.hash(hasher);
+    }
+}
+
+// Implement ordering
+impl PartialOrd for MemfsEntry
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering>
+    {
+        self.path.partial_cmp(&other.path)
+    }
+}
+impl Ord for MemfsEntry
+{
+    fn cmp(&self, other: &Self) -> Ordering
+    {
+        self.path.cmp(&other.path)
+    }
+}
+
 // Implement the Read trait for the MemfsEntry
 impl io::Read for MemfsEntry
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
         // Ensure that we are working with a valid file
-        if self.dir || self.link {
+        if self.is_dir || self.is_link {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 format!("Target path '{}' is not a readable file", self.path.display()),
@@ -344,7 +414,7 @@ impl io::Write for MemfsEntry
     fn write(&mut self, buf: &[u8]) -> io::Result<usize>
     {
         // Ensure that we are working with a valid file
-        if self.dir || self.link {
+        if self.is_dir || self.is_link {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 format!("Target path '{}' is not a writable file", self.path.display()),
@@ -382,22 +452,37 @@ impl Iterator for MemfsEntryIter
 #[cfg(test)]
 mod tests
 {
-    use std::collections::HashMap;
-    use std::sync::{Arc, RwLock};
-
     use crate::prelude::*;
 
     #[test]
     fn test_dir() -> RvResult<()>
     {
+        let mut memfile = MemfsEntryOpts::new("/").entry();
+        let dir = memfile.dir.write().unwrap();
+        assert_eq!(dir.len(), 0);
         Ok(())
+    }
+
+    #[test]
+    fn test_ordering_and_equality()
+    {
+        let entry1 = MemfsEntryOpts::new("1").entry();
+        let entry2 = MemfsEntryOpts::new("2").entry();
+        let entry3 = MemfsEntryOpts::new("3").entry();
+
+        let mut entries = vec![&entry1, &entry3, &entry2];
+        entries.sort();
+
+        assert_eq!(entries[0], &entry1);
+        assert_ne!(entries[1], &entry3);
+        assert_eq!(entries[1], &entry2);
+        assert_eq!(entries[2], &entry3);
     }
 
     #[test]
     fn test_not_readable_writable_file() -> RvResult<()>
     {
-        let fs = Arc::new(RwLock::new(HashMap::new()));
-        let mut memfile = MemfsEntry::new("foo", fs);
+        let mut memfile = MemfsEntryOpts::new("foo").entry();
 
         // Not readable
         let mut buf = [0; 1];
@@ -417,8 +502,7 @@ mod tests
     #[test]
     fn test_file_read_write_seek_len() -> RvResult<()>
     {
-        let fs = Arc::new(RwLock::new(HashMap::new()));
-        let mut memfile = MemfsEntry::new("foo", fs).file();
+        let mut memfile = MemfsEntryOpts::new("foo").file().entry();
 
         // Write out the data
         assert_eq!(memfile.len(), 0);
