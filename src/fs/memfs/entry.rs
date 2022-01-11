@@ -1,6 +1,6 @@
 use std::{
     cmp::{self, Ordering},
-    collections::HashSet,
+    collections::HashMap,
     fmt::Debug,
     fs,
     hash::{Hash, Hasher},
@@ -16,7 +16,7 @@ use crate::{
 
 // Simple type to use when referring to the multi-thread safe locked hashmap that is a directory on
 // the memory filesystem.
-pub(crate) type MemfsDir = Arc<RwLock<HashSet<MemfsEntry>>>;
+pub(crate) type MemfsDir = Arc<RwLock<HashMap<PathBuf, MemfsEntry>>>;
 
 // MemfsEntryOpts implements the builder pattern to provide advanced options for creating
 // MemfsEntry instances
@@ -80,7 +80,7 @@ impl MemfsEntryOpts
     pub(crate) fn entry(self) -> MemfsEntry
     {
         MemfsEntry {
-            dir: Arc::new(RwLock::new(HashSet::new())),
+            dir: Arc::new(RwLock::new(HashMap::new())),
             data: vec![],
             pos: 0,
             path: self.path,
@@ -133,7 +133,7 @@ impl MemfsEntry
         if self.is_file || self.is_link {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        self.dir.write().unwrap().insert(entry);
+        self.dir.write().unwrap().insert(entry.path.clone(), entry);
         Ok(())
     }
 
@@ -145,12 +145,12 @@ impl MemfsEntry
     // # Examples
     // ```
     // ```
-    pub(crate) fn remove(&mut self, entry: &MemfsEntry) -> RvResult<bool>
+    pub(crate) fn remove<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<MemfsEntry>>
     {
         if self.is_file || self.is_link {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        Ok(self.dir.write().unwrap().remove(entry))
+        Ok(self.dir.write().unwrap().remove(path.as_ref()))
     }
 
     /// Len reports the length of the data in bytes until the end of the file from the current
@@ -495,7 +495,7 @@ mod tests
         assert_eq!(memfile1.dir.write().unwrap().len(), 1);
 
         // Remove a file from a directory
-        memfile1.remove(&memfile2)?;
+        assert_eq!(memfile1.remove(&memfile2.path)?, Some(memfile2));
         assert_eq!(memfile1.dir.write().unwrap().len(), 0);
         Ok(())
     }
@@ -504,12 +504,7 @@ mod tests
     fn test_remove_non_existing()
     {
         let mut memfile = MemfsEntryOpts::new("foo").entry();
-        assert_eq!(
-            memfile
-                .remove(&MemfsEntryOpts::new("blah").entry())
-                .unwrap(),
-            false
-        );
+        assert_eq!(memfile.remove("blah").unwrap(), None);
     }
 
     #[test]
@@ -517,10 +512,7 @@ mod tests
     {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
         assert_eq!(
-            memfile
-                .remove(&MemfsEntryOpts::new("").entry())
-                .unwrap_err()
-                .to_string(),
+            memfile.remove("bar").unwrap_err().to_string(),
             "Target path is not a directory: foo"
         );
     }

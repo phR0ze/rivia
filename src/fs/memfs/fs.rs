@@ -190,7 +190,7 @@ mod tests
         assert_eq!(memfile1.dir.write().unwrap().len(), 1);
 
         // Remove a file from a directory
-        memfile1.remove(&memfile2)?;
+        assert_eq!(memfile1.remove(&memfile2.path)?, Some(memfile2));
         assert_eq!(memfile1.dir.write().unwrap().len(), 0);
         Ok(())
     }
