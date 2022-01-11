@@ -68,28 +68,19 @@ mod tests
     #[test]
     fn test_item_not_found()
     {
-        assert_eq!(
-            item_not_found().unwrap_err().downcast_ref::<IterError>(),
-            Some(&IterError::ItemNotFound)
-        );
+        assert_eq!(item_not_found().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::ItemNotFound));
         assert_eq!(format!("{}", IterError::item_not_found()), "iterator item not found");
     }
 
     #[test]
     fn test_multiple_items_found()
     {
-        assert_eq!(
-            format!("{}", IterError::multiple_items_found()),
-            "multiple iterator items found"
-        );
+        assert_eq!(format!("{}", IterError::multiple_items_found()), "multiple iterator items found");
     }
 
     #[test]
     fn test_mutually_exclusive_indices()
     {
-        assert_eq!(
-            format!("{}", IterError::mutually_exclusive_indices()),
-            "mutually exclusive indices"
-        );
+        assert_eq!(format!("{}", IterError::mutually_exclusive_indices()), "mutually exclusive indices");
     }
 }

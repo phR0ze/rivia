@@ -419,10 +419,7 @@ impl io::Read for MemfsEntry
     {
         // Ensure that we are working with a valid file
         if self.is_dir || self.is_link {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Target path '{}' is not a readable file", self.path.display()),
-            ));
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Target path '{}' is not a readable file", self.path.display())));
         }
 
         let pos = self.pos as usize;
@@ -462,10 +459,7 @@ impl io::Write for MemfsEntry
     {
         // Ensure that we are working with a valid file
         if self.is_dir || self.is_link {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Target path '{}' is not a writable file", self.path.display()),
-            ));
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Target path '{}' is not a writable file", self.path.display())));
         }
         self.data.write(buf)
     }
@@ -528,30 +522,21 @@ mod tests
     fn test_remove_from_file_fails()
     {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
-        assert_eq!(
-            memfile.remove("bar").unwrap_err().to_string(),
-            "Target path is not a directory: foo"
-        );
+        assert_eq!(memfile.remove("bar").unwrap_err().to_string(), "Target path is not a directory: foo");
     }
 
     #[test]
     fn test_add_to_link_fails()
     {
         let mut memfile = MemfsEntryOpts::new("foo").link().entry();
-        assert_eq!(
-            memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(),
-            "Target path is not a directory: foo"
-        );
+        assert_eq!(memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(), "Target path is not a directory: foo");
     }
 
     #[test]
     fn test_add_to_file_fails()
     {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
-        assert_eq!(
-            memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(),
-            "Target path is not a directory: foo"
-        );
+        assert_eq!(memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(), "Target path is not a directory: foo");
     }
 
     #[test]
@@ -577,16 +562,10 @@ mod tests
 
         // Not readable
         let mut buf = [0; 1];
-        assert_eq!(
-            memfile.read(&mut buf).unwrap_err().to_string(),
-            "Target path 'foo' is not a readable file"
-        );
+        assert_eq!(memfile.read(&mut buf).unwrap_err().to_string(), "Target path 'foo' is not a readable file");
 
         // Not writable
-        assert_eq!(
-            memfile.write(b"foobar1, ").unwrap_err().to_string(),
-            "Target path 'foo' is not a writable file"
-        );
+        assert_eq!(memfile.write(b"foobar1, ").unwrap_err().to_string(), "Target path 'foo' is not a writable file");
         Ok(())
     }
 

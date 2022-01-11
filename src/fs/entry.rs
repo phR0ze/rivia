@@ -463,10 +463,7 @@ impl EntryIter
     }
 
     /// Sort the given entries with the given sorter function
-    fn _sort(
-        &mut self, entries: &mut Vec<RvResult<VfsEntry>>,
-        cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering,
-    )
+    fn _sort(&mut self, entries: &mut Vec<RvResult<VfsEntry>>, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
     {
         entries.sort_by(|x, y| match (x, y) {
             (&Ok(ref x), &Ok(ref y)) => cmp(x, y),
@@ -657,12 +654,7 @@ mod tests
         assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
 
         // invalid directory
-        assert_eq!(
-            StdfsEntry::from(&PathBuf::from("/foobar"))
-                .unwrap_err()
-                .to_string(),
-            "No such file or directory (os error 2)"
-        );
+        assert_eq!(StdfsEntry::from(&PathBuf::from("/foobar")).unwrap_err().to_string(), "No such file or directory (os error 2)");
 
         assert_stdfs_remove_all!(&tmpdir);
     }
@@ -713,14 +705,8 @@ mod tests
         assert!(StdfsEntry::from(&PathBuf::from("")).is_err());
 
         // non-existing file or dir is not a symlink
-        assert_eq!(
-            StdfsEntry::from(&link1).unwrap_err().to_string(),
-            "No such file or directory (os error 2)"
-        );
-        assert_eq!(
-            StdfsEntry::from(&dir1).unwrap_err().to_string(),
-            "No such file or directory (os error 2)"
-        );
+        assert_eq!(StdfsEntry::from(&link1).unwrap_err().to_string(), "No such file or directory (os error 2)");
+        assert_eq!(StdfsEntry::from(&dir1).unwrap_err().to_string(), "No such file or directory (os error 2)");
 
         // regular file is not a symlink
         assert!(Stdfs::touch(&file1).is_ok());

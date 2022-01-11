@@ -39,9 +39,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
-        f.debug_struct("PeekingTakeWhile")
-            .field("iter", &self.iter)
-            .finish()
+        f.debug_struct("PeekingTakeWhile").field("iter", &self.iter).finish()
     }
 }
 
@@ -90,12 +88,7 @@ mod tests
         assert_eq!(iter.collect::<Vec<i32>>(), vec![4, 5]);
 
         let mut iter = vec![1, 2, 3, 4, 5].into_iter().peekable();
-        assert_eq!(
-            iter.by_ref()
-                .take_while_p(|&x| x <= 3)
-                .collect::<Vec<i32>>(),
-            vec![1, 2, 3]
-        );
+        assert_eq!(iter.by_ref().take_while_p(|&x| x <= 3).collect::<Vec<i32>>(), vec![1, 2, 3]);
         assert_eq!(iter.collect::<Vec<i32>>(), vec![4, 5]);
 
         // take_while consumes the first false

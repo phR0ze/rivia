@@ -9,7 +9,7 @@ required_version = "1.4.38"
 # Maximum width of an array literal before falling back to vertical formatting.
 # Default: 60
 # Possible values: any positive integer that is less than or equal to the value specified for max_width
-array_width = 60
+array_width = 80
 
 # Maximum width of the args of a function-like attributes before falling back to vertical formatting.
 # Default value: 70
@@ -41,7 +41,7 @@ brace_style = "AlwaysNextLine"
 # Maximum length of a chain to fit on a single line.
 # Default: 60
 # Possible values: any positive integer that is less than or equal to the value specified for max_width
-chain_width = 100
+chain_width = 120
 
 # Whether to use colored output or not.
 # Default value: "Auto"
@@ -112,7 +112,7 @@ fn_args_layout = "Compressed"
 # Maximum width of the args of a function call before falling back to vertical formatting.
 # Default value: 60
 # Possible values: any positive integer that is less than or equal to the value specified for max_width
-fn_call_width = 100
+fn_call_width = 120
 
 # Put single-expression functions on a single line
 # Default value: false
@@ -232,7 +232,7 @@ match_block_trailing_comma = true
 # Maximum width of each line
 # Default value: 100
 # Possible values: any positive integer
-max_width = 100
+max_width = 140
 
 # Merge multiple derives into a single one.
 # Default value: true
@@ -325,7 +325,7 @@ struct_lit_width = 18
 
 struct_variant_width = 35
 
-single_line_if_else_max_width = 100
+single_line_if_else_max_width = 120
 
 # Number of spaces per tab
 # Default value: 4

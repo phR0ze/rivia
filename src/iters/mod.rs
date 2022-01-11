@@ -349,26 +349,14 @@ mod tests
     {
         // Start
         assert_iter_eq(vec![2, 3], vec![1, 2, 3].into_iter().drop(1));
-        assert_iter_eq(
-            PathBuf::from("bar").components(),
-            PathBuf::from("foo/bar").components().drop(1),
-        );
-        assert_iter_eq(
-            PathBuf::from("bar").components(),
-            PathBuf::from("/foo/bar").components().drop(2),
-        );
+        assert_iter_eq(PathBuf::from("bar").components(), PathBuf::from("foo/bar").components().drop(1));
+        assert_iter_eq(PathBuf::from("bar").components(), PathBuf::from("/foo/bar").components().drop(2));
 
         // End
         assert_iter_eq(vec![1, 2], vec![1, 2, 3].into_iter().drop(-1));
         assert_eq!(1, vec![1, 2, 3].into_iter().drop(-1).next().unwrap());
-        assert_iter_eq(
-            PathBuf::from("foo").components(),
-            PathBuf::from("foo/bar").components().drop(-1),
-        );
-        assert_iter_eq(
-            PathBuf::from("/").components(),
-            PathBuf::from("/foo/bar").components().drop(-2),
-        );
+        assert_iter_eq(PathBuf::from("foo").components(), PathBuf::from("foo/bar").components().drop(-1));
+        assert_iter_eq(PathBuf::from("/").components(), PathBuf::from("/foo/bar").components().drop(-2));
     }
 
     #[test]
@@ -376,80 +364,40 @@ mod tests
     {
         assert_iter_eq(vec![1, 2], vec![1, 2]);
         assert!(std::panic::catch_unwind(|| assert_iter_eq(vec![1, 2], vec![1, 3])).is_err());
-        assert_iter_eq(
-            PathBuf::from("foo/bar").components(),
-            PathBuf::from("foo/bar").components(),
+        assert_iter_eq(PathBuf::from("foo/bar").components(), PathBuf::from("foo/bar").components());
+        assert!(
+            std::panic::catch_unwind(|| assert_iter_eq(PathBuf::from("foo/bar").components(), PathBuf::from("bar").components())).is_err()
         );
-        assert!(std::panic::catch_unwind(|| assert_iter_eq(
-            PathBuf::from("foo/bar").components(),
-            PathBuf::from("bar").components()
-        ))
-        .is_err());
     }
 
     #[test]
     fn test_first()
     {
-        assert_eq!(
-            Component::Normal(OsStr::new("foo")),
-            PathBuf::from("foo/bar").components().first().unwrap()
-        );
-        assert_ne!(
-            Component::Normal(OsStr::new("bar")),
-            PathBuf::from("foo/bar").components().first().unwrap()
-        );
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").components().first().unwrap());
+        assert_ne!(Component::Normal(OsStr::new("bar")), PathBuf::from("foo/bar").components().first().unwrap());
     }
 
     #[test]
     fn test_first_result()
     {
-        assert_eq!(
-            Component::Normal(OsStr::new("foo")),
-            PathBuf::from("foo/bar")
-                .components()
-                .first_result()
-                .unwrap()
-        );
-        assert_ne!(
-            Component::Normal(OsStr::new("bar")),
-            PathBuf::from("foo/bar")
-                .components()
-                .first_result()
-                .unwrap()
-        );
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").components().first_result().unwrap());
+        assert_ne!(Component::Normal(OsStr::new("bar")), PathBuf::from("foo/bar").components().first_result().unwrap());
     }
 
     #[test]
     fn test_last_result()
     {
-        assert_eq!(
-            Component::Normal(OsStr::new("bar")),
-            PathBuf::from("foo/bar").components().last_result().unwrap()
-        );
-        assert_ne!(
-            Component::Normal(OsStr::new("foo")),
-            PathBuf::from("foo/bar").components().last_result().unwrap()
-        );
+        assert_eq!(Component::Normal(OsStr::new("bar")), PathBuf::from("foo/bar").components().last_result().unwrap());
+        assert_ne!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").components().last_result().unwrap());
     }
 
     #[test]
     fn test_single()
     {
         assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
+        assert_eq!((0..10).filter(|&x| x > 2).single().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::multiple_items_found()));
         assert_eq!(
-            (0..10)
-                .filter(|&x| x > 2)
-                .single()
-                .unwrap_err()
-                .downcast_ref::<IterError>(),
-            Some(&IterError::multiple_items_found())
-        );
-        assert_eq!(
-            (0..10)
-                .filter(|&x| x > 2 && x < 5)
-                .single()
-                .unwrap_err()
-                .downcast_ref::<IterError>(),
+            (0..10).filter(|&x| x > 2 && x < 5).single().unwrap_err().downcast_ref::<IterError>(),
             Some(&IterError::multiple_items_found())
         );
     }

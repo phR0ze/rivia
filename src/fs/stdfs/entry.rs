@@ -93,9 +93,7 @@ impl StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub(crate) fn new<T: Into<PathBuf>>(
-        path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool,
-    ) -> Self
+    pub(crate) fn new<T: Into<PathBuf>>(path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool) -> Self
     {
         StdfsEntry {
             path: path.into(),
@@ -129,11 +127,7 @@ impl StdfsEntry
             let src = fs::read_link(&path)?;
 
             // Ensure src is rooted properly
-            let rooted = if !src.is_absolute() {
-                Stdfs::mash(Stdfs::dir(&path)?, src)
-            } else {
-                src
-            };
+            let rooted = if !src.is_absolute() { Stdfs::mash(Stdfs::dir(&path)?, src) } else { src };
 
             // Set the link's source
             alt = Stdfs::abs(rooted)?;

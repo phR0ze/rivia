@@ -218,22 +218,10 @@ mod tests
     fn test_parent_not_found()
     {
         assert!(parent_not_found().is_err());
-        assert_ne!(
-            parent_not_found().unwrap_err().downcast_ref::<PathError>(),
-            Some(&PathError::parent_not_found("bar"))
-        );
+        assert_ne!(parent_not_found().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::parent_not_found("bar")));
+        assert_eq!(parent_not_found().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::parent_not_found("foo")));
         assert_eq!(
-            parent_not_found().unwrap_err().downcast_ref::<PathError>(),
-            Some(&PathError::parent_not_found("foo"))
-        );
-        assert_eq!(
-            format!(
-                "{}",
-                parent_not_found()
-                    .unwrap_err()
-                    .downcast_ref::<PathError>()
-                    .unwrap()
-            ),
+            format!("{}", parent_not_found().unwrap_err().downcast_ref::<PathError>().unwrap()),
             "Target path's parent not found: foo"
         );
     }
@@ -241,103 +229,34 @@ mod tests
     #[test]
     fn test_other_errors()
     {
-        assert_eq!(
-            PathError::does_not_exist(Path::new("foo")),
-            PathError::DoesNotExist(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::DoesNotExist(PathBuf::from("foo"))),
-            "Target path does not exist: foo"
-        );
+        assert_eq!(PathError::does_not_exist(Path::new("foo")), PathError::DoesNotExist(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::DoesNotExist(PathBuf::from("foo"))), "Target path does not exist: foo");
         assert_eq!(format!("{}", PathError::Empty), "path empty");
-        assert_eq!(
-            PathError::exists_already(Path::new("foo")),
-            PathError::ExistsAlready(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::ExistsAlready(PathBuf::from("foo"))),
-            "Target path exists already: foo"
-        );
-        assert_eq!(
-            PathError::extension_not_found(Path::new("foo")),
-            PathError::ExtensionNotFound(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::ExtensionNotFound(PathBuf::from("foo"))),
-            "Target path extension not found: foo"
-        );
-        assert_eq!(
-            PathError::failed_to_string(Path::new("foo")),
-            PathError::FailedToString(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::failed_to_string(PathBuf::from("foo"))),
-            "Target path failed to convert to string: foo"
-        );
-        assert_eq!(
-            PathError::filename_not_found(Path::new("foo")),
-            PathError::FileNameNotFound(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::filename_not_found(PathBuf::from("foo"))),
-            "Target path filename not found: foo"
-        );
-        assert_eq!(
-            PathError::invalid_expansion(Path::new("foo")),
-            PathError::InvalidExpansion(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::invalid_expansion(PathBuf::from("foo"))),
-            "Target path has an invalid expansion: foo"
-        );
-        assert_eq!(
-            PathError::is_not_dir(Path::new("foo")),
-            PathError::IsNotDir(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::is_not_dir(PathBuf::from("foo"))),
-            "Target path is not a directory: foo"
-        );
-        assert_eq!(
-            PathError::is_not_exec(Path::new("foo")),
-            PathError::IsNotExec(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::is_not_exec(PathBuf::from("foo"))),
-            "Target path is not an executable: foo"
-        );
-        assert_eq!(
-            PathError::is_not_file(Path::new("foo")),
-            PathError::IsNotFile(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::is_not_file(PathBuf::from("foo"))),
-            "Target path is not a file: foo"
-        );
-        assert_eq!(
-            PathError::is_not_file_or_symlink_to_file(Path::new("foo")),
-            PathError::IsNotFileOrSymlinkToFile(PathBuf::from("foo"))
-        );
+        assert_eq!(PathError::exists_already(Path::new("foo")), PathError::ExistsAlready(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::ExistsAlready(PathBuf::from("foo"))), "Target path exists already: foo");
+        assert_eq!(PathError::extension_not_found(Path::new("foo")), PathError::ExtensionNotFound(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::ExtensionNotFound(PathBuf::from("foo"))), "Target path extension not found: foo");
+        assert_eq!(PathError::failed_to_string(Path::new("foo")), PathError::FailedToString(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::failed_to_string(PathBuf::from("foo"))), "Target path failed to convert to string: foo");
+        assert_eq!(PathError::filename_not_found(Path::new("foo")), PathError::FileNameNotFound(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::filename_not_found(PathBuf::from("foo"))), "Target path filename not found: foo");
+        assert_eq!(PathError::invalid_expansion(Path::new("foo")), PathError::InvalidExpansion(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::invalid_expansion(PathBuf::from("foo"))), "Target path has an invalid expansion: foo");
+        assert_eq!(PathError::is_not_dir(Path::new("foo")), PathError::IsNotDir(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::is_not_dir(PathBuf::from("foo"))), "Target path is not a directory: foo");
+        assert_eq!(PathError::is_not_exec(Path::new("foo")), PathError::IsNotExec(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::is_not_exec(PathBuf::from("foo"))), "Target path is not an executable: foo");
+        assert_eq!(PathError::is_not_file(Path::new("foo")), PathError::IsNotFile(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::is_not_file(PathBuf::from("foo"))), "Target path is not a file: foo");
+        assert_eq!(PathError::is_not_file_or_symlink_to_file(Path::new("foo")), PathError::IsNotFileOrSymlinkToFile(PathBuf::from("foo")));
         assert_eq!(
             format!("{}", PathError::is_not_file_or_symlink_to_file(PathBuf::from("foo"))),
             "Target path is not a file or a symlink to a file: foo"
         );
-        assert_eq!(
-            PathError::link_looping(Path::new("foo")),
-            PathError::LinkLooping(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::link_looping(PathBuf::from("foo"))),
-            "Target path causes link looping: foo"
-        );
-        assert_eq!(
-            PathError::multiple_home_symbols(Path::new("foo")),
-            PathError::MultipleHomeSymbols(PathBuf::from("foo"))
-        );
-        assert_eq!(
-            format!("{}", PathError::multiple_home_symbols(PathBuf::from("foo"))),
-            "Target path has multiple home symbols: foo"
-        );
+        assert_eq!(PathError::link_looping(Path::new("foo")), PathError::LinkLooping(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::link_looping(PathBuf::from("foo"))), "Target path causes link looping: foo");
+        assert_eq!(PathError::multiple_home_symbols(Path::new("foo")), PathError::MultipleHomeSymbols(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::multiple_home_symbols(PathBuf::from("foo"))), "Target path has multiple home symbols: foo");
     }
 
     #[test]

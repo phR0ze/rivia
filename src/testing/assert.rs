@@ -81,11 +81,7 @@ macro_rules! assert_stdfs_setup_func {
             if Stdfs::is_empty(root.as_ref()) {
                 panic_msg!("assert_stdfs_setup_func!", "root path is empty", root.as_ref());
             } else if Stdfs::is_empty(func_name.as_ref()) {
-                panic_msg!(
-                    "assert_stdfs_setup_func!",
-                    "function name is empty",
-                    func_name.as_ref()
-                );
+                panic_msg!("assert_stdfs_setup_func!", "function name is empty", func_name.as_ref());
             }
 
             // Resolve absolute path of target
@@ -103,11 +99,7 @@ macro_rules! assert_stdfs_setup_func {
             // Create the target directory
             match Stdfs::mkdir_p(&target) {
                 Ok(dir) => dir,
-                _ => panic_msg!(
-                    "assert_stdfs_setup_func!",
-                    "failed while creating directory",
-                    &target
-                ),
+                _ => panic_msg!("assert_stdfs_setup_func!", "failed while creating directory", &target),
             }
         }
     };
@@ -363,12 +355,7 @@ macro_rules! assert_stdfs_mkdir_p {
         match Stdfs::mkdir_p(&target) {
             Ok(x) => {
                 if &x != &target {
-                    panic_compare_msg!(
-                        "assert_stdfs_mkdir_p!",
-                        "created directory path doesn't match the target",
-                        &x,
-                        &target
-                    );
+                    panic_compare_msg!("assert_stdfs_mkdir_p!", "created directory path doesn't match the target", &x, &target);
                 }
             },
             Err(e) => panic!("assert_stdfs_mkdir_p!: {}", e.to_string()),
@@ -403,12 +390,7 @@ macro_rules! assert_stdfs_touch {
         match Stdfs::touch(&target) {
             Ok(x) => {
                 if &x != &target {
-                    panic_compare_msg!(
-                        "assert_stdfs_touch!",
-                        "created file path doesn't match the target",
-                        &x,
-                        &target
-                    );
+                    panic_compare_msg!("assert_stdfs_touch!", "created file path doesn't match the target", &x, &target);
                 }
             },
             Err(e) => panic!("assert_stdfs_touch!: {}", e.to_string()),
@@ -510,13 +492,7 @@ macro_rules! panic_msg {
 #[macro_export]
 macro_rules! panic_compare_msg {
     ($name:expr, $msg:expr, $actual:expr, $target:expr) => {
-        panic!(
-            "\n{}: {}\n  actual: {}\n  target: {}\n",
-            $name,
-            $msg,
-            format!("{:?}", $actual),
-            format!("{:?}", $target)
-        )
+        panic!("\n{}: {}\n  actual: {}\n  target: {}\n", $name, $msg, format!("{:?}", $actual), format!("{:?}", $target))
     };
 }
 
@@ -565,39 +541,27 @@ mod tests
         let result = testing::capture_panic(|| {
             assert_stdfs_exists!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_exists!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_exists!: failed to get absolute path\n  target: \"\"\n");
 
         // exists: doesn't exist
         let file1 = Stdfs::mash(&tmpdir, "file1");
         let result = testing::capture_panic(|| {
             assert_stdfs_exists!(&file1);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("\nassert_stdfs_exists!: doesn't exist\n  target: {:?}\n", &file1)
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("\nassert_stdfs_exists!: doesn't exist\n  target: {:?}\n", &file1));
 
         // no exists: bad abs
         let result = testing::capture_panic(|| {
             assert_stdfs_no_exists!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_no_exists!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_no_exists!: failed to get absolute path\n  target: \"\"\n");
 
         // no exists: does exist
         assert_stdfs_touch!(&file1);
         let result = testing::capture_panic(|| {
             assert_stdfs_no_exists!(&file1);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("\nassert_stdfs_no_exists!: still exists\n  target: {:?}\n", &file1)
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("\nassert_stdfs_no_exists!: still exists\n  target: {:?}\n", &file1));
 
         assert_stdfs_remove_all!(&tmpdir);
     }
@@ -620,37 +584,25 @@ mod tests
         let result = testing::capture_panic(|| {
             assert_stdfs_is_dir!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_is_dir!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_is_dir!: failed to get absolute path\n  target: \"\"\n");
 
         // is_dir: doesn't exist
         let result = testing::capture_panic(|| {
             assert_stdfs_is_dir!(&dir2);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("\nassert_stdfs_is_dir!: doesn't exist\n  target: {:?}\n", &dir2)
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("\nassert_stdfs_is_dir!: doesn't exist\n  target: {:?}\n", &dir2));
 
         // no_dir: bad abs
         let result = testing::capture_panic(|| {
             assert_stdfs_no_dir!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_no_dir!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_no_dir!: failed to get absolute path\n  target: \"\"\n");
 
         // no_dir: does exist
         let result = testing::capture_panic(|| {
             assert_stdfs_no_dir!(&dir1);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("\nassert_stdfs_no_dir!: directory still exists\n  target: {:?}\n", &dir1)
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("\nassert_stdfs_no_dir!: directory still exists\n  target: {:?}\n", &dir1));
 
         assert_stdfs_remove_all!(&tmpdir);
     }
@@ -673,37 +625,25 @@ mod tests
         let result = testing::capture_panic(|| {
             assert_stdfs_is_file!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_is_file!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_is_file!: failed to get absolute path\n  target: \"\"\n");
 
         // is_file: doesn't exist
         let result = testing::capture_panic(|| {
             assert_stdfs_is_file!(&file2);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("\nassert_stdfs_is_file!: doesn't exist\n  target: {:?}\n", &file2)
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("\nassert_stdfs_is_file!: doesn't exist\n  target: {:?}\n", &file2));
 
         // no_file: bad abs
         let result = testing::capture_panic(|| {
             assert_stdfs_no_file!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_no_file!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_no_file!: failed to get absolute path\n  target: \"\"\n");
 
         // no_file: does exist
         let result = testing::capture_panic(|| {
             assert_stdfs_no_file!(&file1);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("\nassert_stdfs_no_file!: file still exists\n  target: {:?}\n", &file1)
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("\nassert_stdfs_no_file!: file still exists\n  target: {:?}\n", &file1));
 
         assert_stdfs_remove_all!(&tmpdir);
     }
@@ -725,19 +665,13 @@ mod tests
         let result = testing::capture_panic(|| {
             assert_stdfs_remove!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_remove!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_remove!: failed to get absolute path\n  target: \"\"\n");
 
         // is a directory
         let result = testing::capture_panic(|| {
             assert_stdfs_remove!(&tmpdir);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("\nassert_stdfs_remove!: exists and isn't a file\n  target: {:?}\n", &tmpdir)
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("\nassert_stdfs_remove!: exists and isn't a file\n  target: {:?}\n", &tmpdir));
 
         // // fail to remove file
         // assert_stdfs_no_file!(&file1);
@@ -767,19 +701,13 @@ mod tests
         });
 
         // fail abs
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_mkdir_p!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_mkdir_p!: failed to get absolute path\n  target: \"\"\n");
 
         // exists but not a directory
         let result = testing::capture_panic(|| {
             assert_stdfs_mkdir_p!(&file1);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("assert_stdfs_mkdir_p!: is not a directory: {}", &file1.display())
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("assert_stdfs_mkdir_p!: is not a directory: {}", &file1.display()));
 
         // happy path
         assert_stdfs_no_dir!(&dir1);
@@ -801,19 +729,13 @@ mod tests
         let result = testing::capture_panic(|| {
             assert_stdfs_touch!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_touch!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_touch!: failed to get absolute path\n  target: \"\"\n");
 
         // exists but not a file
         let result = testing::capture_panic(|| {
             assert_stdfs_touch!(&dir1);
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("assert_stdfs_touch!: is not a file: {}", dir1.display())
-        );
+        assert_eq!(result.unwrap_err().to_string(), format!("assert_stdfs_touch!: is not a file: {}", dir1.display()));
 
         // happy path
         assert_stdfs_no_file!(&file1);
@@ -838,10 +760,7 @@ mod tests
         let result = testing::capture_panic(|| {
             assert_stdfs_remove_all!("");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_remove_all!: failed to get absolute path\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_remove_all!: failed to get absolute path\n  target: \"\"\n");
     }
 
     #[test]
@@ -851,14 +770,7 @@ mod tests
         {
             let tmpdir = assert_stdfs_setup!();
             assert_stdfs_mkdir_p!(&tmpdir);
-            assert_eq!(
-                tmpdir,
-                Stdfs::abs(Stdfs::mash(
-                    &PathBuf::from(testing::TEST_TEMP_DIR),
-                    "test_assert_stdfs_setup"
-                ))
-                .unwrap()
-            );
+            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup")).unwrap());
             assert_stdfs_remove_all!(&tmpdir);
         }
 
@@ -867,11 +779,7 @@ mod tests
             let func_name = "test_assert_stdfs_setup_alt_func";
             let tmpdir = assert_stdfs_setup!(&func_name);
             assert_stdfs_mkdir_p!(&tmpdir);
-            assert_eq!(
-                tmpdir,
-                Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), &func_name))
-                    .unwrap()
-            );
+            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), &func_name)).unwrap());
             assert_stdfs_remove_all!(&tmpdir);
         }
 
@@ -893,35 +801,22 @@ mod tests
         let result = testing::capture_panic(|| {
             assert_stdfs_setup!("", "foo");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_setup_func!: root path is empty\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_setup_func!: root path is empty\n  target: \"\"\n");
 
         // func name is empty
         let result = testing::capture_panic(|| {
             assert_stdfs_setup!("foo", "");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_setup_func!: function name is empty\n  target: \"\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_setup_func!: function name is empty\n  target: \"\"\n");
 
         // fail abs because of multiple home symbols
         let result = testing::capture_panic(|| {
             assert_stdfs_setup!("foo", "~~");
         });
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "\nassert_stdfs_setup_func!: failed to get absolute path\n  target: \"foo/~~\"\n"
-        );
+        assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_setup_func!: failed to get absolute path\n  target: \"foo/~~\"\n");
 
         // fail to remove directory
-        let path = Stdfs::abs(Stdfs::mash(
-            PathBuf::from(testing::TEST_TEMP_DIR),
-            "test_assert_stdfs_setup_func_perms",
-        ))
-        .unwrap();
+        let path = Stdfs::abs(Stdfs::mash(PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup_func_perms")).unwrap();
         assert_eq!(Stdfs::mkdir_m(&path, 0o000).unwrap(), path); // no write priv
         assert_eq!(Stdfs::mode(&path).unwrap(), 0o40000);
         let result = testing::capture_panic(|| {
@@ -929,10 +824,7 @@ mod tests
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!(
-                "\nassert_stdfs_setup_func!: failed while removing directory\n  target: {:?}\n",
-                path
-            )
+            format!("\nassert_stdfs_setup_func!: failed while removing directory\n  target: {:?}\n", path)
         );
         assert!(Stdfs::chmod(&path, 0o777).is_ok());
         assert!(Stdfs::remove_all(&path).is_ok());

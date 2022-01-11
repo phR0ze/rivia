@@ -72,39 +72,18 @@ mod tests
     fn test_downcast()
     {
         assert!(vfs_unavailable().is_err());
-        assert_eq!(
-            vfs_unavailable().unwrap_err().downcast_ref::<VfsError>(),
-            Some(&VfsError::Unavailable)
-        );
+        assert_eq!(vfs_unavailable().unwrap_err().downcast_ref::<VfsError>(), Some(&VfsError::Unavailable));
     }
 
     #[test]
     fn test_vfs_errors()
     {
-        assert_eq!(
-            VfsError::FailedToExtractString.to_string(),
-            "Failed to extract string from file"
-        );
-        assert_eq!(
-            VfsError::InvalidChmod("foo".to_string()).to_string(),
-            "Invalid chmod symbols given: foo"
-        );
-        assert_eq!(
-            VfsError::InvalidChmodGroup("foo".to_string()).to_string(),
-            "Invalid chmod group given: foo"
-        );
-        assert_eq!(
-            VfsError::InvalidChmodOp("foo".to_string()).to_string(),
-            "Invalid chmod operation given: foo"
-        );
-        assert_eq!(
-            VfsError::InvalidChmodPermissions("foo".to_string()).to_string(),
-            "Invalid chmod permissions given: foo"
-        );
-        assert_eq!(
-            VfsError::InvalidChmodTarget("foo".to_string()).to_string(),
-            "Invalid chmod target given: foo"
-        );
+        assert_eq!(VfsError::FailedToExtractString.to_string(), "Failed to extract string from file");
+        assert_eq!(VfsError::InvalidChmod("foo".to_string()).to_string(), "Invalid chmod symbols given: foo");
+        assert_eq!(VfsError::InvalidChmodGroup("foo".to_string()).to_string(), "Invalid chmod group given: foo");
+        assert_eq!(VfsError::InvalidChmodOp("foo".to_string()).to_string(), "Invalid chmod operation given: foo");
+        assert_eq!(VfsError::InvalidChmodPermissions("foo".to_string()).to_string(), "Invalid chmod permissions given: foo");
+        assert_eq!(VfsError::InvalidChmodTarget("foo".to_string()).to_string(), "Invalid chmod target given: foo");
         assert_eq!(VfsError::Unavailable.to_string(), "Virtual filesystem is unavailable");
     }
 }

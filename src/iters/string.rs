@@ -80,9 +80,7 @@ impl ToStringExt for Path
 {
     fn to_string(&self) -> RvResult<String>
     {
-        let _str = self
-            .to_str()
-            .ok_or_else(|| PathError::failed_to_string(self))?;
+        let _str = self.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
         Ok(String::from(_str))
     }
 }
