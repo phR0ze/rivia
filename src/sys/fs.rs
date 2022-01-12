@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{Memfs, Stdfs},
+    sys::{Memfs, Stdfs},
 };
 
 // Vfs trait
@@ -112,10 +112,10 @@ mod tests
     fn test_fs_stdfs_read_write() -> RvResult<()>
     {
         // Manually doing this as I want to show the switching of vfs backends
-        let tmpdir = Stdfs::mash(testing::TEST_TEMP_DIR, "test_fs_stdfs_read_write");
+        let tmpdir = sys::mash(testing::TEST_TEMP_DIR, "test_fs_stdfs_read_write");
         assert_stdfs_remove_all!(&tmpdir);
         assert_stdfs_mkdir_p!(&tmpdir);
-        let file1 = Stdfs::mash(&tmpdir, "file1");
+        let file1 = sys::mash(&tmpdir, "file1");
 
         // Create the stdfs instance to test first with. Verify with Stdfs functions
         // directly as we haven't yet implemented the vfs functions.

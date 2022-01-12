@@ -78,14 +78,14 @@ macro_rules! assert_stdfs_setup_func {
         fn setup<T: AsRef<Path>, U: AsRef<Path>>(root: T, func_name: U) -> PathBuf
         {
             // Validate the root path and function name
-            if Stdfs::is_empty(root.as_ref()) {
+            if sys::is_empty(root.as_ref()) {
                 panic_msg!("assert_stdfs_setup_func!", "root path is empty", root.as_ref());
-            } else if Stdfs::is_empty(func_name.as_ref()) {
+            } else if sys::is_empty(func_name.as_ref()) {
                 panic_msg!("assert_stdfs_setup_func!", "function name is empty", func_name.as_ref());
             }
 
             // Resolve absolute path of target
-            let target = Stdfs::mash(root.as_ref().to_owned(), func_name.as_ref());
+            let target = sys::mash(root.as_ref().to_owned(), func_name.as_ref());
             let target = match Stdfs::abs(&target) {
                 Ok(x) => x,
                 _ => panic_msg!("assert_stdfs_setup_func!", "failed to get absolute path", &target),
@@ -511,7 +511,7 @@ mod tests
 
         // Test file exists
         {
-            let file = Stdfs::mash(&tmpdir, "file");
+            let file = sys::mash(&tmpdir, "file");
             assert_stdfs_no_exists!(&file);
             assert!(!Stdfs::exists(&file));
             assert_stdfs_touch!(&file);
@@ -525,7 +525,7 @@ mod tests
 
         // Test dir exists
         {
-            let dir1 = Stdfs::mash(&tmpdir, "dir1");
+            let dir1 = sys::mash(&tmpdir, "dir1");
             assert_stdfs_no_exists!(&dir1);
             assert!(!Stdfs::exists(&dir1));
             assert_stdfs_mkdir_p!(&dir1);
@@ -544,7 +544,7 @@ mod tests
         assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_exists!: failed to get absolute path\n  target: \"\"\n");
 
         // exists: doesn't exist
-        let file1 = Stdfs::mash(&tmpdir, "file1");
+        let file1 = sys::mash(&tmpdir, "file1");
         let result = testing::capture_panic(|| {
             assert_stdfs_exists!(&file1);
         });
@@ -570,8 +570,8 @@ mod tests
     fn test_assert_stdfs_is_dir_no_dir()
     {
         let tmpdir = assert_stdfs_setup!();
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
-        let dir2 = Stdfs::mash(&tmpdir, "dir2");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let dir2 = sys::mash(&tmpdir, "dir2");
 
         // happy path
         assert_stdfs_no_dir!(&dir1);
@@ -611,8 +611,8 @@ mod tests
     fn test_assert_stdfs_is_file_no_file()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let file2 = Stdfs::mash(&tmpdir, "file2");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let file2 = sys::mash(&tmpdir, "file2");
 
         // happy path
         assert_stdfs_no_file!(&file1);
@@ -652,7 +652,7 @@ mod tests
     fn test_assert_stdfs_remove()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
+        let file1 = sys::mash(&tmpdir, "file1");
 
         // happy path
         assert_stdfs_remove!(&file1);
@@ -691,8 +691,8 @@ mod tests
     fn test_assert_stdfs_mkdir_p()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let dir1 = sys::mash(&tmpdir, "dir1");
         assert_stdfs_touch!(&file1);
 
         // fail abs
@@ -721,8 +721,8 @@ mod tests
     fn test_assert_stdfs_touch()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let dir1 = sys::mash(&tmpdir, "dir1");
         assert_stdfs_mkdir_p!(&dir1);
 
         // fail abs
@@ -749,7 +749,7 @@ mod tests
     fn test_assert_stdfs_remove_all()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
+        let file1 = sys::mash(&tmpdir, "file1");
 
         assert_stdfs_touch!(&file1);
         assert_stdfs_is_file!(&file1);
@@ -770,7 +770,7 @@ mod tests
         {
             let tmpdir = assert_stdfs_setup!();
             assert_stdfs_mkdir_p!(&tmpdir);
-            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup")).unwrap());
+            assert_eq!(tmpdir, Stdfs::abs(sys::mash(&PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup")).unwrap());
             assert_stdfs_remove_all!(&tmpdir);
         }
 
@@ -779,7 +779,7 @@ mod tests
             let func_name = "test_assert_stdfs_setup_alt_func";
             let tmpdir = assert_stdfs_setup!(&func_name);
             assert_stdfs_mkdir_p!(&tmpdir);
-            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(testing::TEST_TEMP_DIR), &func_name)).unwrap());
+            assert_eq!(tmpdir, Stdfs::abs(sys::mash(&PathBuf::from(testing::TEST_TEMP_DIR), &func_name)).unwrap());
             assert_stdfs_remove_all!(&tmpdir);
         }
 
@@ -789,7 +789,7 @@ mod tests
             let func_name = "test_assert_stdfs_setup_alt_func";
             let tmpdir = assert_stdfs_setup!(&root, &func_name);
             assert_stdfs_mkdir_p!(&tmpdir);
-            assert_eq!(tmpdir, Stdfs::abs(Stdfs::mash(&PathBuf::from(&root), &func_name)).unwrap());
+            assert_eq!(tmpdir, Stdfs::abs(sys::mash(&PathBuf::from(&root), &func_name)).unwrap());
             assert_stdfs_remove_all!(&root);
         }
     }
@@ -816,11 +816,11 @@ mod tests
         assert_eq!(result.unwrap_err().to_string(), "\nassert_stdfs_setup_func!: failed to get absolute path\n  target: \"foo/~~\"\n");
 
         // fail to remove directory
-        let path = Stdfs::abs(Stdfs::mash(PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup_func_perms")).unwrap();
+        let path = Stdfs::abs(sys::mash(PathBuf::from(testing::TEST_TEMP_DIR), "test_assert_stdfs_setup_func_perms")).unwrap();
         assert_eq!(Stdfs::mkdir_m(&path, 0o000).unwrap(), path); // no write priv
         assert_eq!(Stdfs::mode(&path).unwrap(), 0o40000);
         let result = testing::capture_panic(|| {
-            assert_stdfs_setup!(testing::TEST_TEMP_DIR, Stdfs::name(&path).unwrap());
+            assert_stdfs_setup!(testing::TEST_TEMP_DIR, sys::name(&path).unwrap());
         });
         assert_eq!(
             result.unwrap_err().to_string(),

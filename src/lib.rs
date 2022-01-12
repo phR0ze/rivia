@@ -10,8 +10,8 @@
 pub mod testing;
 
 pub mod errors;
-pub mod fs;
-pub mod iters;
+pub mod exts;
+pub mod sys;
 
 /// All essential symbols in a simple consumable way
 ///
@@ -34,7 +34,12 @@ pub mod prelude
         assert_stdfs_touch, cfgblock, function, trying,
     };
     // Export internal types
-    pub use crate::{errors::*, fs::*, iters::*, testing};
+    pub use crate::{
+        errors::*,
+        exts::*,
+        sys::{self, Entry, EntryIter, FileSystem, Memfs, MemfsEntry, Stdfs, StdfsEntry, Vfs, VfsEntry},
+        testing,
+    };
 }
 
 /// Provides the ability to define `#[cfg]` statements for multiple items

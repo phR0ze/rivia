@@ -1,4 +1,4 @@
-//! `fs` provides multiple filesystem implementations in a unified, extended and simplified way to
+//! `sys` provides multiple filesystem implementations in a unified, extended and simplified way to
 //! work with the filesystems including pathing, io and file management.
 //!
 //! ### How to use fs module from the Rivia Core crate
@@ -8,9 +8,11 @@
 mod entry;
 mod fs;
 mod memfs;
+mod path;
 mod stdfs;
 
 pub use entry::*;
 pub use fs::*;
 pub use memfs::*;
+pub use path::*;
 pub use stdfs::*;

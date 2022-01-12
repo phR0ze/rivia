@@ -6,8 +6,8 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{Entry, FileSystem, MemfsEntry, MemfsEntryOpts, Stdfs, Vfs},
-    iters::*,
+    exts::*,
+    sys::{Entry, FileSystem, MemfsEntry, MemfsEntryOpts, Stdfs, Vfs},
 };
 
 /// `Memfs` is a Vfs backend implementation that is purely memory based
@@ -154,6 +154,7 @@ impl FileSystem for Memfs
 #[cfg(test)]
 mod tests
 {
+    use super::MemfsEntryOpts;
     use crate::prelude::*;
 
     #[test]

@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{Entry, EntryIter, Stdfs, VfsEntry},
+    sys::{self, Entry, EntryIter, VfsEntry},
 };
 
 // Simple type to use when referring to the multi-thread safe locked hashmap that is a directory on
@@ -123,28 +123,33 @@ impl MemfsEntry
     // Add an entry to this directory
     //
     // # Errors
-    // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
-    // If the given entry already exists a PathError::ExistsAlready(PathBuf) error is returned.
-    // If the given entry's path doen't align with this entry's path a
-    // PathError::DirDoesNotMatchParent(PathBuf) is returned.
+    // * PathError::IsNotDir(PathBuf) when this entry is a file or link.
+    // * PathError::ExistsAlready(PathBuf) when the given entry already exists.
+    // * PathError::DirDoesNotMatchParent(PathBuf) when the given entry's directory doesn't match this
+    // entry's path
     //
     // # Examples
     // ```
     // ```
     pub(crate) fn add(&mut self, entry: MemfsEntry) -> RvResult<()>
     {
+        // Ensure this is a valid directory
         if self.is_file || self.is_link {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
+
+        // Ensure the entry doesn't already exist
         if self.exists(&entry.path)? {
             return Err(PathError::ExistsAlready(entry.path.clone()).into());
         }
-        if self.path != Stdfs::dir(&entry.path)? {
+
+        // Ensure the entry has a valid directory
+        if self.path != sys::dir(&entry.path)? {
             return Err(PathError::DirDoesNotMatchParent(self.path.clone()).into());
         }
 
         // Add the new entry by name
-        let name = Stdfs::base(&entry.path)?;
+        let name = sys::base(&entry.path)?;
         self.dir.write().unwrap().insert(name, entry);
         Ok(())
     }
@@ -156,7 +161,7 @@ impl MemfsEntry
     // ```
     pub(crate) fn exists<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
-        Ok(self.dir.read().unwrap().contains_key(&Stdfs::base(path.as_ref())?))
+        Ok(self.dir.read().unwrap().contains_key(&sys::base(path.as_ref())?))
     }
 
     // // Get an entry from this directory. Returns None if the entry doesn't exist.
@@ -189,7 +194,7 @@ impl MemfsEntry
         if self.is_file || self.is_link {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        Ok(self.dir.write().unwrap().remove(&Stdfs::base(path.as_ref())?))
+        Ok(self.dir.write().unwrap().remove(&sys::base(path.as_ref())?))
     }
 
     /// Len reports the length of the data in bytes until the end of the file from the current
@@ -515,6 +520,7 @@ impl Iterator for MemfsEntryIter
 #[cfg(test)]
 mod tests
 {
+    use super::MemfsEntryOpts;
     use crate::prelude::*;
 
     #[test]

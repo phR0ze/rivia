@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{Entry, EntryIter, Stdfs, VfsEntry},
+    sys::{self, Entry, EntryIter, Stdfs, VfsEntry},
     trying,
 };
 
@@ -127,7 +127,7 @@ impl StdfsEntry
             let src = fs::read_link(&path)?;
 
             // Ensure src is rooted properly
-            let rooted = if !src.is_absolute() { Stdfs::mash(Stdfs::dir(&path)?, src) } else { src };
+            let rooted = if !src.is_absolute() { sys::mash(sys::dir(&path)?, src) } else { src };
 
             // Set the link's source
             alt = Stdfs::abs(rooted)?;

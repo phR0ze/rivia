@@ -6,7 +6,7 @@ fn main()
     // vfs replacemnent
 
     // 1. Setup file to write to
-    let file1 = Stdfs::mash(testing::TEST_TEMP_DIR, "file1");
+    let file1 = sys::mash(testing::TEST_TEMP_DIR, "file1");
 
     // 2. Create a new stdfs instance that we can change to memfs later
     let vfs = Vfs::new_stdfs();

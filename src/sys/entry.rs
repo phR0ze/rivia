@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     errors::*,
-    fs::{MemfsEntry, StdfsEntry},
+    sys::{MemfsEntry, StdfsEntry},
 };
 
 /// Entry provides a virtual filesystem trait for a single filesystem item. It is implemented
@@ -541,10 +541,10 @@ mod tests
     fn test_stdfs_entry_dirs_first_files_first()
     {
         let tmpdir = assert_stdfs_setup!();
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
-        let dir2 = Stdfs::mash(&tmpdir, "dir2");
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let file2 = Stdfs::mash(&tmpdir, "file2");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let dir2 = sys::mash(&tmpdir, "dir2");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let file2 = sys::mash(&tmpdir, "file2");
 
         assert_stdfs_mkdir_p!(&dir1);
         assert_stdfs_mkdir_p!(&dir2);
@@ -578,8 +578,8 @@ mod tests
     fn test_stdfs_entry_sort()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let file2 = Stdfs::mash(&tmpdir, "file2");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let file2 = sys::mash(&tmpdir, "file2");
 
         assert_stdfs_touch!(&file1);
         assert_stdfs_touch!(&file2);
@@ -599,8 +599,8 @@ mod tests
     fn test_stdfs_entry_iter()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let file2 = Stdfs::mash(&tmpdir, "file2");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let file2 = sys::mash(&tmpdir, "file2");
 
         assert_stdfs_touch!(&file1);
         assert_stdfs_touch!(&file2);
@@ -627,10 +627,10 @@ mod tests
     fn test_stdfs_entry_is_dir()
     {
         let tmpdir = assert_stdfs_setup!();
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let link1 = Stdfs::mash(&tmpdir, "link1");
-        let link2 = Stdfs::mash(&tmpdir, "dir2");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let link1 = sys::mash(&tmpdir, "link1");
+        let link2 = sys::mash(&tmpdir, "dir2");
 
         // regular directory
         assert_stdfs_mkdir_p!(&dir1);
@@ -663,10 +663,10 @@ mod tests
     fn test_stdfs_entry_is_file()
     {
         let tmpdir = assert_stdfs_setup!();
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let link1 = Stdfs::mash(&tmpdir, "link1");
-        let link2 = Stdfs::mash(&tmpdir, "dir2");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let link1 = sys::mash(&tmpdir, "link1");
+        let link2 = sys::mash(&tmpdir, "dir2");
 
         // regular directory is not a file
         assert_stdfs_mkdir_p!(&dir1);
@@ -696,10 +696,10 @@ mod tests
     fn test_stdfs_entry_is_symlink()
     {
         let tmpdir = assert_stdfs_setup!();
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let link1 = Stdfs::mash(&tmpdir, "link1");
-        let link2 = Stdfs::mash(&tmpdir, "link2");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let link1 = sys::mash(&tmpdir, "link1");
+        let link2 = sys::mash(&tmpdir, "link2");
 
         // invalid
         assert!(StdfsEntry::from(&PathBuf::from("")).is_err());
@@ -731,9 +731,9 @@ mod tests
     fn test_stdfs_entry_is_symlink_dir()
     {
         let tmpdir = assert_stdfs_setup!();
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
-        let link1 = Stdfs::mash(&tmpdir, "link1");
-        let link2 = Stdfs::mash(&tmpdir, "link2");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let link1 = sys::mash(&tmpdir, "link1");
+        let link2 = sys::mash(&tmpdir, "link2");
 
         // regular dir is not a symlink dir
         assert!(Stdfs::mkdir_p(&dir1).is_ok());
@@ -756,9 +756,9 @@ mod tests
     fn test_stdfs_entry_is_symlink_file()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let link1 = Stdfs::mash(&tmpdir, "link1");
-        let link2 = Stdfs::mash(&tmpdir, "link2");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let link1 = sys::mash(&tmpdir, "link1");
+        let link2 = sys::mash(&tmpdir, "link2");
 
         // regular file is not a symlink dir
         assert!(Stdfs::touch(&file1).is_ok());
@@ -782,12 +782,12 @@ mod tests
     fn test_stdfs_entry_readlink_abs()
     {
         let tmpdir = assert_stdfs_setup!();
-        let file1 = Stdfs::mash(&tmpdir, "file1");
-        let link1 = Stdfs::mash(&tmpdir, "link1");
-        let dir1 = Stdfs::mash(&tmpdir, "dir1");
-        let link2 = Stdfs::mash(&dir1, "link2");
-        let link3 = Stdfs::mash(&dir1, "link3");
-        let link4 = Stdfs::mash(&dir1, "link4");
+        let file1 = sys::mash(&tmpdir, "file1");
+        let link1 = sys::mash(&tmpdir, "link1");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let link2 = sys::mash(&dir1, "link2");
+        let link3 = sys::mash(&dir1, "link3");
+        let link4 = sys::mash(&dir1, "link4");
 
         // link at the same level
         assert!(Stdfs::touch(&file1).is_ok());
@@ -816,7 +816,7 @@ mod tests
         assert_eq!(Stdfs::readlink_abs(&link3).unwrap(), file1);
 
         // absolute path with symbols
-        assert!(std::os::unix::fs::symlink(Stdfs::mash(&dir1, "../file1"), &link4).is_ok());
+        assert!(std::os::unix::fs::symlink(sys::mash(&dir1, "../file1"), &link4).is_ok());
         assert_eq!(StdfsEntry::from(&link4).unwrap().path(), link4);
         assert_eq!(StdfsEntry::from(&link4).unwrap().alt(), file1);
         assert_eq!(StdfsEntry::from(&link4).unwrap().follow(true).path(), file1);
