@@ -124,6 +124,9 @@ impl MemfsEntry
     //
     // # Errors
     // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
+    // If the given entry already exists a PathError::ExistsAlready(PathBuf) error is returned.
+    // If the given entry's path doen't align with this entry's path a
+    // PathError::DirDoesNotMatchParent(PathBuf) is returned.
     //
     // # Examples
     // ```
@@ -133,26 +136,45 @@ impl MemfsEntry
         if self.is_file || self.is_link {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        self.dir.write().unwrap().insert(Stdfs::base(entry.path)?, entry);
+        if self.exists(&entry.path)? {
+            return Err(PathError::ExistsAlready(entry.path.clone()).into());
+        }
+        if self.path != Stdfs::dir(&entry.path)? {
+            return Err(PathError::DirDoesNotMatchParent(self.path.clone()).into());
+        }
+
+        // Add the new entry by name
+        let name = Stdfs::base(&entry.path)?;
+        self.dir.write().unwrap().insert(name, entry);
         Ok(())
     }
 
-    // Get an entry from this directory
-    //
-    // # Errors
-    // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
+    // Check if the given path exists in this entry
     //
     // # Examples
     // ```
     // ```
-    pub(crate) fn get<T: AsRef<Path>>(&mut self, name: T) -> RvResult<()>
+    pub(crate) fn exists<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
-        if self.is_file || self.is_link {
-            return Err(PathError::IsNotDir(self.path.clone()).into());
-        }
-        // self.dir.write().unwrap().insert(entry.path.clone(), entry);
-        Ok(())
+        Ok(self.dir.read().unwrap().contains_key(&Stdfs::base(path.as_ref())?))
     }
+
+    // // Get an entry from this directory. Returns None if the entry doesn't exist.
+    // //
+    // // # Errors
+    // // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
+    // //
+    // // # Examples
+    // // ```
+    // // ```
+    // pub(crate) fn get<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<&MemfsEntry>>
+    // {
+    //     if self.is_file || self.is_link {
+    //         return Err(PathError::IsNotDir(self.path.clone()).into());
+    //     }
+    //     let base = Stdfs::base(path.as_ref())?;
+    //     Ok(self.dir.read().unwrap().get(&base))
+    // }
 
     // Remove an entry from this directory
     //
@@ -501,7 +523,7 @@ mod tests
         // Add a file to a directory
         let mut memfile1 = MemfsEntryOpts::new("/").entry();
         assert_eq!(memfile1.dir.write().unwrap().len(), 0);
-        let memfile2 = MemfsEntryOpts::new("foo").entry();
+        let memfile2 = MemfsEntryOpts::new("/foo").entry();
         memfile1.add(memfile2.clone())?;
         assert_eq!(memfile1.dir.write().unwrap().len(), 1);
 
@@ -523,6 +545,23 @@ mod tests
     {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
         assert_eq!(memfile.remove("bar").unwrap_err().to_string(), "Target path is not a directory: foo");
+    }
+
+    #[test]
+    fn test_add_already_exists_fails()
+    {
+        let mut memfile1 = MemfsEntryOpts::new("/").entry();
+        let memfile2 = MemfsEntryOpts::new("/foo").file().entry();
+        memfile1.add(memfile2.clone()).unwrap();
+        assert_eq!(memfile1.add(memfile2).unwrap_err().to_string(), "Target path exists already: /foo");
+    }
+
+    #[test]
+    fn test_add_mismatch_path_fails()
+    {
+        let mut memfile1 = MemfsEntryOpts::new("/").entry();
+        let memfile2 = MemfsEntryOpts::new("foo").file().entry();
+        assert_eq!(memfile1.add(memfile2).unwrap_err().to_string(), "Target path's directory doesn't match parent: /");
     }
 
     #[test]

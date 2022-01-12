@@ -8,6 +8,9 @@ use std::{
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PathError
 {
+    /// An error indicating that the path's directory doesn't match its parent
+    DirDoesNotMatchParent(PathBuf),
+
     /// An error indicating that the path does not exist.
     DoesNotExist(PathBuf),
 
@@ -52,6 +55,12 @@ pub enum PathError
 }
 impl PathError
 {
+    /// Return an error indicating that the path's directory doesn't match its parent
+    pub fn dir_does_not_match_parent<T: AsRef<Path>>(path: T) -> PathError
+    {
+        PathError::DirDoesNotMatchParent(path.as_ref().to_path_buf())
+    }
+
     /// Return an error indicating that the path does not exist
     pub fn does_not_exist<T: AsRef<Path>>(path: T) -> PathError
     {
@@ -146,6 +155,9 @@ impl fmt::Display for PathError
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match *self {
+            PathError::DirDoesNotMatchParent(ref path) => {
+                write!(f, "Target path's directory doesn't match parent: {}", path.display())
+            },
             PathError::DoesNotExist(ref path) => {
                 write!(f, "Target path does not exist: {}", path.display())
             },
@@ -229,6 +241,11 @@ mod tests
     #[test]
     fn test_other_errors()
     {
+        assert_eq!(PathError::dir_does_not_match_parent(Path::new("foo")), PathError::DirDoesNotMatchParent(PathBuf::from("foo")));
+        assert_eq!(
+            format!("{}", PathError::dir_does_not_match_parent(PathBuf::from("foo"))),
+            "Target path's directory doesn't match parent: foo"
+        );
         assert_eq!(PathError::does_not_exist(Path::new("foo")), PathError::DoesNotExist(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::DoesNotExist(PathBuf::from("foo"))), "Target path does not exist: foo");
         assert_eq!(format!("{}", PathError::Empty), "path empty");

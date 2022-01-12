@@ -60,29 +60,15 @@ impl Memfs
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    pub fn mkdir_p<T: AsRef<Path>>(&mut self, path: T) -> RvResult<PathBuf>
     {
         let abs = self.abs(path.as_ref())?;
-        let entry = &self.root;
-
-        // Build up the path to report with
-        let mut path = PathBuf::from(Component::RootDir.as_os_str());
-
-        for component in abs.components() {
-            if let Component::Normal(x) = component {
-                path.push(&x);
-
-                // Non directories are invalid at this point
-                if !entry.is_dir() {
-                    return Err(PathError::IsNotDir(path).into());
-                }
-
-                // Lookup the given directory component
-                // entry.dir.read().unwrap().get("");
-                println!("Path: {:?}", x);
-            }
+        if abs.components().count() > 1 {
+            let path = abs.components().take(2).collect::<PathBuf>();
+            let entry = MemfsEntryOpts::new(path).entry();
+            self.root.add(entry)?;
         }
-        Ok(path)
+        Ok(abs)
     }
 
     // Get the indicated entry if it exists
