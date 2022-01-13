@@ -9,17 +9,19 @@ fn main()
     let file1 = sys::mash(testing::TEST_TEMP_DIR, "file1");
 
     // 2. Create a new stdfs instance that we can change to memfs later
-    let vfs = Vfs::new_stdfs();
+    // let vfs = Vfs::new_stdfs();
 
-    // 3. Make the file writing out the data
-    vfs.write_all(&file1, b"hello").unwrap();
+    // // 3. Make the file writing out the data
+    // vfs.write_all(&file1, b"hello").unwrap();
 
-    // 4. Read back the file contents
-    let data = vfs.read_all(&file1).unwrap();
+    // // 4. Read back the file contents
+    // let data = vfs.read_all(&file1).unwrap();
 
-    println!("Data: {}", data);
-    Stdfs::remove(file1).unwrap();
+    // println!("Data: {}", data);
+    // Stdfs::remove(file1).unwrap();
 
-    let vfs = Memfs::new();
-    vfs.exists("/foo/bar/flue");
+    // Testing
+    let mut memfs = Memfs::new();
+    memfs.mkdir_p("foo").unwrap();
+    println!("{}", memfs);
 }

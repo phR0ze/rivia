@@ -774,6 +774,12 @@ impl FileSystem for Stdfs
         Stdfs::abs(path)
     }
 
+    /// Returns the current working directory
+    fn cwd(&self) -> RvResult<PathBuf>
+    {
+        Stdfs::cwd()
+    }
+
     /// Read all data from the given file and return it as a String
     fn read_all(&self, path: &Path) -> RvResult<String>
     {

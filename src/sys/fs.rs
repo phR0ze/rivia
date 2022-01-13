@@ -20,6 +20,9 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Return the path in an absolute clean form
     fn abs(&self, path: &Path) -> RvResult<PathBuf>;
 
+    /// Returns the current working directory
+    fn cwd(&self) -> RvResult<PathBuf>;
+
     //fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 
     //fn read(&self, path: &Path) -> RvResult<()>;
@@ -69,6 +72,15 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.abs(path),
             Vfs::Memfs(x) => x.abs(path),
+        }
+    }
+
+    /// Returns the current working directory
+    fn cwd(&self) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.cwd(),
+            Vfs::Memfs(x) => x.cwd(),
         }
     }
 

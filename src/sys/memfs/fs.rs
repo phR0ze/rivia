@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    fmt,
     path::{Component, Path, PathBuf},
     sync::{Arc, RwLock},
 };
@@ -7,7 +7,7 @@ use std::{
 use crate::{
     errors::*,
     exts::*,
-    sys::{Entry, FileSystem, MemfsEntry, MemfsEntryOpts, Stdfs, Vfs},
+    sys::{self, Entry, FileSystem, MemfsEntry, MemfsEntryOpts, Vfs},
 };
 
 /// `Memfs` is a Vfs backend implementation that is purely memory based
@@ -37,24 +37,31 @@ impl Memfs
     /// ```
     pub fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
-        // match self.abs(path.as_ref()) {
-        //     Ok(abs) => {
-        //         let fs = self.fs.read().unwrap();
-        //         let entry = fs.get("/");
-        //         for component in abs.components() {
-        //             if let Component::Normal(x) = component {
-        //                 println!("Path: {:?}", x);
-        //             }
-        //         }
-        //         false
-        //     },
-        //     Err(_) => false,
-        // }
-        false
+        match self.abs(path.as_ref()) {
+            Ok(abs) => Memfs::exists_recurse(&self.root, &abs).is_ok(),
+            Err(_) => false,
+        }
+    }
+    fn exists_recurse(parent: &MemfsEntry, abs: &Path) -> RvResult<bool>
+    {
+        for component in sys::trim_prefix(&abs, &parent.path).components() {
+            // Using if let here to ensure that we don't consider the first slash at any depth
+            if let Component::Normal(x) = component {
+                if parent.exists(x)? {
+                    return Memfs::exists_recurse(&parent.dir.read().unwrap()[&x.to_string()?], abs);
+                } else {
+                    return Err(PathError::does_not_exist(x).into());
+                }
+            }
+        }
+        Ok(true)
     }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning an absolute path created.
+    ///
+    /// # Arguments
+    /// * `path` - the directory path to create
     ///
     /// ### Examples
     /// ```
@@ -63,12 +70,26 @@ impl Memfs
     pub fn mkdir_p<T: AsRef<Path>>(&mut self, path: T) -> RvResult<PathBuf>
     {
         let abs = self.abs(path.as_ref())?;
-        if abs.components().count() > 1 {
-            let path = abs.components().take(2).collect::<PathBuf>();
-            let entry = MemfsEntryOpts::new(path).entry();
+        if let Some(entry) = Memfs::mkdir_p_recurse(&mut self.root, &abs)? {
             self.root.add(entry)?;
         }
         Ok(abs)
+    }
+    fn mkdir_p_recurse(parent: &mut MemfsEntry, abs: &Path) -> RvResult<Option<MemfsEntry>>
+    {
+        for component in sys::trim_prefix(&abs, &parent.path).components() {
+            // Using if let here to ensure that we don't consider the first slash at any depth
+            if let Component::Normal(x) = component {
+                if !parent.exists(x)? {
+                    let mut entry = MemfsEntryOpts::new(sys::mash(&parent.path, x)).entry();
+                    if let Some(child) = Memfs::mkdir_p_recurse(&mut entry, abs)? {
+                        entry.add(child)?;
+                    }
+                    return Ok(Some(entry));
+                }
+            }
+        }
+        Ok(None)
     }
 
     // Get the indicated entry if it exists
@@ -84,18 +105,15 @@ impl Memfs
         // }
         Err(PathError::Empty.into())
     }
+}
 
-    /// Returns the current working directory as a [`PathBuf`].
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// println!("current working directory: {:?}", Memfs::cwd().unwrap());
-    /// ```
-    pub fn cwd(&self) -> RvResult<PathBuf>
+impl fmt::Display for Memfs
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
-        Ok(self.cwd.clone())
+        writeln!(f, "cwd: {}", &self.cwd.display())?;
+        write!(f, "root: ")?;
+        self.root.display(f, None)
     }
 }
 
@@ -109,7 +127,53 @@ impl FileSystem for Memfs
     /// ```
     fn abs(&self, path: &Path) -> RvResult<PathBuf>
     {
-        Stdfs::abs(path)
+        // Check for empty string
+        if sys::is_empty(path) {
+            return Err(PathError::Empty.into());
+        }
+
+        // Expand home directory
+        let mut path_buf = sys::expand(path)?;
+
+        // Trim protocol prefix if needed
+        path_buf = sys::trim_protocol(path_buf);
+
+        // Clean the resulting path
+        path_buf = sys::clean(path_buf)?;
+
+        // Expand relative directories if needed
+        if !path_buf.is_absolute() {
+            let mut curr = self.cwd()?;
+            while let Ok(path) = path_buf.components().first_result() {
+                match path {
+                    Component::CurDir => {
+                        path_buf = sys::trim_first(path_buf);
+                    },
+                    Component::ParentDir => {
+                        if curr.to_string()? == "/" {
+                            return Err(PathError::ParentNotFound(curr).into());
+                        }
+                        curr = sys::dir(curr)?;
+                        path_buf = sys::trim_first(path_buf);
+                    },
+                    _ => return Ok(sys::mash(curr, path_buf)),
+                };
+            }
+            return Ok(curr);
+        }
+
+        Ok(path_buf)
+    }
+
+    /// Returns the current working directory as a [`PathBuf`].
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn cwd(&self) -> RvResult<PathBuf>
+    {
+        Ok(self.cwd.clone())
     }
 
     /// Read all data from the given file and return it as a String
@@ -167,19 +231,21 @@ mod tests
     }
 
     #[test]
-    fn test_add_remove() -> RvResult<()>
+    fn test_mkdir_p()
     {
-        // Add a file to a directory
-        let mut memfile1 = MemfsEntryOpts::new("/").entry();
-        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
-        let memfile2 = MemfsEntryOpts::new("foo").entry();
-        memfile1.add(memfile2.clone())?;
-        assert_eq!(memfile1.dir.write().unwrap().len(), 1);
+        let mut memfs = Memfs::new();
 
-        // Remove a file from a directory
-        assert_eq!(memfile1.remove(&memfile2.path)?, Some(memfile2));
-        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
-        Ok(())
+        // Check single top level
+        assert_eq!(memfs.exists("foo"), false);
+        memfs.mkdir_p("foo").unwrap();
+        assert_eq!(memfs.exists("foo"), true);
+        assert_eq!(memfs.exists("/foo"), true);
+
+        // Check nested
+        memfs.mkdir_p("/bar/blah/ugh").unwrap();
+        assert_eq!(memfs.exists("bar/blah/ugh"), true);
+        assert_eq!(memfs.exists("/bar/blah/ugh"), true);
+        assert_eq!(memfs.exists("/foo"), true);
     }
 
     #[test]

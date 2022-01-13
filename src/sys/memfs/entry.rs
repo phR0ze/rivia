@@ -1,13 +1,14 @@
 use std::{
     cmp::{self, Ordering},
     collections::HashMap,
-    fmt::Debug,
-    fs,
+    fmt, fs,
     hash::{Hash, Hasher},
     io,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
+
+use itertools::Itertools;
 
 use crate::{
     errors::*,
@@ -20,14 +21,15 @@ pub(crate) type MemfsDir = Arc<RwLock<HashMap<String, MemfsEntry>>>;
 
 // MemfsEntryOpts implements the builder pattern to provide advanced options for creating
 // MemfsEntry instances
+#[derive(Debug)]
 pub(crate) struct MemfsEntryOpts
 {
-    pub(crate) path: PathBuf, // path of the entry
-    pub(crate) alt: PathBuf,  // alternate path for the entry, used with links
-    pub(crate) dir: bool,     // is this entry a dir
-    pub(crate) file: bool,    // is this entry a file
-    pub(crate) link: bool,    // is this entry a link
-    pub(crate) mode: u32,     // permission mode of the entry
+    path: PathBuf, // path of the entry
+    alt: PathBuf,  // alternate path for the entry, used with links
+    dir: bool,     // is this entry a dir
+    file: bool,    // is this entry a file
+    link: bool,    // is this entry a link
+    mode: u32,     // permission mode of the entry
 }
 
 impl MemfsEntryOpts
@@ -122,8 +124,11 @@ impl MemfsEntry
 {
     // Add an entry to this directory
     //
+    // # Arguments
+    // * `entry` - the entry to add to this one
+    //
     // # Errors
-    // * PathError::IsNotDir(PathBuf) when this entry is a file or link.
+    // * PathError::IsNotDir(PathBuf) when this entry is not a directory.
     // * PathError::ExistsAlready(PathBuf) when the given entry already exists.
     // * PathError::DirDoesNotMatchParent(PathBuf) when the given entry's directory doesn't match this
     // entry's path
@@ -134,7 +139,7 @@ impl MemfsEntry
     pub(crate) fn add(&mut self, entry: MemfsEntry) -> RvResult<()>
     {
         // Ensure this is a valid directory
-        if self.is_file || self.is_link {
+        if !self.is_dir {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
 
@@ -154,14 +159,22 @@ impl MemfsEntry
         Ok(())
     }
 
-    // Check if the given path exists in this entry
+    // Check if the given path exists in this directory entry. Non directories will
+    // return false always.
+
+    // # Arguments
+    // * `path` - the entry path to check
     //
     // # Examples
     // ```
     // ```
     pub(crate) fn exists<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
-        Ok(self.dir.read().unwrap().contains_key(&sys::base(path.as_ref())?))
+        if !self.is_dir {
+            return Ok(false);
+        }
+        let base = sys::base(path.as_ref())?;
+        Ok(self.dir.read().unwrap().contains_key(&base))
     }
 
     // // Get an entry from this directory. Returns None if the entry doesn't exist.
@@ -174,7 +187,7 @@ impl MemfsEntry
     // // ```
     // pub(crate) fn get<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<&MemfsEntry>>
     // {
-    //     if self.is_file || self.is_link {
+    //     if !self.is_dir {
     //         return Err(PathError::IsNotDir(self.path.clone()).into());
     //     }
     //     let base = Stdfs::base(path.as_ref())?;
@@ -184,14 +197,14 @@ impl MemfsEntry
     // Remove an entry from this directory
     //
     // # Errors
-    // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
+    // PathError::IsNotDir(PathBuf) when this entry is not a directory
     //
     // # Examples
     // ```
     // ```
     pub(crate) fn remove<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<MemfsEntry>>
     {
-        if self.is_file || self.is_link {
+        if !self.is_dir {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
         Ok(self.dir.write().unwrap().remove(&sys::base(path.as_ref())?))
@@ -238,6 +251,27 @@ impl MemfsEntry
             }
         }
         self
+    }
+
+    /// Provide pretty printing for our filesystem
+    pub(crate) fn display(&self, f: &mut fmt::Formatter, indent: Option<usize>) -> fmt::Result
+    {
+        let indent = indent.unwrap_or_default();
+        if indent == 0 {
+            writeln!(f, "{}", &self.path.display())?;
+        } else {
+            writeln!(f, " ({})", &self.path.display())?;
+        }
+
+        let indent = indent + 2;
+        if self.is_dir {
+            let dir = self.dir.read().unwrap();
+            for k in dir.keys().sorted() {
+                write!(f, "{:>w$}{}", "", &k, w = indent)?;
+                dir[k].display(f, Some(indent))?;
+            }
+        }
+        Ok(())
     }
 }
 
