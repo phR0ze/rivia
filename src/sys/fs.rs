@@ -23,7 +23,14 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Returns the current working directory
     fn cwd(&self) -> RvResult<PathBuf>;
 
+    /// Returns true if the `Path` exists. Handles path expansion.
+    fn exists(&self, path: &Path) -> bool;
+
     //fn expand(&self, path: &Path) -> RvResult<PathBuf>;
+
+    /// Creates the given directory and any parent directories needed, handling path expansion and
+    /// returning the absolute path of the created directory
+    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>;
 
     //fn read(&self, path: &Path) -> RvResult<()>;
 
@@ -81,6 +88,25 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.cwd(),
             Vfs::Memfs(x) => x.cwd(),
+        }
+    }
+
+    /// Returns true if the `Path` exists. Handles path expansion.
+    fn exists(&self, path: &Path) -> bool
+    {
+        match self {
+            Vfs::Stdfs(x) => x.exists(path),
+            Vfs::Memfs(x) => x.exists(path),
+        }
+    }
+
+    /// Creates the given directory and any parent directories needed, handling path expansion and
+    /// returning the absolute path of the created directory
+    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.mkdir_p(path),
+            Vfs::Memfs(x) => x.mkdir_p(path),
         }
     }
 

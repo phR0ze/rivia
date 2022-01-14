@@ -17,7 +17,7 @@ use crate::{
 
 // Simple type to use when referring to the multi-thread safe locked hashmap that is a directory on
 // the memory filesystem.
-pub(crate) type MemfsDir = Arc<RwLock<HashMap<String, MemfsEntry>>>;
+pub(crate) type MemfsFiles = Arc<RwLock<HashMap<String, MemfsEntry>>>;
 
 // MemfsEntryOpts implements the builder pattern to provide advanced options for creating
 // MemfsEntry instances
@@ -82,14 +82,14 @@ impl MemfsEntryOpts
     pub(crate) fn entry(self) -> MemfsEntry
     {
         MemfsEntry {
-            dir: Arc::new(RwLock::new(HashMap::new())),
+            files: Arc::new(RwLock::new(HashMap::new())),
             data: vec![],
             pos: 0,
             path: self.path,
             alt: self.alt,
-            is_dir: self.dir,
-            is_file: self.file,
-            is_link: self.link,
+            dir: self.dir,
+            file: self.file,
+            link: self.link,
             mode: self.mode,
             follow: false,
             cached: false,
@@ -106,15 +106,15 @@ impl MemfsEntryOpts
 #[derive(Debug)]
 pub struct MemfsEntry
 {
-    pub(crate) dir: MemfsDir, // directory of entries
-    pub(crate) data: Vec<u8>, // memory file data
-    pub(crate) pos: u64,      // position in the file when reading or writing
+    pub(crate) files: MemfsFiles, // files in the directory
+    pub(crate) data: Vec<u8>,     // memory file data
+    pub(crate) pos: u64,          // position in the file when reading or writing
 
     pub(crate) path: PathBuf, // path of the entry
     pub(crate) alt: PathBuf,  // alternate path for the entry, used with links
-    pub(crate) is_dir: bool,  // is this entry a dir
-    pub(crate) is_file: bool, // is this entry a file
-    pub(crate) is_link: bool, // is this entry a link
+    pub(crate) dir: bool,     // is this entry a dir
+    pub(crate) file: bool,    // is this entry a file
+    pub(crate) link: bool,    // is this entry a link
     pub(crate) mode: u32,     // permission mode of the entry
     pub(crate) follow: bool,  // tracks if the path and alt have been switched
     pub(crate) cached: bool,  // tracks if properties have been cached
@@ -132,19 +132,15 @@ impl MemfsEntry
     // * PathError::ExistsAlready(PathBuf) when the given entry already exists.
     // * PathError::DirDoesNotMatchParent(PathBuf) when the given entry's directory doesn't match this
     // entry's path
-    //
-    // # Examples
-    // ```
-    // ```
-    pub(crate) fn add(&mut self, entry: MemfsEntry) -> RvResult<()>
+    pub(crate) fn add_child(&mut self, entry: MemfsEntry) -> RvResult<()>
     {
         // Ensure this is a valid directory
-        if !self.is_dir {
+        if !self.dir {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
 
         // Ensure the entry doesn't already exist
-        if self.exists(&entry.path)? {
+        if self.child_exists(&entry.path)? {
             return Err(PathError::ExistsAlready(entry.path.clone()).into());
         }
 
@@ -155,59 +151,86 @@ impl MemfsEntry
 
         // Add the new entry by name
         let name = sys::base(&entry.path)?;
-        self.dir.write().unwrap().insert(name, entry);
+        self.files.write().unwrap().insert(name, entry);
         Ok(())
     }
 
     // Check if the given path exists in this directory entry. Non directories will
     // return false always.
-
+    //
     // # Arguments
     // * `path` - the entry path to check
-    //
-    // # Examples
-    // ```
-    // ```
-    pub(crate) fn exists<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    pub(crate) fn child_exists<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
-        if !self.is_dir {
+        if !self.dir {
             return Ok(false);
         }
+
         let base = sys::base(path.as_ref())?;
-        Ok(self.dir.read().unwrap().contains_key(&base))
+        Ok(self.files.read().unwrap().contains_key(&base))
     }
 
-    // // Get an entry from this directory. Returns None if the entry doesn't exist.
-    // //
-    // // # Errors
-    // // If this entry is a file or link a PathError::IsNotDir(PathBuf) error is returned.
-    // //
-    // // # Examples
-    // // ```
-    // // ```
-    // pub(crate) fn get<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<&MemfsEntry>>
-    // {
-    //     if !self.is_dir {
-    //         return Err(PathError::IsNotDir(self.path.clone()).into());
-    //     }
-    //     let base = Stdfs::base(path.as_ref())?;
-    //     Ok(self.dir.read().unwrap().get(&base))
-    // }
+    // Check if the given path is a directory.
+    //
+    // # Arguments
+    // * `path` - the entry path to check
+    pub(crate) fn child_is_dir<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    {
+        if !self.dir {
+            return Ok(false);
+        }
+
+        let base = sys::base(path.as_ref())?;
+        Ok(match self.files.read().unwrap().get(&base) {
+            Some(entry) => entry.dir,
+            None => false,
+        })
+    }
+
+    // Check if the given path is a file.
+    //
+    // # Arguments
+    // * `path` - the entry path to check
+    pub(crate) fn child_is_file<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    {
+        if !self.dir {
+            return Ok(false);
+        }
+
+        let base = sys::base(path.as_ref())?;
+        Ok(match self.files.read().unwrap().get(&base) {
+            Some(entry) => entry.file,
+            None => false,
+        })
+    }
+
+    // Check if the given path is a link.
+    //
+    // # Arguments
+    // * `path` - the entry path to check
+    pub(crate) fn child_is_link<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    {
+        if !self.dir {
+            return Ok(false);
+        }
+
+        let base = sys::base(path.as_ref())?;
+        Ok(match self.files.read().unwrap().get(&base) {
+            Some(entry) => entry.link,
+            None => false,
+        })
+    }
 
     // Remove an entry from this directory
     //
     // # Errors
     // PathError::IsNotDir(PathBuf) when this entry is not a directory
-    //
-    // # Examples
-    // ```
-    // ```
-    pub(crate) fn remove<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<MemfsEntry>>
+    pub(crate) fn remove_child<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<MemfsEntry>>
     {
-        if !self.is_dir {
+        if !self.dir {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        Ok(self.dir.write().unwrap().remove(&sys::base(path.as_ref())?))
+        Ok(self.files.write().unwrap().remove(&sys::base(path.as_ref())?))
     }
 
     /// Len reports the length of the data in bytes until the end of the file from the current
@@ -244,7 +267,7 @@ impl MemfsEntry
     {
         if follow && !self.follow {
             self.follow = true;
-            if self.is_link {
+            if self.link {
                 let path = self.path;
                 self.path = self.alt;
                 self.alt = path;
@@ -264,8 +287,8 @@ impl MemfsEntry
         }
 
         let indent = indent + 2;
-        if self.is_dir {
-            let dir = self.dir.read().unwrap();
+        if self.dir {
+            let dir = self.files.read().unwrap();
             for k in dir.keys().sorted() {
                 write!(f, "{:>w$}{}", "", &k, w = indent)?;
                 dir[k].display(f, Some(indent))?;
@@ -360,7 +383,7 @@ impl Entry for MemfsEntry
     /// ```
     fn is_dir(&self) -> bool
     {
-        self.is_dir
+        self.dir
     }
 
     /// Regular files and symlinks that point to files will report true.
@@ -371,7 +394,7 @@ impl Entry for MemfsEntry
     /// ```
     fn is_file(&self) -> bool
     {
-        self.is_file
+        self.file
     }
 
     /// Links will report true
@@ -382,7 +405,7 @@ impl Entry for MemfsEntry
     /// ```
     fn is_symlink(&self) -> bool
     {
-        self.is_link
+        self.link
     }
 
     /// Reports the mode of the path
@@ -425,14 +448,14 @@ impl Clone for MemfsEntry
     fn clone(&self) -> Self
     {
         Self {
-            dir: self.dir.clone(),
+            files: self.files.clone(),
             data: self.data.clone(),
             pos: self.pos,
             path: self.path.clone(),
             alt: self.alt.clone(),
-            is_dir: self.is_dir,
-            is_file: self.is_file,
-            is_link: self.is_link,
+            dir: self.dir,
+            file: self.file,
+            link: self.link,
             mode: self.mode,
             follow: self.follow,
             cached: self.cached,
@@ -479,7 +502,7 @@ impl io::Read for MemfsEntry
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
         // Ensure that we are working with a valid file
-        if self.is_dir || self.is_link {
+        if self.dir || self.link {
             return Err(io::Error::new(io::ErrorKind::Other, format!("Target path '{}' is not a readable file", self.path.display())));
         }
 
@@ -519,7 +542,7 @@ impl io::Write for MemfsEntry
     fn write(&mut self, buf: &[u8]) -> io::Result<usize>
     {
         // Ensure that we are working with a valid file
-        if self.is_dir || self.is_link {
+        if self.dir || self.link {
             return Err(io::Error::new(io::ErrorKind::Other, format!("Target path '{}' is not a writable file", self.path.display())));
         }
         self.data.write(buf)
@@ -562,14 +585,14 @@ mod tests
     {
         // Add a file to a directory
         let mut memfile1 = MemfsEntryOpts::new("/").entry();
-        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
+        assert_eq!(memfile1.files.write().unwrap().len(), 0);
         let memfile2 = MemfsEntryOpts::new("/foo").entry();
-        memfile1.add(memfile2.clone())?;
-        assert_eq!(memfile1.dir.write().unwrap().len(), 1);
+        memfile1.add_child(memfile2.clone())?;
+        assert_eq!(memfile1.files.write().unwrap().len(), 1);
 
         // Remove a file from a directory
-        assert_eq!(memfile1.remove(&memfile2.path)?, Some(memfile2));
-        assert_eq!(memfile1.dir.write().unwrap().len(), 0);
+        assert_eq!(memfile1.remove_child(&memfile2.path)?, Some(memfile2));
+        assert_eq!(memfile1.files.write().unwrap().len(), 0);
         Ok(())
     }
 
@@ -577,14 +600,14 @@ mod tests
     fn test_remove_non_existing()
     {
         let mut memfile = MemfsEntryOpts::new("foo").entry();
-        assert_eq!(memfile.remove("blah").unwrap(), None);
+        assert_eq!(memfile.remove_child("blah").unwrap(), None);
     }
 
     #[test]
     fn test_remove_from_file_fails()
     {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
-        assert_eq!(memfile.remove("bar").unwrap_err().to_string(), "Target path is not a directory: foo");
+        assert_eq!(memfile.remove_child("bar").unwrap_err().to_string(), "Target path is not a directory: foo");
     }
 
     #[test]
@@ -592,8 +615,8 @@ mod tests
     {
         let mut memfile1 = MemfsEntryOpts::new("/").entry();
         let memfile2 = MemfsEntryOpts::new("/foo").file().entry();
-        memfile1.add(memfile2.clone()).unwrap();
-        assert_eq!(memfile1.add(memfile2).unwrap_err().to_string(), "Target path exists already: /foo");
+        memfile1.add_child(memfile2.clone()).unwrap();
+        assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path exists already: /foo");
     }
 
     #[test]
@@ -601,21 +624,21 @@ mod tests
     {
         let mut memfile1 = MemfsEntryOpts::new("/").entry();
         let memfile2 = MemfsEntryOpts::new("foo").file().entry();
-        assert_eq!(memfile1.add(memfile2).unwrap_err().to_string(), "Target path's directory doesn't match parent: /");
+        assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path's directory doesn't match parent: /");
     }
 
     #[test]
     fn test_add_to_link_fails()
     {
         let mut memfile = MemfsEntryOpts::new("foo").link().entry();
-        assert_eq!(memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(), "Target path is not a directory: foo");
+        assert_eq!(memfile.add_child(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(), "Target path is not a directory: foo");
     }
 
     #[test]
     fn test_add_to_file_fails()
     {
         let mut memfile = MemfsEntryOpts::new("foo").file().entry();
-        assert_eq!(memfile.add(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(), "Target path is not a directory: foo");
+        assert_eq!(memfile.add_child(MemfsEntryOpts::new("").entry()).unwrap_err().to_string(), "Target path is not a directory: foo");
     }
 
     #[test]

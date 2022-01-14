@@ -29,34 +29,18 @@ impl Memfs
         }
     }
 
-    /// Returns true if the `Path` exists. Handles path expansion.
+    /// Implementation for `exists`
     ///
     /// # Arguments
-    /// * `path` - the directory path to validate exists
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let mut memfs = Memfs::new();
-    /// assert_eq!(memfs.exists("foo"), false);
-    /// memfs.mkdir_p("foo").unwrap();
-    /// assert_eq!(memfs.exists("foo"), true);
-    /// ```
-    pub fn exists<T: AsRef<Path>>(&self, path: T) -> bool
-    {
-        match self.abs(path.as_ref()) {
-            Ok(abs) => Memfs::exists_recurse(&self.root, &abs).is_ok(),
-            Err(_) => false,
-        }
-    }
+    /// * `parent` - entry to potentially add the target to
+    /// * `abs` - target path expected to already be in absolute form
     fn exists_recurse(parent: &MemfsEntry, abs: &Path) -> RvResult<bool>
     {
         for component in sys::trim_prefix(&abs, &parent.path).components() {
             // Using if let here to ensure that we don't consider the first slash at any depth
             if let Component::Normal(x) = component {
-                if parent.exists(x)? {
-                    return Memfs::exists_recurse(&parent.dir.read().unwrap()[&x.to_string()?], abs);
+                if parent.child_exists(x)? {
+                    return Memfs::exists_recurse(&parent.files.read().unwrap()[&x.to_string()?], abs);
                 } else {
                     return Err(PathError::does_not_exist(x).into());
                 }
@@ -65,40 +49,25 @@ impl Memfs
         Ok(true)
     }
 
-    /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning an absolute path created.
+    /// Implementation for `mkdir_p`
     ///
     /// # Arguments
-    /// * `path` - the directory path to create
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let mut memfs = Memfs::new();
-    /// assert_eq!(memfs.exists("foo"), false);
-    /// memfs.mkdir_p("foo").unwrap();
-    /// assert_eq!(memfs.exists("foo"), true);
-    /// ```
-    pub fn mkdir_p<T: AsRef<Path>>(&mut self, path: T) -> RvResult<PathBuf>
-    {
-        let abs = self.abs(path.as_ref())?;
-        if let Some(entry) = Memfs::mkdir_p_recurse(&mut self.root, &abs)? {
-            self.root.add(entry)?;
-        }
-        Ok(abs)
-    }
+    /// * `parent` - entry to potentially add the target to
+    /// * `abs` - target path expected to already be in absolute form
     fn mkdir_p_recurse(parent: &mut MemfsEntry, abs: &Path) -> RvResult<Option<MemfsEntry>>
     {
         for component in sys::trim_prefix(&abs, &parent.path).components() {
             // Using if let here to ensure that we don't consider the first slash at any depth
             if let Component::Normal(x) = component {
-                if !parent.exists(x)? {
-                    let mut entry = MemfsEntryOpts::new(sys::mash(&parent.path, x)).entry();
+                let path = sys::mash(&parent.path, x);
+                if !parent.child_exists(x)? {
+                    let mut entry = MemfsEntryOpts::new(&path).entry();
                     if let Some(child) = Memfs::mkdir_p_recurse(&mut entry, abs)? {
-                        entry.add(child)?;
+                        entry.add_child(child)?;
                     }
                     return Ok(Some(entry));
+                } else if !parent.child_is_dir(x)? {
+                    return Err(PathError::is_not_dir(&path).into());
                 }
             }
         }
@@ -196,6 +165,55 @@ impl FileSystem for Memfs
         Ok(self.cwd.clone())
     }
 
+    /// Returns true if the `Path` exists. Handles path expansion.
+    ///
+    /// # Arguments
+    /// * `path` - the directory path to validate exists
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let mut memfs = Memfs::new();
+    /// assert_eq!(memfs.exists("foo"), false);
+    /// memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.exists("foo"), true);
+    /// ```
+    fn exists(&self, path: &Path) -> bool
+    {
+        match self.abs(path) {
+            Ok(abs) => Memfs::exists_recurse(&self.root, &abs).is_ok(),
+            Err(_) => false,
+        }
+    }
+
+    /// Creates the given directory and any parent directories needed, handling path expansion and
+    /// returning the absolute path of the created directory
+    ///
+    /// # Arguments
+    /// * `path` - the target directory to create
+    ///
+    /// # Errors
+    /// * PathError::IsNotDir when the path already exists
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let mut memfs = Memfs::new();
+    /// assert_eq!(memfs.exists("foo"), false);
+    /// memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.exists("foo"), true);
+    /// ```
+    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
+    {
+        let abs = self.abs(path)?;
+        if let Some(entry) = Memfs::mkdir_p_recurse(&mut self.root, &abs)? {
+            self.root.add_child(entry)?;
+        }
+        Ok(abs)
+    }
+
     /// Read all data from the given file and return it as a String
     ///
     /// ### Examples
@@ -208,8 +226,12 @@ impl FileSystem for Memfs
         Ok("".to_string())
     }
 
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist or
+    /// Write the given data to to the target file creating the file first if it doesn't exist or
     /// truncating it first if it does.
+    ///
+    /// # Arguments
+    /// * `path` - target file to create or overwrite
+    /// * `data` - data to write to the target file
     ///
     /// ### Examples
     /// ```
@@ -217,7 +239,6 @@ impl FileSystem for Memfs
     /// ```
     fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
     {
-        // TODO: check if the file's parent directories exist
         Ok(())
     }
 
@@ -261,13 +282,13 @@ mod tests
         let mut memfs = Memfs::new();
         assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
 
-        assert_eq!(memfs.exists("foo"), false);
-        assert_eq!(memfs.exists("foo/bar"), false);
+        assert_eq!(memfs.exists(Path::new("foo")), false);
+        assert_eq!(memfs.exists(Path::new("foo/bar")), false);
         memfs.set_cwd("foo").unwrap();
-        memfs.mkdir_p("bar").unwrap();
-        assert_eq!(memfs.exists("foo"), false);
-        assert_eq!(memfs.exists("/foo"), true);
-        assert_eq!(memfs.exists("/foo/bar"), true);
+        memfs.mkdir_p(Path::new("bar")).unwrap();
+        assert_eq!(memfs.exists(Path::new("foo")), false);
+        assert_eq!(memfs.exists(Path::new("/foo")), true);
+        assert_eq!(memfs.exists(Path::new("/foo/bar")), true);
     }
 
     #[test]
@@ -276,16 +297,16 @@ mod tests
         let mut memfs = Memfs::new();
 
         // Check single top level
-        assert_eq!(memfs.exists("foo"), false);
-        memfs.mkdir_p("foo").unwrap();
-        assert_eq!(memfs.exists("foo"), true);
-        assert_eq!(memfs.exists("/foo"), true);
+        assert_eq!(memfs.exists(Path::new("foo")), false);
+        memfs.mkdir_p(Path::new("foo")).unwrap();
+        assert_eq!(memfs.exists(Path::new("foo")), true);
+        assert_eq!(memfs.exists(Path::new("/foo")), true);
 
         // Check nested
-        memfs.mkdir_p("/bar/blah/ugh").unwrap();
-        assert_eq!(memfs.exists("bar/blah/ugh"), true);
-        assert_eq!(memfs.exists("/bar/blah/ugh"), true);
-        assert_eq!(memfs.exists("/foo"), true);
+        memfs.mkdir_p(Path::new("/bar/blah/ugh")).unwrap();
+        assert_eq!(memfs.exists(Path::new("bar/blah/ugh")), true);
+        assert_eq!(memfs.exists(Path::new("/bar/blah/ugh")), true);
+        assert_eq!(memfs.exists(Path::new("/foo")), true);
     }
 
     #[test]
@@ -296,11 +317,11 @@ mod tests
 
         // Add a directory in another thread
         let thread = thread::spawn(move || {
-            memfs2.write().unwrap().mkdir_p("foo").unwrap();
+            memfs2.write().unwrap().mkdir_p(Path::new("foo")).unwrap();
         });
 
         // Wait for the directory to exist in the main thread
-        while !memfs1.read().unwrap().exists("foo") {
+        while !memfs1.read().unwrap().exists(Path::new("foo")) {
             thread::sleep(Duration::from_millis(5));
         }
         thread.join().unwrap();

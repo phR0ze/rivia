@@ -22,6 +22,6 @@ fn main()
 
     // Testing
     let mut memfs = Memfs::new();
-    memfs.mkdir_p("foo").unwrap();
+    memfs.mkdir_p(Path::new("foo")).unwrap();
     println!("{}", memfs);
 }

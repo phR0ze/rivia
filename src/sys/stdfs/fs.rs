@@ -368,9 +368,13 @@ impl Stdfs
     }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning an absolute path created. If the path already exists and is a dir no change is
-    /// made and the path is returned.  If the path already exists and isn't a dir an error is
-    /// returned.
+    /// returning the absolute path of the created directory
+    ///
+    /// # Arguments
+    /// * `path` - the target directory to create
+    ///
+    /// # Errors
+    /// * PathError::IsNotDir when the path already exists
     ///
     /// ### Examples
     /// ```
@@ -778,6 +782,19 @@ impl FileSystem for Stdfs
     fn cwd(&self) -> RvResult<PathBuf>
     {
         Stdfs::cwd()
+    }
+
+    /// Returns true if the `Path` exists. Handles path expansion.
+    fn exists(&self, path: &Path) -> bool
+    {
+        Stdfs::exists(path)
+    }
+
+    /// Creates the given directory and any parent directories needed, handling path expansion and
+    /// returning the absolute path of the created directory
+    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
+    {
+        Stdfs::mkdir_p(path)
     }
 
     /// Read all data from the given file and return it as a String
