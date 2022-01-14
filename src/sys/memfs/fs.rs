@@ -31,9 +31,17 @@ impl Memfs
 
     /// Returns true if the `Path` exists. Handles path expansion.
     ///
+    /// # Arguments
+    /// * `path` - the directory path to validate exists
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let mut memfs = Memfs::new();
+    /// assert_eq!(memfs.exists("foo"), false);
+    /// memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.exists("foo"), true);
     /// ```
     pub fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
@@ -66,6 +74,11 @@ impl Memfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let mut memfs = Memfs::new();
+    /// assert_eq!(memfs.exists("foo"), false);
+    /// memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.exists("foo"), true);
     /// ```
     pub fn mkdir_p<T: AsRef<Path>>(&mut self, path: T) -> RvResult<PathBuf>
     {
@@ -92,18 +105,25 @@ impl Memfs
         Ok(None)
     }
 
-    // Get the indicated entry if it exists
-    pub(crate) fn get<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntry>
+    /// Creates the given directory and any parent directories needed, handling path expansion and
+    /// returning an absolute path created.
+    ///
+    /// # Arguments
+    /// * `path` - the directory path to create
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let mut memfs = Memfs::new();
+    /// assert_eq!(memfs.exists("foo"), false);
+    /// memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.exists("foo"), true);
+    /// ```
+    pub fn set_cwd<T: AsRef<Path>>(&mut self, path: T) -> RvResult<()>
     {
-        // let path = self.abs(path.as_ref())?;
-        // let fs = self.fs.read().unwrap();
-
-        // for component in path.components() {
-        //     if let Component::Normal(x) = component {
-        //         println!("Path: {:?}", x);
-        //     }
-        // }
-        Err(PathError::Empty.into())
+        self.cwd = self.abs(path.as_ref())?;
+        Ok(())
     }
 }
 
@@ -231,7 +251,22 @@ mod tests
     }
 
     #[test]
-    fn test_mkdir_p()
+    fn test_memfs_cwd()
+    {
+        let mut memfs = Memfs::new();
+        assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
+
+        assert_eq!(memfs.exists("foo"), false);
+        assert_eq!(memfs.exists("foo/bar"), false);
+        memfs.set_cwd("foo").unwrap();
+        memfs.mkdir_p("bar").unwrap();
+        assert_eq!(memfs.exists("foo"), false);
+        assert_eq!(memfs.exists("/foo"), true);
+        assert_eq!(memfs.exists("/foo/bar"), true);
+    }
+
+    #[test]
+    fn test_memfs_mkdir_p()
     {
         let mut memfs = Memfs::new();
 
@@ -246,13 +281,5 @@ mod tests
         assert_eq!(memfs.exists("bar/blah/ugh"), true);
         assert_eq!(memfs.exists("/bar/blah/ugh"), true);
         assert_eq!(memfs.exists("/foo"), true);
-    }
-
-    #[test]
-    fn test_memfs_cwd() -> RvResult<()>
-    {
-        let memfs = Memfs::new();
-        assert_eq!(memfs.cwd()?, PathBuf::from("/"));
-        Ok(())
     }
 }
