@@ -8,9 +8,10 @@
 //! ```
 #[macro_use]
 pub mod testing;
+#[macro_use]
+pub mod exts;
 
 pub mod errors;
-pub mod exts;
 pub mod sys;
 
 /// All essential symbols in a simple consumable way
@@ -31,7 +32,7 @@ pub mod prelude
     pub use crate::{
         assert_stdfs_exists, assert_stdfs_is_dir, assert_stdfs_is_file, assert_stdfs_mkdir_p, assert_stdfs_no_dir, assert_stdfs_no_exists,
         assert_stdfs_no_file, assert_stdfs_remove, assert_stdfs_remove_all, assert_stdfs_setup, assert_stdfs_setup_func,
-        assert_stdfs_touch, cfgblock, function, trying,
+        assert_stdfs_touch, cfgblock, function, trying, unwrap_or_false,
     };
     // Export internal types
     pub use crate::{

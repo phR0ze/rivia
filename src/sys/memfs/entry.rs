@@ -123,6 +123,54 @@ pub struct MemfsEntry
 
 impl MemfsEntry
 {
+    /// Recursively check for the existence of each component in the given path.
+    ///
+    /// # Arguments
+    /// * `abs` - target path expected to already be in absolute form
+    ///
+    /// # Errors
+    /// * PathError::DoesNotExist(PathBuf) when the path doesn't exist
+    pub(crate) fn exists<T: AsRef<Path>>(&self, abs: T) -> bool
+    {
+        let path = abs.as_ref().trim_prefix(&self.path).trim_prefix(Component::RootDir);
+        if let Some(target) = path.components().first() {
+            let result = self.child_exists(target);
+            if result.is_err() || !result.unwrap() {
+                return false;
+            }
+            let target = unwrap_or_false!(target.to_string());
+            return self.files.read().unwrap()[&target].exists(abs);
+        }
+        true
+    }
+
+    /// Recursively creates the given directory and any parent directories needed.
+    ///
+    /// # Arguments
+    /// * `abs` - the target directory to create. absolute form required
+    ///
+    /// # Errors
+    /// * PathError::IsNotDir when the path already exists
+    /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
+    /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
+    /// * PathError::DirDoesNotMatchParent(PathBuf) when the given entry's directory doesn't match
+    ///   this
+    pub(crate) fn mkdir_p<T: AsRef<Path>>(&mut self, abs: T) -> RvResult<()>
+    {
+        let path = abs.as_ref().trim_prefix(&self.path).trim_prefix(Component::RootDir);
+        if let Some(target) = path.components().first() {
+            let path = self.path.mash(target);
+            if !self.child_exists(target)? {
+                let mut entry = MemfsEntryOpts::new(&path).entry();
+                entry.mkdir_p(abs)?;
+                self.add_child(entry)?;
+            } else if !self.child_is_dir(target)? {
+                return Err(PathError::is_not_dir(&path).into());
+            }
+        }
+        Ok(())
+    }
+
     // Add an entry to this directory
     //
     // # Arguments
@@ -133,7 +181,7 @@ impl MemfsEntry
     // * PathError::ExistsAlready(PathBuf) when the given entry already exists.
     // * PathError::DirDoesNotMatchParent(PathBuf) when the given entry's directory doesn't match this
     // entry's path
-    pub(crate) fn add_child(&mut self, entry: MemfsEntry) -> RvResult<()>
+    fn add_child(&mut self, entry: MemfsEntry) -> RvResult<()>
     {
         // Ensure this is a valid directory
         if !self.dir {
@@ -153,33 +201,6 @@ impl MemfsEntry
         // Add the new entry by name
         let name = entry.path.base()?;
         self.files.write().unwrap().insert(name, entry);
-        Ok(())
-    }
-
-    /// Creates the given directory and any parent directories needed.
-    ///
-    /// # Arguments
-    /// * `abs` - the target directory to create. absolute form required
-    ///
-    /// # Errors
-    /// * PathError::IsNotDir when the path already exists
-    /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
-    /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
-    /// * PathError::DirDoesNotMatchParent(PathBuf) when the given entry's directory doesn't match
-    ///   this
-    pub(crate) fn mkdir_p(&mut self, abs: &Path) -> RvResult<()>
-    {
-        let path = abs.trim_prefix(&self.path).trim_prefix(Component::RootDir);
-        if let Some(target) = path.components().first() {
-            let path = self.path.mash(target);
-            if !self.child_exists(target)? {
-                let mut entry = MemfsEntryOpts::new(&path).entry();
-                entry.mkdir_p(abs)?;
-                self.add_child(entry)?;
-            } else if !self.child_is_dir(target)? {
-                return Err(PathError::is_not_dir(&path).into());
-            }
-        }
         Ok(())
     }
 

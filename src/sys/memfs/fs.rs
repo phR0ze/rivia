@@ -29,26 +29,6 @@ impl Memfs
         }
     }
 
-    /// Implementation for `exists`
-    ///
-    /// # Arguments
-    /// * `parent` - entry to potentially add the target to
-    /// * `abs` - target path expected to already be in absolute form
-    fn exists_recurse(parent: &MemfsEntry, abs: &Path) -> RvResult<bool>
-    {
-        for component in sys::trim_prefix(&abs, &parent.path).components() {
-            // Using if let here to ensure that we don't consider the first slash at any depth
-            if let Component::Normal(x) = component {
-                if parent.child_exists(x)? {
-                    return Memfs::exists_recurse(&parent.files.read().unwrap()[&x.to_string()?], abs);
-                } else {
-                    return Err(PathError::does_not_exist(x).into());
-                }
-            }
-        }
-        Ok(true)
-    }
-
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning an absolute path created.
     ///
@@ -151,10 +131,7 @@ impl FileSystem for Memfs
     /// ```
     fn exists(&self, path: &Path) -> bool
     {
-        match self.abs(path) {
-            Ok(abs) => Memfs::exists_recurse(&self.root, &abs).is_ok(),
-            Err(_) => false,
-        }
+        self.root.exists(unwrap_or_false!(self.abs(path)))
     }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and

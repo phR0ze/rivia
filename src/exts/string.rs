@@ -1,4 +1,8 @@
-use std::{ffi::OsStr, path::Path, str};
+use std::{
+    ffi::OsStr,
+    path::{Component, Path, PathBuf},
+    str,
+};
 
 use crate::errors::*;
 
@@ -80,7 +84,7 @@ impl ToStringExt for Path
 {
     fn to_string(&self) -> RvResult<String>
     {
-        let _str = self.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
+        let _str = self.to_str().ok_or(PathError::failed_to_string(self))?;
         Ok(String::from(_str))
     }
 }
@@ -93,6 +97,16 @@ impl ToStringExt for OsStr
     }
 }
 
+impl ToStringExt for Component<'_>
+{
+    fn to_string(&self) -> RvResult<String>
+    {
+        let mut path = PathBuf::new();
+        path.push(self);
+        path.to_string()
+    }
+}
+
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
@@ -100,7 +114,7 @@ mod tests
 {
     use std::{
         ffi::OsStr,
-        path::{Path, PathBuf},
+        path::{Component, Path, PathBuf},
     };
 
     use crate::prelude::*;
@@ -146,5 +160,14 @@ mod tests
     {
         assert_eq!(Path::new("/foo").to_string().unwrap(), "/foo");
         assert_eq!(PathBuf::from("/foo").to_string().unwrap(), "/foo");
+    }
+
+    #[test]
+    fn test_component_to_string()
+    {
+        assert_eq!(Component::RootDir.to_string().unwrap(), "/");
+        assert_eq!(Component::CurDir.to_string().unwrap(), ".");
+        assert_eq!(Component::ParentDir.to_string().unwrap(), "..");
+        assert_eq!(Component::Normal(OsStr::new("foo")).to_string().unwrap(), "foo");
     }
 }
