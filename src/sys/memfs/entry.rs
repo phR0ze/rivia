@@ -156,14 +156,25 @@ impl MemfsEntry
         Ok(())
     }
 
-    pub(crate) fn mkdir_p_recurse(&mut self, abs: &Path) -> RvResult<()>
+    /// Creates the given directory and any parent directories needed.
+    ///
+    /// # Arguments
+    /// * `abs` - the target directory to create. absolute form required
+    ///
+    /// # Errors
+    /// * PathError::IsNotDir when the path already exists
+    /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
+    /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
+    /// * PathError::DirDoesNotMatchParent(PathBuf) when the given entry's directory doesn't match
+    ///   this
+    pub(crate) fn mkdir_p(&mut self, abs: &Path) -> RvResult<()>
     {
         let path = abs.trim_prefix(&self.path).trim_prefix(Component::RootDir);
         if let Some(target) = path.components().first() {
             let path = self.path.mash(target);
             if !self.child_exists(target)? {
                 let mut entry = MemfsEntryOpts::new(&path).entry();
-                entry.mkdir_p_recurse(abs)?;
+                entry.mkdir_p(abs)?;
                 self.add_child(entry)?;
             } else if !self.child_is_dir(target)? {
                 return Err(PathError::is_not_dir(&path).into());

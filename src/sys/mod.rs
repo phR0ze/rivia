@@ -1,7 +1,7 @@
-//! `sys` provides multiple filesystem implementations in a unified, extended and simplified way to
-//! work with the filesystems including pathing, io and file management.
+//! Provides multiple filesystem implementations in a unified, extended and simplified way with
+//! including pathing, io and file management helpers.
 //!
-//! ### How to use fs module from the Rivia Core crate
+//! ### How to use the `sys` module from the Rivia crate
 //! ```
 //! use rivia::prelude::*;
 //! ```

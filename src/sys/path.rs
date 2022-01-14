@@ -881,6 +881,7 @@ pub trait PathExt
     // fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf;
 }
 
+/// Provides extension method ergonomics for all the system module helper functions for paths
 impl PathExt for Path
 {
     /// Simply a wrapper for `file_name` to return the final component of the `Path`, if there is

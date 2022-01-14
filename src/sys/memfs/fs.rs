@@ -178,7 +178,7 @@ impl FileSystem for Memfs
     fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
     {
         let abs = self.abs(path)?;
-        self.root.mkdir_p_recurse(&abs)?;
+        self.root.mkdir_p(&abs)?;
         Ok(abs)
     }
 

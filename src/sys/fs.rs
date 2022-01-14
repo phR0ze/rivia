@@ -1,3 +1,4 @@
+//! Provides multiple filesystem implementations in a unified, extended and simplified way
 use std::{
     fmt::Debug,
     path::{Path, PathBuf},
