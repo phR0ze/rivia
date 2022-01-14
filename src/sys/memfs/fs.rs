@@ -49,31 +49,6 @@ impl Memfs
         Ok(true)
     }
 
-    /// Implementation for `mkdir_p`
-    ///
-    /// # Arguments
-    /// * `parent` - entry to potentially add the target to
-    /// * `abs` - target path expected to already be in absolute form
-    fn mkdir_p_recurse(parent: &mut MemfsEntry, abs: &Path) -> RvResult<Option<MemfsEntry>>
-    {
-        for component in sys::trim_prefix(&abs, &parent.path).components() {
-            // Using if let here to ensure that we don't consider the first slash at any depth
-            if let Component::Normal(x) = component {
-                let path = sys::mash(&parent.path, x);
-                if !parent.child_exists(x)? {
-                    let mut entry = MemfsEntryOpts::new(&path).entry();
-                    if let Some(child) = Memfs::mkdir_p_recurse(&mut entry, abs)? {
-                        entry.add_child(child)?;
-                    }
-                    return Ok(Some(entry));
-                } else if !parent.child_is_dir(x)? {
-                    return Err(PathError::is_not_dir(&path).into());
-                }
-            }
-        }
-        Ok(None)
-    }
-
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning an absolute path created.
     ///
@@ -83,11 +58,6 @@ impl Memfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
-    ///
-    /// let mut memfs = Memfs::new();
-    /// assert_eq!(memfs.exists("foo"), false);
-    /// memfs.mkdir_p("foo").unwrap();
-    /// assert_eq!(memfs.exists("foo"), true);
     /// ```
     pub fn set_cwd<T: AsRef<Path>>(&mut self, path: T) -> RvResult<()>
     {
@@ -208,9 +178,7 @@ impl FileSystem for Memfs
     fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
     {
         let abs = self.abs(path)?;
-        if let Some(entry) = Memfs::mkdir_p_recurse(&mut self.root, &abs)? {
-            self.root.add_child(entry)?;
-        }
+        self.root.mkdir_p_recurse(&abs)?;
         Ok(abs)
     }
 

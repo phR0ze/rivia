@@ -4,7 +4,7 @@ use std::{
     fmt, fs,
     hash::{Hash, Hasher},
     io,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::{Arc, RwLock},
 };
 
@@ -12,7 +12,8 @@ use itertools::Itertools;
 
 use crate::{
     errors::*,
-    sys::{self, Entry, EntryIter, VfsEntry},
+    exts::*,
+    sys::{self, Entry, EntryIter, PathExt, VfsEntry},
 };
 
 // Simple type to use when referring to the multi-thread safe locked hashmap that is a directory on
@@ -145,13 +146,29 @@ impl MemfsEntry
         }
 
         // Ensure the entry has a valid directory
-        if self.path != sys::dir(&entry.path)? {
+        if self.path != entry.path.dir()? {
             return Err(PathError::DirDoesNotMatchParent(self.path.clone()).into());
         }
 
         // Add the new entry by name
-        let name = sys::base(&entry.path)?;
+        let name = entry.path.base()?;
         self.files.write().unwrap().insert(name, entry);
+        Ok(())
+    }
+
+    pub(crate) fn mkdir_p_recurse(&mut self, abs: &Path) -> RvResult<()>
+    {
+        let path = abs.trim_prefix(&self.path).trim_prefix(Component::RootDir);
+        if let Some(target) = path.components().first() {
+            let path = self.path.mash(target);
+            if !self.child_exists(target)? {
+                let mut entry = MemfsEntryOpts::new(&path).entry();
+                entry.mkdir_p_recurse(abs)?;
+                self.add_child(entry)?;
+            } else if !self.child_is_dir(target)? {
+                return Err(PathError::is_not_dir(&path).into());
+            }
+        }
         Ok(())
     }
 
@@ -166,7 +183,7 @@ impl MemfsEntry
             return Ok(false);
         }
 
-        let base = sys::base(path.as_ref())?;
+        let base = path.as_ref().base()?;
         Ok(self.files.read().unwrap().contains_key(&base))
     }
 
@@ -180,7 +197,7 @@ impl MemfsEntry
             return Ok(false);
         }
 
-        let base = sys::base(path.as_ref())?;
+        let base = path.as_ref().base()?;
         Ok(match self.files.read().unwrap().get(&base) {
             Some(entry) => entry.dir,
             None => false,
@@ -197,7 +214,7 @@ impl MemfsEntry
             return Ok(false);
         }
 
-        let base = sys::base(path.as_ref())?;
+        let base = path.as_ref().base()?;
         Ok(match self.files.read().unwrap().get(&base) {
             Some(entry) => entry.file,
             None => false,
@@ -214,7 +231,7 @@ impl MemfsEntry
             return Ok(false);
         }
 
-        let base = sys::base(path.as_ref())?;
+        let base = path.as_ref().base()?;
         Ok(match self.files.read().unwrap().get(&base) {
             Some(entry) => entry.link,
             None => false,
@@ -230,7 +247,7 @@ impl MemfsEntry
         if !self.dir {
             return Err(PathError::IsNotDir(self.path.clone()).into());
         }
-        Ok(self.files.write().unwrap().remove(&sys::base(path.as_ref())?))
+        Ok(self.files.write().unwrap().remove(&path.as_ref().base()?))
     }
 
     /// Len reports the length of the data in bytes until the end of the file from the current

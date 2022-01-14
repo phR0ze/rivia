@@ -37,7 +37,7 @@ pub mod prelude
     pub use crate::{
         errors::*,
         exts::*,
-        sys::{self, Entry, EntryIter, FileSystem, Memfs, MemfsEntry, Stdfs, StdfsEntry, Vfs, VfsEntry},
+        sys::{self, Entry, EntryIter, FileSystem, Memfs, MemfsEntry, PathExt, Stdfs, StdfsEntry, Vfs, VfsEntry},
         testing,
     };
 }
