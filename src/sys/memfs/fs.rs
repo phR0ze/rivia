@@ -238,7 +238,12 @@ impl FileSystem for Memfs
 #[cfg(test)]
 mod tests
 {
-    use super::MemfsEntryOpts;
+    use std::{
+        sync::{Arc, RwLock},
+        thread,
+        time::Duration,
+    };
+
     use crate::prelude::*;
 
     #[test]
@@ -281,5 +286,23 @@ mod tests
         assert_eq!(memfs.exists("bar/blah/ugh"), true);
         assert_eq!(memfs.exists("/bar/blah/ugh"), true);
         assert_eq!(memfs.exists("/foo"), true);
+    }
+
+    #[test]
+    fn test_memfs_mkdir_p_multi_threaded()
+    {
+        let memfs1 = Arc::new(RwLock::new(Memfs::new()));
+        let memfs2 = memfs1.clone();
+
+        // Add a directory in another thread
+        let thread = thread::spawn(move || {
+            memfs2.write().unwrap().mkdir_p("foo").unwrap();
+        });
+
+        // Wait for the directory to exist in the main thread
+        while !memfs1.read().unwrap().exists("foo") {
+            thread::sleep(Duration::from_millis(5));
+        }
+        thread.join().unwrap();
     }
 }
