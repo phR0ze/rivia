@@ -123,6 +123,27 @@ pub struct MemfsEntry
 
 impl MemfsEntry
 {
+    /// # Errors
+    /// * PathError::DoesNotExist(PathBuf) when the path doesn't exist
+    fn get<T: AsRef<Path>>(&self, abs: T) -> RvResult<()>
+    {
+        // Validate that were working with a directory
+        if !self.dir {
+            return Err(PathError::is_not_dir(&self.path).into());
+        }
+
+        // Narrow in on the next component to check in the path
+        let path = abs.as_ref().trim_prefix(&self.path).trim_prefix(Component::RootDir);
+        if let Some(target) = path.components().first() {
+            if let Some(entry) = self.files.read().unwrap().get(&target.to_string()?) {
+                entry.get(&abs)?;
+            }
+        }
+
+        // Default to not existing
+        Err(PathError::does_not_exist(abs).into())
+    }
+
     /// Recursively check for the existence of each component in the given path.
     ///
     /// # Arguments
@@ -185,17 +206,17 @@ impl MemfsEntry
     {
         // Ensure this is a valid directory
         if !self.dir {
-            return Err(PathError::IsNotDir(self.path.clone()).into());
+            return Err(PathError::is_not_dir(&self.path).into());
         }
 
         // Ensure the entry doesn't already exist
         if self.child_exists(&entry.path)? {
-            return Err(PathError::ExistsAlready(entry.path.clone()).into());
+            return Err(PathError::exists_already(&entry.path).into());
         }
 
         // Ensure the entry has a valid directory
         if self.path != entry.path.dir()? {
-            return Err(PathError::DirDoesNotMatchParent(self.path.clone()).into());
+            return Err(PathError::dir_does_not_match_parent(&self.path).into());
         }
 
         // Add the new entry by name
@@ -209,7 +230,7 @@ impl MemfsEntry
     //
     // # Arguments
     // * `path` - the entry path to check
-    pub(crate) fn child_exists<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    fn child_exists<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
         if !self.dir {
             return Ok(false);
@@ -223,7 +244,7 @@ impl MemfsEntry
     //
     // # Arguments
     // * `path` - the entry path to check
-    pub(crate) fn child_is_dir<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    fn child_is_dir<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
         if !self.dir {
             return Ok(false);
@@ -240,7 +261,7 @@ impl MemfsEntry
     //
     // # Arguments
     // * `path` - the entry path to check
-    pub(crate) fn child_is_file<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    fn child_is_file<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
         if !self.dir {
             return Ok(false);
@@ -257,7 +278,7 @@ impl MemfsEntry
     //
     // # Arguments
     // * `path` - the entry path to check
-    pub(crate) fn child_is_link<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
+    fn child_is_link<T: AsRef<Path>>(&self, path: T) -> RvResult<bool>
     {
         if !self.dir {
             return Ok(false);
@@ -274,7 +295,7 @@ impl MemfsEntry
     //
     // # Errors
     // PathError::IsNotDir(PathBuf) when this entry is not a directory
-    pub(crate) fn remove_child<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<MemfsEntry>>
+    fn remove_child<T: AsRef<Path>>(&mut self, path: T) -> RvResult<Option<MemfsEntry>>
     {
         if !self.dir {
             return Err(PathError::IsNotDir(self.path.clone()).into());
