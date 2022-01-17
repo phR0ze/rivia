@@ -21,7 +21,7 @@ fn main()
     // Stdfs::remove(file1).unwrap();
 
     // Testing
-    let mut memfs = Memfs::new();
+    let memfs = Memfs::new();
     memfs.mkdir_p(Path::new("foo")).unwrap();
     println!("{}", memfs);
 }
