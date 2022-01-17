@@ -247,7 +247,7 @@ newline_style = "Unix"
 # Convert /* */ comments to // comments where possible
 # Default value: false
 # Possible values: true, false
-normalize_comments = false
+normalize_comments = true
 
 # Convert #![doc] and #[doc] attributes to //! and /// doc comments.
 # Default value: false

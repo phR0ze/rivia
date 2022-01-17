@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     errors::*,
-    sys::{Memfs, Stdfs},
+    sys::{Entries, Memfs, Stdfs},
 };
 
 // FileSystem trait
@@ -27,16 +27,19 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Returns true if the `Path` exists. Handles path expansion.
     fn exists(&self, path: &Path) -> bool;
 
-    //fn expand(&self, path: &Path) -> RvResult<PathBuf>;
+    /// Returns an iterator over the given path
+    // fn entries(&self, path: &Path) -> RvResult<Entries>;
+
+    // fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
     fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>;
 
-    //fn read(&self, path: &Path) -> RvResult<()>;
+    // fn read(&self, path: &Path) -> RvResult<()>;
 
     /// Opens a file for writing, creating if it doesn't exist and truncating if it does
-    //fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+    // fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
 
     /// Read all data from the given file and return it as a String
     fn read_all(&self, path: &Path) -> RvResult<String>;
@@ -91,6 +94,15 @@ impl FileSystem for Vfs
             Vfs::Memfs(x) => x.cwd(),
         }
     }
+
+    // /// Returns an iterator over the given path
+    // fn entries(&self, path: &Path) -> RvResult<Entries>
+    // {
+    //     match self {
+    //         Vfs::Stdfs(x) => x.entries(path),
+    //         Vfs::Memfs(x) => x.entries(path),
+    //     }
+    // }
 
     /// Returns true if the `Path` exists. Handles path expansion.
     fn exists(&self, path: &Path) -> bool

@@ -306,16 +306,16 @@ impl Entry for StdfsEntry
     }
 
     /// Create an iterator from the given path to iterate over just the contents
-    /// of this path non-recursively.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    fn iter(&self) -> RvResult<EntryIter>
-    {
-        StdfsEntry::iter(&self.path, false)
-    }
+    // /// of this path non-recursively.
+    // ///
+    // /// ### Examples
+    // /// ```
+    // /// use rivia::prelude::*;
+    // /// ```
+    // fn iter(&self) -> RvResult<EntryIter>
+    // {
+    //     StdfsEntry::iter(&self.path, false)
+    // }
 
     /// Up cast the trait type to the enum wrapper
     ///

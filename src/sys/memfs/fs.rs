@@ -10,7 +10,7 @@ use itertools::Itertools;
 use crate::{
     errors::*,
     exts::*,
-    sys::{self, Entry, FileSystem, MemfsEntry, PathExt, Vfs},
+    sys::{self, Entries, Entry, EntryIter, FileSystem, MemfsEntry, PathExt, Vfs, VfsEntry},
 };
 
 /// `Memfs` is a Vfs backend implementation that is purely memory based. `Memfs` is multi-thread
@@ -62,6 +62,20 @@ impl Memfs
         fs.cwd = abs;
         Ok(())
     }
+
+    /// Get a clone of the target entry. Handles converting path to absolute form.
+    // # Errors
+    // * PathError::DoesNotExist(PathBuf) when this entry doesn't exist
+    pub(crate) fn get<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
+    {
+        let abs = self.abs(path.as_ref())?;
+        let guard = self.0.read().unwrap();
+
+        match guard.fs.get(&abs) {
+            Some(entry) => Ok(entry.clone().upcast()),
+            None => Err(PathError::does_not_exist(&abs).into()),
+        }
+    }
 }
 
 impl fmt::Display for Memfs
@@ -71,33 +85,12 @@ impl fmt::Display for Memfs
         let guard = self.0.read().unwrap();
 
         writeln!(f, "cwd: {}", guard.cwd.display())?;
-        //write!(f, "root: ")?;
         for key in guard.fs.keys().sorted() {
             writeln!(f, "{}", key.display())?;
         }
         Ok(())
     }
 }
-
-// /// Provide pretty printing for our filesystem
-// pub(crate) fn display(&self, f: &mut fmt::Formatter, indent: Option<usize>) -> fmt::Result
-// {
-//     let indent = indent.unwrap_or_default();
-//     if indent == 0 {
-//         writeln!(f, "{}", &self.path.display())?;
-//     } else {
-//         writeln!(f, " ({})", &self.path.display())?;
-//     }
-
-//     let indent = indent + 2;
-//     if self.dir {
-//         for k in self.entries.keys().sorted() {
-//             write!(f, "{:>w$}{}", "", &k, w = indent)?;
-//             self.entries[k].display(f, Some(indent))?;
-//         }
-//     }
-//     Ok(())
-// }
 
 impl FileSystem for Memfs
 {
@@ -158,6 +151,41 @@ impl FileSystem for Memfs
         let fs = self.0.read().unwrap();
         Ok(fs.cwd.clone())
     }
+
+    // /// Returns an iterator over the given path
+    // fn entries(&self, path: &Path) -> RvResult<Entries>
+    // {
+    //     // Get a clone of the target root
+    //     let root = self.get(path)?;
+
+    //     // Create a closure that includes the reference data for the interator
+    //     let iter_func = move |path: &Path| -> RvResult<EntryIter> {
+    //         Ok(EntryIter {
+    //             path: path.to_path_buf(),
+    //             cached: false,
+    //             following: false,
+    //             iter: Box::new(crate::sys::stdfs::StdfsEntryIter(std::fs::read_dir(path)?)),
+    //             //iter: Box::new(MemfsEntryIter(self.files.unwrap().iter())),
+    //         })
+    //     };
+
+    //     Ok(Entries {
+    //         root: root,
+    //         dirs: false,
+    //         files: false,
+    //         follow: false,
+    //         min_depth: 0,
+    //         max_depth: std::usize::MAX,
+    //         max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
+    //         dirs_first: false,
+    //         files_first: false,
+    //         contents_first: false,
+    //         sort_by_name: false,
+    //         pre_op: None,
+    //         sort: None,
+    //         iter_from: Box::new(iter_func),
+    //     })
+    // }
 
     /// Returns true if the `Path` exists. Handles path expansion.
     ///

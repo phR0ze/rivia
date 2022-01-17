@@ -151,7 +151,7 @@ pub trait Entry: Debug+Send+Sync+'static
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn iter(&self) -> RvResult<EntryIter>;
+    // fn iter(&self) -> RvResult<EntryIter>;
 
     /// Up cast the trait type to the enum wrapper
     ///
@@ -331,20 +331,20 @@ impl Entry for VfsEntry
         }
     }
 
-    /// Create an iterator from the given `path` to iterate over just the contents
-    /// of this path non-recursively.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    fn iter(&self) -> RvResult<EntryIter>
-    {
-        match self {
-            VfsEntry::Stdfs(x) => x.iter(),
-            VfsEntry::Memfs(x) => x.iter(),
-        }
-    }
+    // /// Create an iterator from the given `path` to iterate over just the contents
+    // /// of this path non-recursively.
+    // ///
+    // /// ### Examples
+    // /// ```
+    // /// use rivia::prelude::*;
+    // /// ```
+    // fn iter(&self) -> RvResult<EntryIter>
+    // {
+    //     match self {
+    //         VfsEntry::Stdfs(x) => x.iter(),
+    //         VfsEntry::Memfs(x) => x.iter(),
+    //     }
+    // }
 
     /// Up cast the trait type to the enum wrapper
     ///
@@ -537,292 +537,294 @@ mod tests
     //     assert_stdfs_remove_all!(&tmpdir);
     // }
 
-    #[test]
-    fn test_stdfs_entry_dirs_first_files_first()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let dir2 = sys::mash(&tmpdir, "dir2");
-        let file1 = sys::mash(&tmpdir, "file1");
-        let file2 = sys::mash(&tmpdir, "file2");
+    // #[test]
+    // fn test_stdfs_entry_dirs_first_files_first()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = sys::mash(&tmpdir, "dir1");
+    //     let dir2 = sys::mash(&tmpdir, "dir2");
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let file2 = sys::mash(&tmpdir, "file2");
 
-        assert_stdfs_mkdir_p!(&dir1);
-        assert_stdfs_mkdir_p!(&dir2);
-        assert_stdfs_touch!(&file1);
-        assert_stdfs_touch!(&file2);
+    //     assert_stdfs_mkdir_p!(&dir1);
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_touch!(&file1);
+    //     assert_stdfs_touch!(&file2);
 
-        // dirs first
-        let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-        iter.dirs_first(|x, y| x.file_name().cmp(&y.file_name()));
-        assert_eq!(iter.cached(), true);
-        assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-        assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-        assert!(iter.next().is_none());
+    //     // dirs first
+    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
+    //     iter.dirs_first(|x, y| x.file_name().cmp(&y.file_name()));
+    //     assert_eq!(iter.cached(), true);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert!(iter.next().is_none());
 
-        // files first
-        let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-        iter.files_first(|x, y| x.file_name().cmp(&y.file_name()));
-        assert_eq!(iter.cached(), true);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-        assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-        assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-        assert!(iter.next().is_none());
+    //     // files first
+    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
+    //     iter.files_first(|x, y| x.file_name().cmp(&y.file_name()));
+    //     assert_eq!(iter.cached(), true);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+    //     assert!(iter.next().is_none());
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_sort()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
-        let file2 = sys::mash(&tmpdir, "file2");
+    // #[test]
+    // fn test_stdfs_entry_sort()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let file2 = sys::mash(&tmpdir, "file2");
 
-        assert_stdfs_touch!(&file1);
-        assert_stdfs_touch!(&file2);
+    //     assert_stdfs_touch!(&file1);
+    //     assert_stdfs_touch!(&file2);
 
-        // custom sort for files
-        let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-        iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
-        assert_eq!(iter.cached(), true);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-        assert!(iter.next().is_none());
+    //     // custom sort for files
+    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
+    //     iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
+    //     assert_eq!(iter.cached(), true);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert!(iter.next().is_none());
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_iter()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
-        let file2 = sys::mash(&tmpdir, "file2");
+    // #[test]
+    // fn test_stdfs_entry_iter()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let file2 = sys::mash(&tmpdir, "file2");
 
-        assert_stdfs_touch!(&file1);
-        assert_stdfs_touch!(&file2);
+    //     assert_stdfs_touch!(&file1);
+    //     assert_stdfs_touch!(&file2);
 
-        // open file descriptors
-        let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-        assert_eq!(iter.cached, false);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-        assert!(iter.next().is_none());
+    //     // open file descriptors
+    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
+    //     assert_eq!(iter.cached, false);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert!(iter.next().is_none());
 
-        // caching in memory
-        let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-        iter.cache();
-        assert_eq!(iter.cached(), true);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-        assert!(iter.next().is_none());
+    //     // caching in memory
+    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
+    //     iter.cache();
+    //     assert_eq!(iter.cached(), true);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert!(iter.next().is_none());
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_is_dir()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let file1 = sys::mash(&tmpdir, "file1");
-        let link1 = sys::mash(&tmpdir, "link1");
-        let link2 = sys::mash(&tmpdir, "dir2");
+    // #[test]
+    // fn test_stdfs_entry_is_dir()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = sys::mash(&tmpdir, "dir1");
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let link1 = sys::mash(&tmpdir, "link1");
+    //     let link2 = sys::mash(&tmpdir, "dir2");
 
-        // regular directory
-        assert_stdfs_mkdir_p!(&dir1);
-        assert_eq!(StdfsEntry::from(&dir1).unwrap().is_dir(), true);
+    //     // regular directory
+    //     assert_stdfs_mkdir_p!(&dir1);
+    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_dir(), true);
 
-        // Current dir
-        assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_dir(), true);
+    //     // Current dir
+    //     assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_dir(), true);
 
-        // file is not a directory
-        assert_stdfs_touch!(&file1);
-        assert_eq!(StdfsEntry::from(&file1).unwrap().is_dir(), false);
+    //     // file is not a directory
+    //     assert_stdfs_touch!(&file1);
+    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_dir(), false);
 
-        // file link is not a directory
-        assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_dir(), false);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
+    //     // file link is not a directory
+    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_dir(), false);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
 
-        // dir link is a directory
-        assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_dir(), true);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
+    //     // dir link is a directory
+    //     assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_dir(), true);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
 
-        // invalid directory
-        assert_eq!(StdfsEntry::from(&PathBuf::from("/foobar")).unwrap_err().to_string(), "No such file or directory (os error 2)");
+    //     // invalid directory
+    //     assert_eq!(StdfsEntry::from(&PathBuf::from("/foobar")).unwrap_err().to_string(), "No such
+    // file or directory (os error 2)");
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_is_file()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let file1 = sys::mash(&tmpdir, "file1");
-        let link1 = sys::mash(&tmpdir, "link1");
-        let link2 = sys::mash(&tmpdir, "dir2");
+    // #[test]
+    // fn test_stdfs_entry_is_file()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = sys::mash(&tmpdir, "dir1");
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let link1 = sys::mash(&tmpdir, "link1");
+    //     let link2 = sys::mash(&tmpdir, "dir2");
 
-        // regular directory is not a file
-        assert_stdfs_mkdir_p!(&dir1);
-        assert_eq!(StdfsEntry::from(&dir1).unwrap().is_file(), false);
+    //     // regular directory is not a file
+    //     assert_stdfs_mkdir_p!(&dir1);
+    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_file(), false);
 
-        // Current dir is not a file
-        assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_file(), false);
+    //     // Current dir is not a file
+    //     assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_file(), false);
 
-        // regular file is true
-        assert_stdfs_touch!(&file1);
-        assert_eq!(StdfsEntry::from(&file1).unwrap().is_file(), true);
+    //     // regular file is true
+    //     assert_stdfs_touch!(&file1);
+    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_file(), true);
 
-        // file link is not a regular file ist a symlink_file
-        assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_file(), true);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
+    //     // file link is not a regular file ist a symlink_file
+    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_file(), true);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
 
-        // dir link is not a directory
-        assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_file(), false);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
+    //     // dir link is not a directory
+    //     assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_file(), false);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_is_symlink()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let file1 = sys::mash(&tmpdir, "file1");
-        let link1 = sys::mash(&tmpdir, "link1");
-        let link2 = sys::mash(&tmpdir, "link2");
+    // #[test]
+    // fn test_stdfs_entry_is_symlink()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = sys::mash(&tmpdir, "dir1");
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let link1 = sys::mash(&tmpdir, "link1");
+    //     let link2 = sys::mash(&tmpdir, "link2");
 
-        // invalid
-        assert!(StdfsEntry::from(&PathBuf::from("")).is_err());
+    //     // invalid
+    //     assert!(StdfsEntry::from(&PathBuf::from("")).is_err());
 
-        // non-existing file or dir is not a symlink
-        assert_eq!(StdfsEntry::from(&link1).unwrap_err().to_string(), "No such file or directory (os error 2)");
-        assert_eq!(StdfsEntry::from(&dir1).unwrap_err().to_string(), "No such file or directory (os error 2)");
+    //     // non-existing file or dir is not a symlink
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap_err().to_string(), "No such file or directory
+    // (os error 2)");     assert_eq!(StdfsEntry::from(&dir1).unwrap_err().to_string(), "No such
+    // file or directory (os error 2)");
 
-        // regular file is not a symlink
-        assert!(Stdfs::touch(&file1).is_ok());
-        assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink(), false);
+    //     // regular file is not a symlink
+    //     assert!(Stdfs::touch(&file1).is_ok());
+    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink(), false);
 
-        // symlink file is a symlink
-        assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink(), true);
+    //     // symlink file is a symlink
+    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink(), true);
 
-        // regular dir is not a symlink
-        assert_stdfs_mkdir_p!(&dir1);
-        assert_eq!(StdfsEntry::from(&dir1).unwrap().is_symlink(), false);
+    //     // regular dir is not a symlink
+    //     assert_stdfs_mkdir_p!(&dir1);
+    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_symlink(), false);
 
-        // symlink dir is a symlink
-        assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink(), true);
+    //     // symlink dir is a symlink
+    //     assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink(), true);
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_is_symlink_dir()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let link1 = sys::mash(&tmpdir, "link1");
-        let link2 = sys::mash(&tmpdir, "link2");
+    // #[test]
+    // fn test_stdfs_entry_is_symlink_dir()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = sys::mash(&tmpdir, "dir1");
+    //     let link1 = sys::mash(&tmpdir, "link1");
+    //     let link2 = sys::mash(&tmpdir, "link2");
 
-        // regular dir is not a symlink dir
-        assert!(Stdfs::mkdir_p(&dir1).is_ok());
-        assert_eq!(StdfsEntry::from(&dir1).unwrap().is_symlink_dir(), false);
+    //     // regular dir is not a symlink dir
+    //     assert!(Stdfs::mkdir_p(&dir1).is_ok());
+    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_symlink_dir(), false);
 
-        // test absolute
-        assert_eq!(Stdfs::symlink(&dir1, &link1).unwrap(), link1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_dir(), true);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), false);
+    //     // test absolute
+    //     assert_eq!(Stdfs::symlink(&dir1, &link1).unwrap(), link1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_dir(), true);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), false);
 
-        // test relative
-        assert!(Stdfs::symlink("dir1", &link2).is_ok());
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_file(), false);
+    //     // test relative
+    //     assert!(Stdfs::symlink("dir1", &link2).is_ok());
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_file(), false);
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_is_symlink_file()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
-        let link1 = sys::mash(&tmpdir, "link1");
-        let link2 = sys::mash(&tmpdir, "link2");
+    // #[test]
+    // fn test_stdfs_entry_is_symlink_file()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let link1 = sys::mash(&tmpdir, "link1");
+    //     let link2 = sys::mash(&tmpdir, "link2");
 
-        // regular file is not a symlink dir
-        assert!(Stdfs::touch(&file1).is_ok());
-        assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink_file(), false);
+    //     // regular file is not a symlink dir
+    //     assert!(Stdfs::touch(&file1).is_ok());
+    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink_file(), false);
 
-        // test absolute
-        assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_dir(), false);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
+    //     // test absolute
+    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_dir(), false);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
 
-        // test relative
-        assert!(Stdfs::symlink("file1", &link2).is_ok());
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), false);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_file(), true);
+    //     // test relative
+    //     assert!(Stdfs::symlink("file1", &link2).is_ok());
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), false);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_file(), true);
 
-        // cleanup
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     // cleanup
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 
-    #[test]
-    fn test_stdfs_entry_readlink_abs()
-    {
-        let tmpdir = assert_stdfs_setup!();
-        let file1 = sys::mash(&tmpdir, "file1");
-        let link1 = sys::mash(&tmpdir, "link1");
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let link2 = sys::mash(&dir1, "link2");
-        let link3 = sys::mash(&dir1, "link3");
-        let link4 = sys::mash(&dir1, "link4");
+    // #[test]
+    // fn test_stdfs_entry_readlink_abs()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let file1 = sys::mash(&tmpdir, "file1");
+    //     let link1 = sys::mash(&tmpdir, "link1");
+    //     let dir1 = sys::mash(&tmpdir, "dir1");
+    //     let link2 = sys::mash(&dir1, "link2");
+    //     let link3 = sys::mash(&dir1, "link3");
+    //     let link4 = sys::mash(&dir1, "link4");
 
-        // link at the same level
-        assert!(Stdfs::touch(&file1).is_ok());
-        assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().path(), link1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().alt(), file1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().follow(true).path(), file1);
-        assert_eq!(StdfsEntry::from(&link1).unwrap().follow(true).alt(), link1);
-        assert_eq!(Stdfs::readlink_abs(&link1).unwrap(), file1);
+    //     // link at the same level
+    //     assert!(Stdfs::touch(&file1).is_ok());
+    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().path(), link1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().alt(), file1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().follow(true).path(), file1);
+    //     assert_eq!(StdfsEntry::from(&link1).unwrap().follow(true).alt(), link1);
+    //     assert_eq!(Stdfs::readlink_abs(&link1).unwrap(), file1);
 
-        // link nested one deeper
-        assert!(Stdfs::mkdir_p(&dir1).is_ok());
-        assert_eq!(Stdfs::symlink(&file1, &link2).unwrap(), link2);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().path(), link2);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().alt(), file1);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().follow(true).path(), file1);
-        assert_eq!(StdfsEntry::from(&link2).unwrap().follow(true).alt(), link2);
-        assert_eq!(Stdfs::readlink_abs(&link2).unwrap(), file1);
+    //     // link nested one deeper
+    //     assert!(Stdfs::mkdir_p(&dir1).is_ok());
+    //     assert_eq!(Stdfs::symlink(&file1, &link2).unwrap(), link2);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().path(), link2);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().alt(), file1);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().follow(true).path(), file1);
+    //     assert_eq!(StdfsEntry::from(&link2).unwrap().follow(true).alt(), link2);
+    //     assert_eq!(Stdfs::readlink_abs(&link2).unwrap(), file1);
 
-        // absolute
-        assert!(std::os::unix::fs::symlink(&file1, &link3).is_ok());
-        assert_eq!(StdfsEntry::from(&link3).unwrap().path(), link3);
-        assert_eq!(StdfsEntry::from(&link3).unwrap().alt(), file1);
-        assert_eq!(StdfsEntry::from(&link3).unwrap().follow(true).path(), file1);
-        assert_eq!(StdfsEntry::from(&link3).unwrap().follow(true).alt(), link3);
-        assert_eq!(Stdfs::readlink_abs(&link3).unwrap(), file1);
+    //     // absolute
+    //     assert!(std::os::unix::fs::symlink(&file1, &link3).is_ok());
+    //     assert_eq!(StdfsEntry::from(&link3).unwrap().path(), link3);
+    //     assert_eq!(StdfsEntry::from(&link3).unwrap().alt(), file1);
+    //     assert_eq!(StdfsEntry::from(&link3).unwrap().follow(true).path(), file1);
+    //     assert_eq!(StdfsEntry::from(&link3).unwrap().follow(true).alt(), link3);
+    //     assert_eq!(Stdfs::readlink_abs(&link3).unwrap(), file1);
 
-        // absolute path with symbols
-        assert!(std::os::unix::fs::symlink(sys::mash(&dir1, "../file1"), &link4).is_ok());
-        assert_eq!(StdfsEntry::from(&link4).unwrap().path(), link4);
-        assert_eq!(StdfsEntry::from(&link4).unwrap().alt(), file1);
-        assert_eq!(StdfsEntry::from(&link4).unwrap().follow(true).path(), file1);
-        assert_eq!(StdfsEntry::from(&link4).unwrap().follow(true).alt(), link4);
-        assert_eq!(Stdfs::readlink_abs(&link4).unwrap(), file1);
+    //     // absolute path with symbols
+    //     assert!(std::os::unix::fs::symlink(sys::mash(&dir1, "../file1"), &link4).is_ok());
+    //     assert_eq!(StdfsEntry::from(&link4).unwrap().path(), link4);
+    //     assert_eq!(StdfsEntry::from(&link4).unwrap().alt(), file1);
+    //     assert_eq!(StdfsEntry::from(&link4).unwrap().follow(true).path(), file1);
+    //     assert_eq!(StdfsEntry::from(&link4).unwrap().follow(true).alt(), link4);
+    //     assert_eq!(Stdfs::readlink_abs(&link4).unwrap(), file1);
 
-        assert_stdfs_remove_all!(&tmpdir);
-    }
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
 }

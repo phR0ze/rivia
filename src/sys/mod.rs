@@ -5,12 +5,14 @@
 //! ```
 //! use rivia::prelude::*;
 //! ```
+mod entries;
 mod entry;
 mod fs;
 mod memfs;
 mod path;
 mod stdfs;
 
+pub use entries::*;
 pub use entry::*;
 pub use fs::*;
 pub use memfs::*;

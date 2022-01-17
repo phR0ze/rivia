@@ -14,6 +14,7 @@ use crate::{
     errors::*,
     exts::*,
     sys::{self, Entry, EntryIter, PathExt, VfsEntry},
+    trying,
 };
 
 // MemfsEntryOpts implements the builder pattern to provide advanced options for creating
@@ -178,16 +179,6 @@ impl MemfsEntry
         Ok(())
     }
 
-    pub(crate) fn iter(path: &Path, follow: bool) -> RvResult<EntryIter>
-    {
-        Ok(EntryIter {
-            path: path.to_path_buf(),
-            cached: false,
-            following: follow,
-            iter: Box::new(MemfsEntryIter(fs::read_dir(path)?)),
-        })
-    }
-
     /// Switch the `path` and `alt` values if `is_link` reports true.
     ///
     /// ### Examples
@@ -329,17 +320,18 @@ impl Entry for MemfsEntry
         self.mode
     }
 
-    /// Create an iterator from the given path to iterate over just the contents of this path
-    /// non-recursively.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    fn iter(&self) -> RvResult<EntryIter>
-    {
-        MemfsEntry::iter(&self.path, false)
-    }
+    // /// Create an iterator from the given path to iterate over just the contents of this path
+    // /// non-recursively.
+    // ///
+    // /// ### Examples
+    // /// ```
+    // /// use rivia::prelude::*;
+    // /// ```
+    // fn iter(&self) -> RvResult<EntryIter>
+    // {
+    //     // self.entries(false);
+    //     // MemfsEntry::iter(&self.path, false)
+    // }
 
     /// Up cast the trait type to the enum wrapper
     ///
@@ -371,56 +363,23 @@ impl Clone for MemfsEntry
     }
 }
 
-// // Implement hashing requirements
-// impl Eq for MemfsEntry {}
-// impl PartialEq for MemfsEntry
+// #[derive(Debug)]
+// struct MemfsEntryIter(Iter<'_, T>);
+// impl Iterator for MemfsEntryIter
 // {
-//     fn eq(&self, other: &Self) -> bool
-//     {
-//         self.path == other.path
-//     }
-// }
-// impl Hash for MemfsEntry
-// {
-//     fn hash<T: Hasher>(&self, hasher: &mut T)
-//     {
-//         self.path.hash(hasher);
-//     }
-// }
+//     type Item = RvResult<VfsEntry>;
 
-// // Implement ordering
-// impl PartialOrd for MemfsEntry
-// {
-//     fn partial_cmp(&self, other: &Self) -> Option<Ordering>
+//     fn next(&mut self) -> Option<RvResult<VfsEntry>>
 //     {
-//         self.path.partial_cmp(&other.path)
+//         if let Some(value) = self.0.next() {
+//             return Some(match MemfsEntry::from(&trying!(value).path()) {
+//                 Ok(x) => Ok(x.upcast()),
+//                 Err(e) => Err(e),
+//             });
+//         }
+//         None
 //     }
 // }
-// impl Ord for MemfsEntry
-// {
-//     fn cmp(&self, other: &Self) -> Ordering
-//     {
-//         self.path.cmp(&other.path)
-//     }
-// }
-
-#[derive(Debug)]
-struct MemfsEntryIter(fs::ReadDir);
-impl Iterator for MemfsEntryIter
-{
-    type Item = RvResult<VfsEntry>;
-
-    fn next(&mut self) -> Option<RvResult<VfsEntry>>
-    {
-        // if let Some(value) = self.0.next() {
-        //     return Some(match MemfsEntry::from(&trying!(value).path()) {
-        //         Ok(x) => Ok(x.upcast()),
-        //         Err(e) => Err(e),
-        //     });
-        // }
-        None
-    }
-}
 
 // Unit tests
 // -------------------------------------------------------------------------------------------------
@@ -428,6 +387,12 @@ impl Iterator for MemfsEntryIter
 mod tests
 {
     use crate::prelude::*;
+
+    #[test]
+    fn test_iter()
+    {
+        //
+    }
 
     // #[test]
     // fn test_add_remove() -> RvResult<()>
