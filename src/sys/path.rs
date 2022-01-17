@@ -545,17 +545,17 @@ pub trait PathExt
     // /// ```
     // fn has<T: AsRef<Path>>(&self, path: T) -> bool;
 
-    // /// Returns true if the `Path` as a String has the given prefix
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let path = PathBuf::from("/foo/bar");
-    // /// assert_eq!(path.has_prefix("/foo"), true);
-    // /// assert_eq!(path.has_prefix("foo"), false);
-    // /// ```
-    // fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool;
+    /// Returns true if the `Path` as a String has the given prefix
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has_prefix("/foo"), true);
+    /// assert_eq!(path.has_prefix("foo"), false);
+    /// ```
+    fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool;
 
     // /// Returns true if the `Path` as a String has the given suffix
     // ///
@@ -896,6 +896,21 @@ impl PathExt for Path
     fn base(&self) -> RvResult<String>
     {
         base(self)
+    }
+
+    /// Returns true if the `Path` as a String has the given prefix
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has_prefix("/foo"), true);
+    /// assert_eq!(path.has_prefix("foo"), false);
+    /// ```
+    fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool
+    {
+        has_prefix(self, prefix)
     }
 
     /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.

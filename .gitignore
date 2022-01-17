@@ -5,3 +5,4 @@ tests/temp/
 vfs/tests/temp/
 bin/
 vfs/bin/
+Cargo.lock

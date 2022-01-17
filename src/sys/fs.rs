@@ -9,13 +9,13 @@ use crate::{
     sys::{Memfs, Stdfs},
 };
 
-// Vfs trait
+// FileSystem trait
 // -------------------------------------------------------------------------------------------------
 
-/// Vfs provides a set of functions that are implemented by various backend filesystem providers.
-/// For example [`Stdfs`] implements a pass through to the sRust std::fs library that operates
-/// against disk as per usual and [`Memfs`] is an in memory implementation providing the same
-/// functionality only purely in memory.
+/// FileSystem provides a set of functions that are implemented by various backend filesystem
+/// providers. For example [`Stdfs`] implements a pass through to the sRust std::fs library that
+/// operates against disk as per usual and [`Memfs`] is an in memory implementation providing the
+/// same functionality only purely in memory.
 pub trait FileSystem: Debug+Send+Sync+'static
 {
     /// Return the path in an absolute clean form
@@ -31,7 +31,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
-    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>;
+    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>;
 
     //fn read(&self, path: &Path) -> RvResult<()>;
 
@@ -103,7 +103,7 @@ impl FileSystem for Vfs
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
-    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
+    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>
     {
         match self {
             Vfs::Stdfs(x) => x.mkdir_p(path),

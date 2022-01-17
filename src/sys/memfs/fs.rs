@@ -1,32 +1,47 @@
 use std::{
+    collections::HashMap,
     fmt,
     path::{Component, Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::RwLock,
 };
 
 use crate::{
     errors::*,
     exts::*,
-    sys::{self, Entry, FileSystem, MemfsEntry, MemfsEntryOpts, Vfs},
+    sys::{self, Entry, FileSystem, MemfsEntry, PathExt, Vfs},
 };
 
-/// `Memfs` is a Vfs backend implementation that is purely memory based
+/// `Memfs` is a Vfs backend implementation that is purely memory based. `Memfs` is multi-thread
+/// safe providing internal locking when necessary.
 #[derive(Debug)]
-pub struct Memfs
+pub struct Memfs(RwLock<MemfsInner>);
+
+// Encapsulate the Memfs implementation to allow Memfs to transparently handle interior mutability
+// and be multi-thread safe.
+#[derive(Debug)]
+pub(crate) struct MemfsInner
 {
-    cwd: PathBuf,     // Current working directory
-    root: MemfsEntry, // Root Entry in the filesystem
+    pub(crate) cwd: PathBuf,                     // Current working directory
+    pub(crate) root: MemfsEntry,                 // Root Entry in the filesystem
+    pub(crate) fs: HashMap<PathBuf, MemfsEntry>, // Filesystem of path to entry
 }
 
 impl Memfs
 {
-    /// Create a new instance of the Memfs Vfs backend implementation
+    /// Create a new Memfs instance
     pub fn new() -> Self
     {
-        Self {
-            cwd: PathBuf::from("/"),
-            root: MemfsEntryOpts::new("/").entry(),
-        }
+        let mut root = PathBuf::new();
+        root.push(Component::RootDir);
+
+        let mut files = HashMap::new();
+        files.insert(root.clone(), MemfsEntry::opts(root.clone()).new());
+
+        Self(RwLock::new(MemfsInner {
+            cwd: root,
+            root: MemfsEntry::opts("/").new(),
+            fs: files,
+        }))
     }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -39,9 +54,11 @@ impl Memfs
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn set_cwd<T: AsRef<Path>>(&mut self, path: T) -> RvResult<()>
+    pub fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
-        self.cwd = self.abs(path.as_ref())?;
+        let abs = self.abs(path.as_ref())?;
+        let mut fs = self.0.write().unwrap();
+        fs.cwd = abs;
         Ok(())
     }
 }
@@ -50,9 +67,10 @@ impl fmt::Display for Memfs
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
-        writeln!(f, "cwd: {}", &self.cwd.display())?;
+        let fs = self.0.read().unwrap();
+        writeln!(f, "cwd: {}", fs.cwd.display())?;
         write!(f, "root: ")?;
-        self.root.display(f, None)
+        fs.root.display(f, None)
     }
 }
 
@@ -112,7 +130,8 @@ impl FileSystem for Memfs
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>
     {
-        Ok(self.cwd.clone())
+        let fs = self.0.read().unwrap();
+        Ok(fs.cwd.clone())
     }
 
     /// Returns true if the `Path` exists. Handles path expansion.
@@ -131,7 +150,10 @@ impl FileSystem for Memfs
     /// ```
     fn exists(&self, path: &Path) -> bool
     {
-        self.root.exists(unwrap_or_false!(self.abs(path)))
+        let abs = unwrap_or_false!(self.abs(path));
+        let guard = self.0.read().unwrap();
+
+        guard.fs.contains_key(&abs)
     }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -141,7 +163,7 @@ impl FileSystem for Memfs
     /// * `path` - the target directory to create
     ///
     /// # Errors
-    /// * PathError::IsNotDir when the path already exists
+    /// * PathError::IsNotDir(PathBuf) when this entry already exists and is not a directory.
     ///
     /// ### Examples
     /// ```
@@ -152,10 +174,30 @@ impl FileSystem for Memfs
     /// memfs.mkdir_p("foo").unwrap();
     /// assert_eq!(memfs.exists("foo"), true);
     /// ```
-    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
+    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>
     {
         let abs = self.abs(path)?;
-        self.root.mkdir_p(&abs)?;
+        let mut guard = self.0.write().unwrap();
+
+        // Check each component along the way
+        let mut path = PathBuf::new();
+        for component in abs.components() {
+            path.push(component);
+            if let Some(entry) = guard.fs.get(&path) {
+                // No component should be anything other than a directory
+                if !entry.is_dir() {
+                    return Err(PathError::is_not_dir(&path).into());
+                }
+            } else {
+                // Add new entry
+                guard.fs.insert(path.clone(), MemfsEntry::opts(&path).new());
+
+                // Update the parent directory
+                if let Some(entry) = guard.fs.get_mut(&path.dir()?) {
+                    entry.add(component.to_string()?)?;
+                }
+            }
+        }
         Ok(abs)
     }
 
@@ -205,12 +247,32 @@ impl FileSystem for Memfs
 mod tests
 {
     use std::{
+        collections::VecDeque,
         sync::{Arc, RwLock},
         thread,
         time::Duration,
     };
 
     use crate::prelude::*;
+
+    // Get the target entry
+    #[allow(unused_macros)]
+    macro_rules! get_entry {
+        ($memfs:expr,$abs:expr) => {{
+            $memfs
+            let path = &"foobar";
+            path
+        }};
+    }
+
+    #[test]
+    fn test_iter_over_entries()
+    {
+        let memfs = Memfs::new();
+        // for entry in memfs.iter() {
+        //     println!("{}", entry.path(), entry.is_dir());
+        // }
+    }
 
     #[test]
     fn test_read_write_file() -> RvResult<()>
@@ -224,7 +286,7 @@ mod tests
     #[test]
     fn test_memfs_cwd()
     {
-        let mut memfs = Memfs::new();
+        let memfs = Memfs::new();
         assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
 
         assert_eq!(memfs.exists(Path::new("foo")), false);
@@ -239,7 +301,7 @@ mod tests
     #[test]
     fn test_memfs_mkdir_p()
     {
-        let mut memfs = Memfs::new();
+        let memfs = Memfs::new();
 
         // Check single top level
         assert_eq!(memfs.exists(Path::new("foo")), false);
@@ -257,16 +319,16 @@ mod tests
     #[test]
     fn test_memfs_mkdir_p_multi_threaded()
     {
-        let memfs1 = Arc::new(RwLock::new(Memfs::new()));
+        let memfs1 = Arc::new(Memfs::new());
         let memfs2 = memfs1.clone();
 
         // Add a directory in another thread
         let thread = thread::spawn(move || {
-            memfs2.write().unwrap().mkdir_p(Path::new("foo")).unwrap();
+            memfs2.mkdir_p(Path::new("foo")).unwrap();
         });
 
         // Wait for the directory to exist in the main thread
-        while !memfs1.read().unwrap().exists(Path::new("foo")) {
+        while !memfs1.exists(Path::new("foo")) {
             thread::sleep(Duration::from_millis(5));
         }
         thread.join().unwrap();

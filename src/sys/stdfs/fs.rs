@@ -792,7 +792,7 @@ impl FileSystem for Stdfs
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
-    fn mkdir_p(&mut self, path: &Path) -> RvResult<PathBuf>
+    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>
     {
         Stdfs::mkdir_p(path)
     }
