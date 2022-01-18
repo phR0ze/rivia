@@ -27,8 +27,8 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Returns true if the `Path` exists. Handles path expansion.
     fn exists(&self, path: &Path) -> bool;
 
-    /// Returns an iterator over the given path
-    // fn entries(&self, path: &Path) -> RvResult<Entries>;
+    /// Returns an iterator over the given path with recurisve path traversal
+    fn entries(&self, path: &Path) -> RvResult<Entries>;
 
     // fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 
@@ -95,14 +95,14 @@ impl FileSystem for Vfs
         }
     }
 
-    // /// Returns an iterator over the given path
-    // fn entries(&self, path: &Path) -> RvResult<Entries>
-    // {
-    //     match self {
-    //         Vfs::Stdfs(x) => x.entries(path),
-    //         Vfs::Memfs(x) => x.entries(path),
-    //     }
-    // }
+    /// Returns an iterator over the given path
+    fn entries(&self, path: &Path) -> RvResult<Entries>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.entries(path),
+            Vfs::Memfs(x) => x.entries(path),
+        }
+    }
 
     /// Returns true if the `Path` exists. Handles path expansion.
     fn exists(&self, path: &Path) -> bool

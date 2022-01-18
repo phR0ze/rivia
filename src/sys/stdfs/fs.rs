@@ -11,10 +11,11 @@ use nix::sys::{
     time::TimeSpec,
 };
 
+use super::StdfsEntryIter;
 use crate::{
     errors::*,
     exts::*,
-    sys::{self, Entries, Entry, FileSystem, StdfsEntry, Vfs},
+    sys::{self, Entries, Entry, EntryIter, FileSystem, StdfsEntry, Vfs},
 };
 
 /// `Stdfs` is a Vfs backend implementation that wraps the standard library `std::fs`
@@ -784,26 +785,37 @@ impl FileSystem for Stdfs
         Stdfs::cwd()
     }
 
-    // /// Returns an iterator over the given path
-    // fn entries(&self, path: &Path) -> RvResult<Entries>
-    // {
-    //     Ok(Entries {
-    //         root: StdfsEntry::from(path)?.upcast(),
-    //         dirs: Default::default(),
-    //         files: Default::default(),
-    //         follow: false,
-    //         min_depth: 0,
-    //         max_depth: std::usize::MAX,
-    //         max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
-    //         dirs_first: false,
-    //         files_first: false,
-    //         contents_first: false,
-    //         sort_by_name: false,
-    //         pre_op: None,
-    //         sort: None,
-    //         iter_from: Box::new(StdfsEntry::iter),
-    //     })
-    // }
+    /// Returns an iterator over the given path
+    fn entries(&self, path: &Path) -> RvResult<Entries>
+    {
+        let iter_func = |path: &Path, follow: bool| -> RvResult<EntryIter> {
+            Ok(EntryIter {
+                path: path.to_path_buf(),
+                cached: false,
+                following: follow,
+                iter: Box::new(StdfsEntryIter {
+                    dir: fs::read_dir(path)?,
+                }),
+            })
+        };
+
+        Ok(Entries {
+            root: StdfsEntry::from(path)?.upcast(),
+            dirs: Default::default(),
+            files: Default::default(),
+            follow: false,
+            min_depth: 0,
+            max_depth: std::usize::MAX,
+            max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
+            dirs_first: false,
+            files_first: false,
+            contents_first: false,
+            sort_by_name: false,
+            pre_op: None,
+            sort: None,
+            iter_from: Box::new(iter_func),
+        })
+    }
 
     /// Returns true if the `Path` exists. Handles path expansion.
     fn exists(&self, path: &Path) -> bool

@@ -148,23 +148,6 @@ impl StdfsEntry
         })
     }
 
-    /// Create an iterator from the given path to iterate over just the contents
-    /// of this path non-recursively.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn iter(path: &Path, follow: bool) -> RvResult<EntryIter>
-    {
-        Ok(EntryIter {
-            path: path.to_path_buf(),
-            cached: false,
-            following: follow,
-            iter: Box::new(StdfsEntryIter(fs::read_dir(path)?)),
-        })
-    }
-
     /// Switch the `path` and `alt` values if `is_symlink` reports true.
     ///
     /// ### Examples
@@ -305,18 +288,6 @@ impl Entry for StdfsEntry
         self.mode
     }
 
-    /// Create an iterator from the given path to iterate over just the contents
-    // /// of this path non-recursively.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // /// ```
-    // fn iter(&self) -> RvResult<EntryIter>
-    // {
-    //     StdfsEntry::iter(&self.path, false)
-    // }
-
     /// Up cast the trait type to the enum wrapper
     ///
     /// ### Examples
@@ -330,14 +301,17 @@ impl Entry for StdfsEntry
 }
 
 #[derive(Debug)]
-struct StdfsEntryIter(fs::ReadDir);
+pub(crate) struct StdfsEntryIter
+{
+    pub(crate) dir: fs::ReadDir,
+}
 impl Iterator for StdfsEntryIter
 {
     type Item = RvResult<VfsEntry>;
 
     fn next(&mut self) -> Option<RvResult<VfsEntry>>
     {
-        if let Some(value) = self.0.next() {
+        if let Some(value) = self.dir.next() {
             return Some(match StdfsEntry::from(&trying!(value).path()) {
                 Ok(x) => Ok(x.upcast()),
                 Err(e) => Err(e),

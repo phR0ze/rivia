@@ -350,7 +350,6 @@ impl Clone for MemfsEntry
     fn clone(&self) -> Self
     {
         Self {
-            files: self.files.clone(),
             path: self.path.clone(),
             alt: self.alt.clone(),
             dir: self.dir,
@@ -359,27 +358,59 @@ impl Clone for MemfsEntry
             mode: self.mode,
             follow: self.follow,
             cached: self.cached,
+            files: self.files.clone(),
         }
     }
 }
 
-// #[derive(Debug)]
-// struct MemfsEntryIter(Iter<'_, T>);
-// impl Iterator for MemfsEntryIter
-// {
-//     type Item = RvResult<VfsEntry>;
+pub(crate) struct MemfsEntryIter
+{
+    iter: Box<dyn Iterator<Item=PathBuf>>,
+    memfs: Arc<super::MemfsInner>,
+}
 
-//     fn next(&mut self) -> Option<RvResult<VfsEntry>>
-//     {
-//         if let Some(value) = self.0.next() {
-//             return Some(match MemfsEntry::from(&trying!(value).path()) {
-//                 Ok(x) => Ok(x.upcast()),
-//                 Err(e) => Err(e),
-//             });
-//         }
-//         None
-//     }
-// }
+impl MemfsEntryIter
+{
+    /// Create a new memfs iterator for the given directory only
+    ///
+    /// # Arguments
+    /// * `entry` - target entry to read the directory from
+    /// * `memfs` - shared copy of the memory filessystem
+    pub(crate) fn new<T: AsRef<Path>>(path: T, memfs: Arc<super::MemfsInner>) -> RvResult<Self>
+    {
+        let path = path.as_ref();
+        if let Some(entry) = memfs.fs.get(path) {
+            // Create an iterator over Vec<PathBuf>
+            let mut items = vec![];
+            if let Some(ref files) = entry.files {
+                for name in files.iter() {
+                    items.push(path.mash(name));
+                }
+            }
+            Ok(MemfsEntryIter {
+                iter: Box::new(items.into_iter()),
+                memfs,
+            })
+        } else {
+            Err(PathError::does_not_exist(path).into())
+        }
+    }
+}
+
+impl Iterator for MemfsEntryIter
+{
+    type Item = RvResult<VfsEntry>;
+
+    fn next(&mut self) -> Option<RvResult<VfsEntry>>
+    {
+        if let Some(value) = self.iter.next() {
+            if let Some(x) = self.memfs.fs.get(&value).clone() {
+                return Some(Ok(x.clone().upcast()));
+            }
+        }
+        None
+    }
+}
 
 // Unit tests
 // -------------------------------------------------------------------------------------------------
@@ -391,7 +422,7 @@ mod tests
     #[test]
     fn test_iter()
     {
-        //
+        // MemfsEntryIter::new();
     }
 
     // #[test]

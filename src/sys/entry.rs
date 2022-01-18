@@ -144,15 +144,6 @@ pub trait Entry: Debug+Send+Sync+'static
     /// ```
     fn mode(&self) -> u32;
 
-    /// Create an iterator from the given `path` to iterate over just the contents
-    /// of this path non-recursively.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    // fn iter(&self) -> RvResult<EntryIter>;
-
     /// Up cast the trait type to the enum wrapper
     ///
     /// ### Examples
@@ -330,21 +321,6 @@ impl Entry for VfsEntry
             VfsEntry::Memfs(x) => x.mode(),
         }
     }
-
-    // /// Create an iterator from the given `path` to iterate over just the contents
-    // /// of this path non-recursively.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // /// ```
-    // fn iter(&self) -> RvResult<EntryIter>
-    // {
-    //     match self {
-    //         VfsEntry::Stdfs(x) => x.iter(),
-    //         VfsEntry::Memfs(x) => x.iter(),
-    //     }
-    // }
 
     /// Up cast the trait type to the enum wrapper
     ///

@@ -2,11 +2,12 @@ use std::{
     collections::HashMap,
     fmt,
     path::{Component, Path, PathBuf},
-    sync::RwLock,
+    sync::{Arc, RwLock},
 };
 
 use itertools::Itertools;
 
+use super::MemfsEntryIter;
 use crate::{
     errors::*,
     exts::*,
@@ -23,9 +24,10 @@ pub struct Memfs(RwLock<MemfsInner>);
 #[derive(Debug)]
 pub(crate) struct MemfsInner
 {
-    pub(crate) cwd: PathBuf, // Current working directory
+    pub(crate) cwd: PathBuf,  // Current working directory
+    pub(crate) root: PathBuf, // Current root directory
     pub(crate) fs: HashMap<PathBuf, MemfsEntry>, /* Filesystem of path to entry
-                              * pub(crate) data: HashMap<PathBuf, MemfsFile>, // Filesystem of path to entry */
+                               * pub(crate) data: HashMap<PathBuf, MemfsFile>, // Filesystem of path to entry */
 }
 
 impl Memfs
@@ -40,7 +42,8 @@ impl Memfs
         files.insert(root.clone(), MemfsEntry::opts(root.clone()).new());
 
         Self(RwLock::new(MemfsInner {
-            cwd: root,
+            cwd: root.clone(),
+            root,
             fs: files,
         }))
     }
@@ -64,17 +67,40 @@ impl Memfs
     }
 
     /// Get a clone of the target entry. Handles converting path to absolute form.
-    // # Errors
-    // * PathError::DoesNotExist(PathBuf) when this entry doesn't exist
-    pub(crate) fn get<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
+    /// # Errors
+    /// * PathError::DoesNotExist(PathBuf) when this entry doesn't exist
+    pub(crate) fn get<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntry>
     {
         let abs = self.abs(path.as_ref())?;
         let guard = self.0.read().unwrap();
 
         match guard.fs.get(&abs) {
-            Some(entry) => Ok(entry.clone().upcast()),
+            Some(entry) => Ok(entry.clone()),
             None => Err(PathError::does_not_exist(&abs).into()),
         }
+    }
+
+    /// Clone the inner structure
+    pub(crate) fn inner(&self) -> MemfsInner
+    {
+        let guard = self.0.read().unwrap();
+        MemfsInner {
+            cwd: guard.cwd.clone(),
+            root: guard.root.clone(),
+            fs: guard.fs.clone(),
+        }
+    }
+
+    /// Returns the current root directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    pub(crate) fn root(&self) -> PathBuf
+    {
+        let guard = self.0.read().unwrap();
+        guard.root.clone()
     }
 }
 
@@ -83,8 +109,8 @@ impl fmt::Display for Memfs
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         let guard = self.0.read().unwrap();
-
         writeln!(f, "cwd: {}", guard.cwd.display())?;
+        writeln!(f, "root: {}", guard.root.display())?;
         for key in guard.fs.keys().sorted() {
             writeln!(f, "{}", key.display())?;
         }
@@ -152,40 +178,41 @@ impl FileSystem for Memfs
         Ok(fs.cwd.clone())
     }
 
-    // /// Returns an iterator over the given path
-    // fn entries(&self, path: &Path) -> RvResult<Entries>
-    // {
-    //     // Get a clone of the target root
-    //     let root = self.get(path)?;
+    /// Returns an iterator over the given path
+    fn entries(&self, path: &Path) -> RvResult<Entries>
+    {
+        // Clone entry and memfs
+        let entry = self.get(path)?;
+        let memfs = Arc::new(self.inner());
 
-    //     // Create a closure that includes the reference data for the interator
-    //     let iter_func = move |path: &Path| -> RvResult<EntryIter> {
-    //         Ok(EntryIter {
-    //             path: path.to_path_buf(),
-    //             cached: false,
-    //             following: false,
-    //             iter: Box::new(crate::sys::stdfs::StdfsEntryIter(std::fs::read_dir(path)?)),
-    //             //iter: Box::new(MemfsEntryIter(self.files.unwrap().iter())),
-    //         })
-    //     };
+        // Create closure with shared memfs instance
+        let iter_func = move |path: &Path, follow: bool| -> RvResult<EntryIter> {
+            let memfs = memfs.clone();
+            Ok(EntryIter {
+                path: path.to_path_buf(),
+                cached: false,
+                following: follow,
+                iter: Box::new(MemfsEntryIter::new(path, memfs)?),
+            })
+        };
 
-    //     Ok(Entries {
-    //         root: root,
-    //         dirs: false,
-    //         files: false,
-    //         follow: false,
-    //         min_depth: 0,
-    //         max_depth: std::usize::MAX,
-    //         max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
-    //         dirs_first: false,
-    //         files_first: false,
-    //         contents_first: false,
-    //         sort_by_name: false,
-    //         pre_op: None,
-    //         sort: None,
-    //         iter_from: Box::new(iter_func),
-    //     })
-    // }
+        Ok(Entries {
+            root: entry.upcast(),
+            dirs: false,
+            files: false,
+            follow: false,
+            min_depth: 0,
+            max_depth: std::usize::MAX,
+            max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
+            dirs_first: false,
+            files_first: false,
+            contents_first: false,
+            sort_by_name: false,
+            pre_op: None,
+            sort: None,
+            iter_from: Box::new(iter_func),
+        })
+    }
 
     /// Returns true if the `Path` exists. Handles path expansion.
     ///
@@ -303,20 +330,15 @@ mod tests
 
     use crate::prelude::*;
 
-    // Get the target entry
-    #[allow(unused_macros)]
-    macro_rules! get_entry {
-        ($memfs:expr,$abs:expr) => {{
-            $memfs
-            let path = &"foobar";
-            path
-        }};
-    }
-
     #[test]
     fn test_iter_over_entries()
     {
         let memfs = Memfs::new();
+        memfs.mkdir_p(Path::new("foo/bar/blah")).unwrap();
+        for item in memfs.entries(Path::new("/")).unwrap().into_iter() {
+            println!("{}", item.unwrap().path().display());
+        }
+
         // for entry in memfs.iter() {
         //     println!("{}", entry.path(), entry.is_dir());
         // }
