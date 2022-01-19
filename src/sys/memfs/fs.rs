@@ -126,10 +126,10 @@ impl FileSystem for Memfs
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn abs(&self, path: &Path) -> RvResult<PathBuf>
+    fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         // Check for empty string
-        if sys::is_empty(path) {
+        if sys::is_empty(path.as_ref()) {
             return Err(PathError::Empty.into());
         }
 
@@ -179,7 +179,7 @@ impl FileSystem for Memfs
     }
 
     /// Returns an iterator over the given path
-    fn entries(&self, path: &Path) -> RvResult<Entries>
+    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
         // Clone entry and memfs
         let entry = self.get(path)?;
@@ -228,7 +228,7 @@ impl FileSystem for Memfs
     /// memfs.mkdir_p("foo").unwrap();
     /// assert_eq!(memfs.exists("foo"), true);
     /// ```
-    fn exists(&self, path: &Path) -> bool
+    fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
         let abs = unwrap_or_false!(self.abs(path));
         let guard = self.0.read().unwrap();
@@ -254,7 +254,7 @@ impl FileSystem for Memfs
     /// memfs.mkdir_p("foo").unwrap();
     /// assert_eq!(memfs.exists("foo"), true);
     /// ```
-    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         let abs = self.abs(path)?;
         let mut guard = self.0.write().unwrap();
@@ -287,9 +287,9 @@ impl FileSystem for Memfs
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn read_all(&self, path: &Path) -> RvResult<String>
+    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {
-        let path = self.abs(path.as_ref())?;
+        let path = self.abs(path)?;
         Ok("".to_string())
     }
 
@@ -304,7 +304,7 @@ impl FileSystem for Memfs
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>
     {
         Ok(())
     }

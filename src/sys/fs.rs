@@ -9,9 +9,6 @@ use crate::{
     sys::{Entries, Memfs, Stdfs},
 };
 
-// FileSystem trait
-// -------------------------------------------------------------------------------------------------
-
 /// FileSystem provides a set of functions that are implemented by various backend filesystem
 /// providers. For example [`Stdfs`] implements a pass through to the sRust std::fs library that
 /// operates against disk as per usual and [`Memfs`] is an in memory implementation providing the
@@ -19,22 +16,22 @@ use crate::{
 pub trait FileSystem: Debug+Send+Sync+'static
 {
     /// Return the path in an absolute clean form
-    fn abs(&self, path: &Path) -> RvResult<PathBuf>;
+    fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     /// Returns the current working directory
     fn cwd(&self) -> RvResult<PathBuf>;
 
     /// Returns true if the `Path` exists. Handles path expansion.
-    fn exists(&self, path: &Path) -> bool;
+    fn exists<T: AsRef<Path>>(&self, path: T) -> bool;
 
     /// Returns an iterator over the given path with recurisve path traversal
-    fn entries(&self, path: &Path) -> RvResult<Entries>;
+    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
 
     // fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
-    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>;
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     // fn read(&self, path: &Path) -> RvResult<()>;
 
@@ -42,11 +39,11 @@ pub trait FileSystem: Debug+Send+Sync+'static
     // fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
 
     /// Read all data from the given file and return it as a String
-    fn read_all(&self, path: &Path) -> RvResult<String>;
+    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>;
 
     /// Write all the given data to to the indicated file creating the file first if it doesn't
     /// exist or truncating it first if it does.
-    fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>;
+    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>;
 
     /// Up cast the trait type to the enum wrapper
     fn upcast(self) -> Vfs;
@@ -63,13 +60,13 @@ pub enum Vfs
 impl Vfs
 {
     /// Create a new instance of Memfs wrapped in the Vfs enum
-    pub fn new_memfs() -> Vfs
+    pub fn memfs() -> Vfs
     {
         Vfs::Memfs(Memfs::new())
     }
 
     /// Create a new instance of Stdfs wrapped in the Vfs enum
-    pub fn new_stdfs() -> Vfs
+    pub fn stdfs() -> Vfs
     {
         Vfs::Stdfs(Stdfs::new())
     }
@@ -78,7 +75,7 @@ impl Vfs
 impl FileSystem for Vfs
 {
     /// Return the path in an absolute clean form
-    fn abs(&self, path: &Path) -> RvResult<PathBuf>
+    fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         match self {
             Vfs::Stdfs(x) => x.abs(path),
@@ -96,7 +93,7 @@ impl FileSystem for Vfs
     }
 
     /// Returns an iterator over the given path
-    fn entries(&self, path: &Path) -> RvResult<Entries>
+    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
         match self {
             Vfs::Stdfs(x) => x.entries(path),
@@ -105,7 +102,7 @@ impl FileSystem for Vfs
     }
 
     /// Returns true if the `Path` exists. Handles path expansion.
-    fn exists(&self, path: &Path) -> bool
+    fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
         match self {
             Vfs::Stdfs(x) => x.exists(path),
@@ -115,7 +112,7 @@ impl FileSystem for Vfs
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
-    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         match self {
             Vfs::Stdfs(x) => x.mkdir_p(path),
@@ -124,7 +121,7 @@ impl FileSystem for Vfs
     }
 
     /// Read all data from the given file and return it as a String
-    fn read_all(&self, path: &Path) -> RvResult<String>
+    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {
         match self {
             Vfs::Stdfs(x) => x.read_all(path),
@@ -134,7 +131,7 @@ impl FileSystem for Vfs
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>
     {
         match self {
             Vfs::Stdfs(x) => x.write_all(path, data),
@@ -170,7 +167,7 @@ mod tests
 
         // Create the stdfs instance to test first with. Verify with Stdfs functions
         // directly as we haven't yet implemented the vfs functions.
-        let vfs = Vfs::new_stdfs();
+        let vfs = Vfs::stdfs();
 
         // Write out the data to a new file
         let data_in = b"foobar";

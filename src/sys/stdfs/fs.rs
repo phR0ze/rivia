@@ -774,7 +774,7 @@ impl Stdfs
 impl FileSystem for Stdfs
 {
     /// Return the path in an absolute clean form
-    fn abs(&self, path: &Path) -> RvResult<PathBuf>
+    fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::abs(path)
     }
@@ -786,7 +786,7 @@ impl FileSystem for Stdfs
     }
 
     /// Returns an iterator over the given path
-    fn entries(&self, path: &Path) -> RvResult<Entries>
+    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
         let iter_func = |path: &Path, follow: bool| -> RvResult<EntryIter> {
             Ok(EntryIter {
@@ -818,27 +818,27 @@ impl FileSystem for Stdfs
     }
 
     /// Returns true if the `Path` exists. Handles path expansion.
-    fn exists(&self, path: &Path) -> bool
+    fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
         Stdfs::exists(path)
     }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
-    fn mkdir_p(&self, path: &Path) -> RvResult<PathBuf>
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::mkdir_p(path)
     }
 
     /// Read all data from the given file and return it as a String
-    fn read_all(&self, path: &Path) -> RvResult<String>
+    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {
         Stdfs::read_all(path)
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn write_all(&self, path: &Path, data: &[u8]) -> RvResult<()>
+    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>
     {
         Stdfs::write_all(path, data)
     }

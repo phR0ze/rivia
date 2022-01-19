@@ -8,7 +8,7 @@ fn main()
     let file1 = sys::mash(testing::TEST_TEMP_DIR, "file1");
 
     // 2. Create a new stdfs instance that we can change to memfs later
-    // let vfs = Vfs::new_stdfs();
+    // let vfs = Vfs::stdfs();
 
     // // 3. Make the file writing out the data
     // vfs.write_all(&file1, b"hello").unwrap();
@@ -21,6 +21,6 @@ fn main()
 
     // Testing
     let memfs = Memfs::new();
-    memfs.mkdir_p(Path::new("foo/bar")).unwrap();
+    memfs.mkdir_p("foo/bar").unwrap();
     println!("{}", memfs);
 }
