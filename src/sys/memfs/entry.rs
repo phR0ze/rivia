@@ -10,6 +10,7 @@ use std::{
 
 use itertools::Itertools;
 
+use super::MemfsEntries;
 use crate::{
     errors::*,
     exts::*,
@@ -366,7 +367,7 @@ impl Clone for MemfsEntry
 pub(crate) struct MemfsEntryIter
 {
     iter: Box<dyn Iterator<Item=PathBuf>>,
-    memfs: Arc<super::MemfsInner>,
+    entries: Arc<MemfsEntries>,
 }
 
 impl MemfsEntryIter
@@ -376,10 +377,10 @@ impl MemfsEntryIter
     /// # Arguments
     /// * `entry` - target entry to read the directory from
     /// * `memfs` - shared copy of the memory filessystem
-    pub(crate) fn new<T: AsRef<Path>>(path: T, memfs: Arc<super::MemfsInner>) -> RvResult<Self>
+    pub(crate) fn new<T: AsRef<Path>>(path: T, entries: Arc<MemfsEntries>) -> RvResult<Self>
     {
         let path = path.as_ref();
-        if let Some(entry) = memfs.fs.get(path) {
+        if let Some(entry) = entries.get(path) {
             // Create an iterator over Vec<PathBuf>
             let mut items = vec![];
             if let Some(ref files) = entry.files {
@@ -389,7 +390,7 @@ impl MemfsEntryIter
             }
             Ok(MemfsEntryIter {
                 iter: Box::new(items.into_iter()),
-                memfs,
+                entries,
             })
         } else {
             Err(PathError::does_not_exist(path).into())
@@ -404,7 +405,7 @@ impl Iterator for MemfsEntryIter
     fn next(&mut self) -> Option<RvResult<VfsEntry>>
     {
         if let Some(value) = self.iter.next() {
-            if let Some(x) = self.memfs.fs.get(&value).clone() {
+            if let Some(x) = self.entries.get(&value).clone() {
                 return Some(Ok(x.clone().upcast()));
             }
         }
@@ -515,56 +516,5 @@ mod tests
     //     // Not writable
     //     assert_eq!(memfile.write(b"foobar1, ").unwrap_err().to_string(), "Target path 'foo' is
     // not a writable file");     Ok(())
-    // }
-
-    // #[test]
-    // fn test_file_read_write_seek_len() -> RvResult<()>
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").file().new();
-
-    //     // Write out the data
-    //     assert_eq!(memfile.len(), 0);
-    //     memfile.write(b"foobar1, ")?;
-    //     assert_eq!(memfile.data, b"foobar1, ");
-    //     assert_eq!(memfile.len(), 9);
-
-    //     // Write out using the write macro
-    //     write!(memfile, "foobar2, ")?;
-    //     assert_eq!(memfile.len(), 18);
-    //     assert_eq!(memfile.data, b"foobar1, foobar2, ");
-
-    //     memfile.write(b"foobar3")?;
-    //     assert_eq!(memfile.len(), 25);
-    //     assert_eq!(memfile.data, b"foobar1, foobar2, foobar3");
-
-    //     // read 1 byte
-    //     let mut buf = [0; 1];
-    //     memfile.read(&mut buf)?;
-    //     assert_eq!(memfile.len(), 24);
-    //     assert_eq!(&buf, b"f");
-
-    //     // Seek back to start and try again
-    //     memfile.seek(SeekFrom::Start(0))?;
-    //     assert_eq!(memfile.len(), 25);
-    //     let mut buf = [0; 9];
-    //     memfile.read(&mut buf)?;
-    //     assert_eq!(memfile.len(), 16);
-    //     assert_eq!(&buf, b"foobar1, ");
-
-    //     // Read the remaining data
-    //     let mut buf = Vec::new();
-    //     memfile.read_to_end(&mut buf)?;
-    //     assert_eq!(memfile.len(), 0);
-    //     assert_eq!(&buf, b"foobar2, foobar3");
-
-    //     // rewind and read into a String
-    //     let mut buf = String::new();
-    //     memfile.rewind()?;
-    //     assert_eq!(memfile.len(), 25);
-    //     memfile.read_to_string(&mut buf)?;
-    //     assert_eq!(memfile.len(), 0);
-    //     assert_eq!(buf, "foobar1, foobar2, foobar3".to_string());
-
-    //     Ok(())
     // }
 }

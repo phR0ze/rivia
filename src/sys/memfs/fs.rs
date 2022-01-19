@@ -7,12 +7,16 @@ use std::{
 
 use itertools::Itertools;
 
-use super::MemfsEntryIter;
+use super::{MemfsEntry, MemfsEntryIter, MemfsFile};
 use crate::{
     errors::*,
     exts::*,
-    sys::{self, Entries, Entry, EntryIter, FileSystem, MemfsEntry, PathExt, Vfs, VfsEntry},
+    sys::{self, Entries, Entry, EntryIter, FileSystem, PathExt, Vfs},
 };
+
+// Helper aliases
+pub(crate) type MemfsFiles = HashMap<PathBuf, MemfsFile>;
+pub(crate) type MemfsEntries = HashMap<PathBuf, MemfsEntry>;
 
 /// `Memfs` is a Vfs backend implementation that is purely memory based. `Memfs` is multi-thread
 /// safe providing internal locking when necessary.
@@ -24,10 +28,10 @@ pub struct Memfs(RwLock<MemfsInner>);
 #[derive(Debug)]
 pub(crate) struct MemfsInner
 {
-    pub(crate) cwd: PathBuf,  // Current working directory
-    pub(crate) root: PathBuf, // Current root directory
-    pub(crate) fs: HashMap<PathBuf, MemfsEntry>, /* Filesystem of path to entry
-                               * pub(crate) data: HashMap<PathBuf, MemfsFile>, // Filesystem of path to entry */
+    pub(crate) cwd: PathBuf,     // Current working directory
+    pub(crate) root: PathBuf,    // Current root directory
+    pub(crate) fs: MemfsEntries, // Filesystem of path to entry
+    pub(crate) data: MemfsFiles, // Filesystem of path to entry
 }
 
 impl Memfs
@@ -45,6 +49,7 @@ impl Memfs
             cwd: root.clone(),
             root,
             fs: files,
+            data: HashMap::new(),
         }))
     }
 
@@ -69,7 +74,7 @@ impl Memfs
     /// Get a clone of the target entry. Handles converting path to absolute form.
     /// # Errors
     /// * PathError::DoesNotExist(PathBuf) when this entry doesn't exist
-    pub(crate) fn get<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntry>
+    pub(crate) fn clone_entry<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntry>
     {
         let abs = self.abs(path.as_ref())?;
         let guard = self.0.read().unwrap();
@@ -77,17 +82,6 @@ impl Memfs
         match guard.fs.get(&abs) {
             Some(entry) => Ok(entry.clone()),
             None => Err(PathError::does_not_exist(&abs).into()),
-        }
-    }
-
-    /// Clone the inner structure
-    pub(crate) fn inner(&self) -> MemfsInner
-    {
-        let guard = self.0.read().unwrap();
-        MemfsInner {
-            cwd: guard.cwd.clone(),
-            root: guard.root.clone(),
-            fs: guard.fs.clone(),
         }
     }
 
@@ -181,23 +175,21 @@ impl FileSystem for Memfs
     /// Returns an iterator over the given path
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
-        // Clone entry and memfs
-        let entry = self.get(path)?;
-        let memfs = Arc::new(self.inner());
-
-        // Create closure with shared memfs instance
+        // Create closure with cloned shared memfs instance
+        let guard = self.0.read().unwrap();
+        let entries = Arc::new(guard.fs.clone());
         let iter_func = move |path: &Path, follow: bool| -> RvResult<EntryIter> {
-            let memfs = memfs.clone();
+            let entries = entries.clone();
             Ok(EntryIter {
                 path: path.to_path_buf(),
                 cached: false,
                 following: follow,
-                iter: Box::new(MemfsEntryIter::new(path, memfs)?),
+                iter: Box::new(MemfsEntryIter::new(path, entries)?),
             })
         };
 
         Ok(Entries {
-            root: entry.upcast(),
+            root: self.clone_entry(path)?.upcast(),
             dirs: false,
             files: false,
             follow: false,
