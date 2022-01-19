@@ -2,8 +2,7 @@ use rivia::prelude::*;
 
 fn main()
 {
-    // Write data to a file and read it back using Stdfs and Memfs via a single
-    // vfs replacemnent
+    // Write data to a file and read it back using Stdfs and Memfs via a single vfs replacemnent
 
     // 1. Setup file to write to
     let file1 = sys::mash(testing::TEST_TEMP_DIR, "file1");
@@ -22,6 +21,6 @@ fn main()
 
     // Testing
     let memfs = Memfs::new();
-    memfs.mkdir_p(Path::new("foo")).unwrap();
+    memfs.mkdir_p(Path::new("foo/bar")).unwrap();
     println!("{}", memfs);
 }

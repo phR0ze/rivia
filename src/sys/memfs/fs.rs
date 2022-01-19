@@ -335,13 +335,13 @@ mod tests
     {
         let memfs = Memfs::new();
         memfs.mkdir_p(Path::new("foo/bar/blah")).unwrap();
-        for item in memfs.entries(Path::new("/")).unwrap().into_iter() {
-            println!("{}", item.unwrap().path().display());
-        }
+        let mut iter = memfs.entries(Path::new("/")).unwrap().into_iter();
 
-        // for entry in memfs.iter() {
-        //     println!("{}", entry.path(), entry.is_dir());
-        // }
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo"));
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/bar"));
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/bar/blah"));
+        assert_eq!(iter.next().is_none(), true);
     }
 
     #[test]
