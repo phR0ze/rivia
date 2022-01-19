@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fmt,
+    io::{Read, Seek, Write},
     path::{Component, Path, PathBuf},
     sync::{Arc, RwLock},
 };
@@ -51,24 +52,6 @@ impl Memfs
             fs: files,
             data: HashMap::new(),
         }))
-    }
-
-    /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning an absolute path created.
-    ///
-    /// # Arguments
-    /// * `path` - the directory path to create
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
-    {
-        let abs = self.abs(path.as_ref())?;
-        let mut fs = self.0.write().unwrap();
-        fs.cwd = abs;
-        Ok(())
     }
 
     /// Get a clone of the target entry. Handles converting path to absolute form.
@@ -122,19 +105,21 @@ impl FileSystem for Memfs
     /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
+        let path = path.as_ref();
+
         // Check for empty string
-        if sys::is_empty(path.as_ref()) {
+        if path.is_empty() {
             return Err(PathError::Empty.into());
         }
 
         // Expand home directory
-        let mut path_buf = sys::expand(path)?;
+        let mut path_buf = path.expand()?;
 
         // Trim protocol prefix if needed
-        path_buf = sys::trim_protocol(path_buf);
+        path_buf = path_buf.trim_protocol();
 
         // Clean the resulting path
-        path_buf = sys::clean(path_buf)?;
+        path_buf = path_buf.clean()?;
 
         // Expand relative directories if needed
         if !path_buf.is_absolute() {
@@ -142,16 +127,16 @@ impl FileSystem for Memfs
             while let Ok(path) = path_buf.components().first_result() {
                 match path {
                     Component::CurDir => {
-                        path_buf = sys::trim_first(path_buf);
+                        path_buf = path_buf.trim_first();
                     },
                     Component::ParentDir => {
                         if curr.to_string()? == "/" {
                             return Err(PathError::ParentNotFound(curr).into());
                         }
-                        curr = sys::dir(curr)?;
-                        path_buf = sys::trim_first(path_buf);
+                        curr = curr.dir()?;
+                        path_buf = path_buf.trim_first();
                     },
-                    _ => return Ok(sys::mash(curr, path_buf)),
+                    _ => return Ok(curr.mash(path_buf)),
                 };
             }
             return Ok(curr);
@@ -170,6 +155,24 @@ impl FileSystem for Memfs
     {
         let fs = self.0.read().unwrap();
         Ok(fs.cwd.clone())
+    }
+
+    /// Set the current working directory. The path is converted to an absolute value based on the
+    /// pre-existing current working directory
+    ///
+    /// # Arguments
+    /// * `path` - the path to set the current working directory to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        let path = self.abs(path)?;
+        let mut guard = self.0.write().unwrap();
+        guard.cwd = path;
+        Ok(())
     }
 
     /// Returns an iterator over the given path
@@ -282,6 +285,16 @@ impl FileSystem for Memfs
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {
         let path = self.abs(path)?;
+        let guard = self.0.read().unwrap();
+
+        if let Some(f) = guard.data.get(&path) {
+            let mut f = f.clone();
+            let mut buf = String::new();
+            f.read_to_string(&mut buf)?;
+        } else {
+            return Err(PathError::does_not_exist(&path).into());
+        }
+
         Ok("".to_string())
     }
 
@@ -296,8 +309,29 @@ impl FileSystem for Memfs
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>
+    fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
     {
+        let path = self.abs(path)?;
+        let dir = path.dir()?;
+
+        // Validate the dir exists
+        if !self.exists(&dir) {
+            return Err(PathError::does_not_exist(&dir).into());
+        }
+
+        // Create the file if necessary
+        let mut guard = self.0.write().unwrap();
+        if !guard.data.contains_key(&path) {
+            guard.data.insert(path.clone(), MemfsFile::default());
+        }
+
+        // Write the data to a target file
+        if let Some(f) = guard.data.get_mut(&path) {
+            f.rewind()?;
+            f.write_all(data.as_ref())?;
+            f.flush()?;
+        }
+
         Ok(())
     }
 
@@ -323,6 +357,51 @@ mod tests
     use crate::prelude::*;
 
     #[test]
+    fn test_memfs_abs()
+    {
+        let memfs = Memfs::new();
+        memfs.set_cwd("foo").unwrap();
+        let cwd = memfs.cwd().unwrap(); // foo
+        let prev = cwd.dir().unwrap(); // /
+
+        // expand relative directory
+        assert_eq!(memfs.abs("foo").unwrap(), cwd.mash("foo"));
+
+        // expand previous directory and drop trailing slashes
+        assert_eq!(memfs.abs("..//").unwrap(), prev);
+        assert_eq!(memfs.abs("../").unwrap(), prev);
+        assert_eq!(memfs.abs("..").unwrap(), prev);
+
+        // expand current directory and drop trailing slashes
+        assert_eq!(memfs.abs(".//").unwrap(), cwd);
+        assert_eq!(memfs.abs("./").unwrap(), cwd);
+        assert_eq!(memfs.abs(".").unwrap(), cwd);
+
+        // home dir
+        let home = sys::home_dir().unwrap();
+        assert_eq!(memfs.abs("~").unwrap(), home);
+        assert_eq!(memfs.abs("~/").unwrap(), home);
+
+        // expand home path
+        assert_eq!(memfs.abs("~/foo").unwrap(), home.mash("foo"));
+
+        // More complicated
+        assert_eq!(memfs.abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
+        assert_eq!(memfs.abs("~/foo/bar/../").unwrap(), home.mash("foo"));
+        assert_eq!(memfs.abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
+
+        // Move up the path multiple levels
+        assert_eq!(memfs.abs("/foo/bar/blah/../../foo1").unwrap(), PathBuf::from("/foo/foo1"));
+        assert_eq!(memfs.abs("/../../foo").unwrap(), PathBuf::from("/foo"));
+
+        // Move up until invalid
+        assert_eq!(
+            memfs.abs("../../../../../../../foo").unwrap_err().to_string(),
+            PathError::ParentNotFound(PathBuf::from("/")).to_string()
+        );
+    }
+
+    #[test]
     fn test_iter_over_entries()
     {
         let memfs = Memfs::new();
@@ -334,15 +413,6 @@ mod tests
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/bar"));
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/bar/blah"));
         assert_eq!(iter.next().is_none(), true);
-    }
-
-    #[test]
-    fn test_read_write_file() -> RvResult<()>
-    {
-        let memfs = Memfs::new();
-        memfs.write_all(Path::new("foo"), b"foobar")?;
-
-        Ok(())
     }
 
     #[test]
@@ -358,6 +428,15 @@ mod tests
         assert_eq!(memfs.exists(Path::new("foo")), false);
         assert_eq!(memfs.exists(Path::new("/foo")), true);
         assert_eq!(memfs.exists(Path::new("/foo/bar")), true);
+    }
+
+    #[test]
+    fn test_read_write_file() -> RvResult<()>
+    {
+        let memfs = Memfs::new();
+        memfs.write_all(Path::new("foo"), b"foobar")?;
+
+        Ok(())
     }
 
     #[test]

@@ -21,6 +21,10 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Returns the current working directory
     fn cwd(&self) -> RvResult<PathBuf>;
 
+    /// Set the current working directory. The path is converted to an absolute value based on the
+    /// pre-existing current working directory
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
+
     /// Returns true if the `Path` exists. Handles path expansion.
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool;
 
@@ -43,7 +47,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Write all the given data to to the indicated file creating the file first if it doesn't
     /// exist or truncating it first if it does.
-    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>;
+    fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>;
 
     /// Up cast the trait type to the enum wrapper
     fn upcast(self) -> Vfs;
@@ -92,6 +96,15 @@ impl FileSystem for Vfs
         }
     }
 
+    /// Set the current working directory
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.set_cwd(path),
+            Vfs::Memfs(x) => x.set_cwd(path),
+        }
+    }
+
     /// Returns an iterator over the given path
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
@@ -131,7 +144,7 @@ impl FileSystem for Vfs
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>
+    fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
     {
         match self {
             Vfs::Stdfs(x) => x.write_all(path, data),

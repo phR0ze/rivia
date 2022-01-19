@@ -434,29 +434,29 @@ pub trait PathExt
     /// ```
     fn base(&self) -> RvResult<String>;
 
-    // /// Return the shortest path equivalent to the path by purely lexical processing and thus does
-    // /// not handle links correctly in some cases, use canonicalize in those cases. It applies
-    // /// the following rules interatively until no further processing can be done.
-    // ///
-    // /// 1. Replace multiple slashes with a single
-    // /// 2. Eliminate each . path name element (the current directory)
-    // /// 3. Eliminate each inner .. path name element (the parent directory)
-    // ///    along with the non-.. element that precedes it.
-    // /// 4. Eliminate .. elements that begin a rooted path:
-    // ///    that is, replace "/.." by "/" at the beginning of a path.
-    // /// 5. Leave intact ".." elements that begin a non-rooted path.
-    // /// 6. Drop trailing '/' unless it is the root
-    // ///
-    // /// If the result of this process is an empty string, return the string `.`, representing the
-    // /// current directory.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
-    // /// ```
-    // fn clean(&self) -> RvResult<PathBuf>;
+    /// Return the shortest path equivalent to the path by purely lexical processing and thus does
+    /// not handle links correctly in some cases, use canonicalize in those cases. It applies
+    /// the following rules interatively until no further processing can be done.
+    ///
+    /// 1. Replace multiple slashes with a single
+    /// 2. Eliminate each . path name element (the current directory)
+    /// 3. Eliminate each inner .. path name element (the parent directory)
+    ///    along with the non-.. element that precedes it.
+    /// 4. Eliminate .. elements that begin a rooted path:
+    ///    that is, replace "/.." by "/" at the beginning of a path.
+    /// 5. Leave intact ".." elements that begin a non-rooted path.
+    /// 6. Drop trailing '/' unless it is the root
+    ///
+    /// If the result of this process is an empty string, return the string `.`, representing the
+    /// current directory.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
+    /// ```
+    fn clean(&self) -> RvResult<PathBuf>;
 
     // /// Returns the `Path` with the given string concatenated on without injecting
     // /// path separators.
@@ -490,16 +490,16 @@ pub trait PathExt
     // /// ```
     // fn exists(&self) -> bool;
 
-    // /// Expand the path to include the home prefix if necessary
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let home = user::home_dir().unwrap();
-    // /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
-    // /// ```
-    // fn expand(&self) -> RvResult<PathBuf>;
+    /// Expand the path to include the home prefix if necessary
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let home = user::home_dir().unwrap();
+    /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
+    /// ```
+    fn expand(&self) -> RvResult<PathBuf>;
 
     // /// Returns the extension of the path or an error.
     // ///
@@ -579,15 +579,15 @@ pub trait PathExt
     // /// ```
     // fn is_dir(&self) -> bool;
 
-    // /// Returns true if the `Path` is empty.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("").is_empty(), true);
-    // /// ```
-    // fn is_empty(&self) -> bool;
+    /// Returns true if the `Path` is empty.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("").is_empty(), true);
+    /// ```
+    fn is_empty(&self) -> bool;
 
     // /// Returns true if the `Path` exists and is an executable. Handles path expansion.
     // ///
@@ -819,35 +819,35 @@ pub trait PathExt
     // /// ```
     // fn shared_prefix<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
-    // /// Returns a new [`PathBuf`] with the file extension trimmed off.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
-    // /// ```
-    // fn trim_ext(&self) -> RvResult<PathBuf>;
+    /// Returns a new [`PathBuf`] with the file extension trimmed off.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
+    /// ```
+    fn trim_ext(&self) -> RvResult<PathBuf>;
 
-    // /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
-    // /// ```
-    // fn trim_first(&self) -> PathBuf;
+    /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
+    /// ```
+    fn trim_first(&self) -> PathBuf;
 
-    // /// Returns a new [`PathBuf`] with last [`Component`] trimmed off.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
-    // /// ```
-    // fn trim_last(&self) -> PathBuf;
+    /// Returns a new [`PathBuf`] with last [`Component`] trimmed off.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
+    /// ```
+    fn trim_last(&self) -> PathBuf;
 
     /// Returns a new [`PathBuf`] with the given prefix trimmed off else the original `path`.
     ///
@@ -859,16 +859,16 @@ pub trait PathExt
     /// ```
     fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf;
 
-    // /// Returns a new [`PathBuf`] with well known protocol prefixes trimmed off else the original
-    // /// `path`.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
-    // /// ```
-    // fn trim_protocol(&self) -> PathBuf;
+    /// Returns a new [`PathBuf`] with well known protocol prefixes trimmed off else the original
+    /// `path`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
+    /// ```
+    fn trim_protocol(&self) -> PathBuf;
 
     // /// Returns a new [`PathBuf`] with the given `suffix` trimmed off else the original `path`.
     // ///
@@ -896,6 +896,74 @@ impl PathExt for Path
     fn base(&self) -> RvResult<String>
     {
         base(self)
+    }
+
+    /// Return the shortest path equivalent to the path by purely lexical processing and thus does
+    /// not handle links correctly in some cases, use canonicalize in those cases. It applies
+    /// the following rules interatively until no further processing can be done.
+    ///
+    /// 1. Replace multiple slashes with a single
+    /// 2. Eliminate each . path name element (the current directory)
+    /// 3. Eliminate each inner .. path name element (the parent directory)
+    ///    along with the non-.. element that precedes it.
+    /// 4. Eliminate .. elements that begin a rooted path:
+    ///    that is, replace "/.." by "/" at the beginning of a path.
+    /// 5. Leave intact ".." elements that begin a non-rooted path.
+    /// 6. Drop trailing '/' unless it is the root
+    ///
+    /// If the result of this process is an empty string, return the string `.`, representing the
+    /// current directory.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
+    /// ```
+    fn clean(&self) -> RvResult<PathBuf>
+    {
+        clean(self)
+    }
+
+    /// Returns the `Path` without its final component, if there is one.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
+    /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
+    /// ```
+    fn dir(&self) -> RvResult<PathBuf>
+    {
+        dir(self)
+    }
+
+    /// Expand the path to include the home prefix if necessary
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let home = user::home_dir().unwrap();
+    /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
+    /// ```
+    fn expand(&self) -> RvResult<PathBuf>
+    {
+        expand(self)
+    }
+
+    /// Returns true if the `Path` is empty.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("").is_empty(), true);
+    /// ```
+    fn is_empty(&self) -> bool
+    {
+        is_empty(self)
     }
 
     /// Returns true if the `Path` as a String has the given prefix
@@ -929,18 +997,43 @@ impl PathExt for Path
         mash(self, path)
     }
 
-    /// Returns the `Path` without its final component, if there is one.
+    /// Returns a new [`PathBuf`] with the file extension trimmed off.
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
-    /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
+    /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
     /// ```
-    fn dir(&self) -> RvResult<PathBuf>
+    fn trim_ext(&self) -> RvResult<PathBuf>
     {
-        dir(self)
+        trim_ext(self)
+    }
+
+    /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
+    /// ```
+    fn trim_first(&self) -> PathBuf
+    {
+        trim_first(self)
+    }
+
+    /// Returns a new [`PathBuf`] with last [`Component`] trimmed off.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
+    /// ```
+    fn trim_last(&self) -> PathBuf
+    {
+        trim_last(self)
     }
 
     /// Returns a new [`PathBuf`] with the given prefix trimmed off else the original `path`.
@@ -954,6 +1047,20 @@ impl PathExt for Path
     fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf
     {
         trim_prefix(self, prefix)
+    }
+
+    /// Returns a new [`PathBuf`] with well known protocol prefixes trimmed off else the original
+    /// `path`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
+    /// ```
+    fn trim_protocol(&self) -> PathBuf
+    {
+        trim_protocol(self)
     }
 }
 

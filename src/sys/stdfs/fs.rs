@@ -139,6 +139,23 @@ impl Stdfs
         Ok(path)
     }
 
+    /// Set the current working directory. The path is converted to an absolute value based on the
+    /// pre-existing current working directory
+    ///
+    /// # Arguments
+    /// * `path` - the path to set the current working directory to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    pub fn set_cwd<T: AsRef<Path>>(path: T) -> RvResult<()>
+    {
+        let path = Stdfs::abs(path)?;
+        std::env::set_current_dir(path)?;
+        Ok(())
+    }
+
     /// Returns true if the `Path` exists. Handles path expansion.
     ///
     /// ### Examples
@@ -754,7 +771,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn write_all<T: AsRef<Path>>(path: T, data: &[u8]) -> RvResult<()>
+    pub fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> RvResult<()>
     {
         let path = Stdfs::abs(path)?;
         if Stdfs::exists(&path) && !Stdfs::is_file(&path) {
@@ -763,7 +780,7 @@ impl Stdfs
 
         // Create or truncate the target file
         let mut f = File::create(&path)?;
-        f.write_all(data)?;
+        f.write_all(data.as_ref())?;
 
         // f.sync_all() works better than f.flush()?
         f.sync_all()?;
@@ -785,7 +802,28 @@ impl FileSystem for Stdfs
         Stdfs::cwd()
     }
 
+    /// Set the current working directory. The path is converted to an absolute value based on the
+    /// pre-existing current working directory
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        Stdfs::set_cwd(path)
+    }
+
     /// Returns an iterator over the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_entries");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_stdfs_mkfile!(&file1);
+    /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    /// assert!(iter.next().is_none());
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
         let iter_func = |path: &Path, follow: bool| -> RvResult<EntryIter> {
@@ -838,7 +876,7 @@ impl FileSystem for Stdfs
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
     /// or truncating it first if it does.
-    fn write_all<T: AsRef<Path>>(&self, path: T, data: &[u8]) -> RvResult<()>
+    fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
     {
         Stdfs::write_all(path, data)
     }
