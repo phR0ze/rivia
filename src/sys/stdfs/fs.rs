@@ -32,16 +32,19 @@ impl Stdfs
 
     /// Return the path in an absolute clean form
     ///
-    /// # Provides:
+    /// ### Provides:
     /// * environment variable expansion
     /// * relative path resolution for `.` and `..`
     /// * no IO resolution so it will work even with paths that don't exist
+    ///
+    /// ### Errors
+    /// * PathError::ParentNotFound(PathBuf) when parent is not found
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let home = Stdfs::home_dir().unwrap();
+    /// let home = sys::home_dir().unwrap();
     /// assert_eq!(Stdfs::abs("~").unwrap(), PathBuf::from(&home));
     /// ```
     pub fn abs<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
@@ -121,14 +124,9 @@ impl Stdfs
     //     Ok(PathBuf::from(format!("{}{}", self.to_string()?, val.as_ref())))
     // }
 
-    /// Returns the current working directory as a [`PathBuf`].
-    /// Wraps std::env::current_dir
+    /// Returns the current working directory
     ///
-    /// # Errors
-    ///
-    /// Returns an [`Err`] if the current working directory value is invalid.
-    /// Possible cases:
-    ///
+    /// ### Errors
     /// * Current directory does not exist.
     /// * There are insufficient permissions to access the current directory.
     ///
@@ -136,7 +134,8 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// println!("current working directory: {:?}", Stdfs::cwd().unwrap());
+    /// Stdfs::set_cwd(Stdfs::cwd().unwrap().mash("tests"));
+    /// assert_eq!(Stdfs::cwd().unwrap().base().unwrap(), "tests".to_string());
     /// ```
     pub fn cwd() -> RvResult<PathBuf>
     {
@@ -147,12 +146,15 @@ impl Stdfs
     /// Set the current working directory. The path is converted to an absolute value based on the
     /// pre-existing current working directory
     ///
-    /// # Arguments
-    /// * `path` - the path to set the current working directory to
+    /// ### Errors
+    /// * io::Error, kind: NotFound when the given path doesn't exist
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// Stdfs::set_cwd(Stdfs::cwd().unwrap().mash("tests"));
+    /// assert_eq!(Stdfs::cwd().unwrap().base().unwrap(), "tests".to_string());
     /// ```
     pub fn set_cwd<T: AsRef<Path>>(path: T) -> RvResult<()>
     {
@@ -796,12 +798,38 @@ impl Stdfs
 impl FileSystem for Stdfs
 {
     /// Return the path in an absolute clean form
+    ///
+    /// ### Provides:
+    /// * environment variable expansion
+    /// * relative path resolution for `.` and `..`
+    /// * no IO resolution so it will work even with paths that don't exist
+    ///
+    /// ### Errors
+    /// * PathError::ParentNotFound(PathBuf) when parent is not found
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let stdfs = Stdfs::new();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(stdfs.abs("~").unwrap(), PathBuf::from(&home));
+    /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::abs(path)
     }
 
     /// Returns the current working directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let stdfs = Stdfs::new();
+    /// stdfs.set_cwd(stdfs.cwd().unwrap().mash("tests"));
+    /// assert_eq!(stdfs.cwd().unwrap().base().unwrap(), "tests".to_string());
+    /// ```
     fn cwd(&self) -> RvResult<PathBuf>
     {
         Stdfs::cwd()
@@ -809,6 +837,18 @@ impl FileSystem for Stdfs
 
     /// Set the current working directory. The path is converted to an absolute value based on the
     /// pre-existing current working directory
+    ///
+    /// ### Errors
+    /// * io::Error, kind: NotFound when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let stdfs = Stdfs::new();
+    /// stdfs.set_cwd(stdfs.cwd().unwrap().mash("tests"));
+    /// assert_eq!(stdfs.cwd().unwrap().base().unwrap(), "tests".to_string());
+    /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
         Stdfs::set_cwd(path)

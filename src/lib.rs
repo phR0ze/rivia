@@ -2,9 +2,29 @@
 //! amount of boiler plate code required for common tasks. The intent is to provide this while
 //! keeping dependencies to a minimum.
 //!
-//! ### Provides
-//! * VFS
-//! * Entries
+//! ## Provides
+//!
+//! ### VFS
+//! Using the power of Rust enums we can create a simple virtual file system with multiple backend 
+//! implementations that can easily be switched out at compile time for testing purposes with 
+//! almost zero additional overhead.
+//! ```
+//! let vfs = Vfs::stdfs();
+//! let vfs = Vfs::memfs();
+//! vfs.mkdir_p("foo").unwrap();
+//! ```
+//!
+//! ## Rejected Considerations
+//!
+//! ### VfsPath
+//! `VfsPath` was considered as a way to track and not repeat environment variable and absolute path
+//! resolution. Additionally it would be used in the VFS case to track the VFS backend being used to
+//! allow for extensions to a Path to chain call additional operations. However the relative amount
+//! of overhead of resolving paths is small when compared to disk IO which will usually be being
+//! done. What's more the benefit of trackig the VFS for chain calling is dubious when you introduce
+//! the complexity of multiple ways to get access to VFS operations. Considering the ergonomic
+//! impact and commplexity of such a change. I won't be implementing a notion of a `VfsPath` in
+//! favor of a single point of entry into the VFS operations and much cleaner ergonomics.
 //!
 //! ### Using Rivia
 //! ```

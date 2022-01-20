@@ -16,17 +16,54 @@ pub trait FileSystem: Debug+Send+Sync+'static
 {
     /// Return the path in an absolute clean form
     ///
-    /// # Provides:
+    /// ### Provides:
     /// * environment variable expansion
     /// * relative path resolution for `.` and `..`
     /// * no IO resolution so it will work even with paths that don't exist
+    ///
+    /// ### Errors
+    /// * PathError::ParentNotFound(PathBuf) when parent is not found
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(vfs.abs("~").unwrap(), PathBuf::from(&home));
+    /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     /// Returns the current working directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
+    /// vfs.mkdir_p("foo").unwrap();
+    /// vfs.set_cwd("foo").unwrap();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// ```
     fn cwd(&self) -> RvResult<PathBuf>;
 
     /// Set the current working directory. The path is converted to an absolute value based on the
     /// pre-existing current working directory
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
+    /// vfs.mkdir_p("foo").unwrap();
+    /// vfs.set_cwd("foo").unwrap();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
 
     /// Returns true if the `Path` exists. Handles path expansion.
@@ -66,12 +103,30 @@ pub enum Vfs
 impl Vfs
 {
     /// Create a new instance of Memfs wrapped in the Vfs enum
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(vfs.abs("~").unwrap(), PathBuf::from(&home));
+    /// ```
     pub fn memfs() -> Vfs
     {
         Vfs::Memfs(Memfs::new())
     }
 
     /// Create a new instance of Stdfs wrapped in the Vfs enum
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::stdfs();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(vfs.abs("~").unwrap(), PathBuf::from(&home));
+    /// ```
     pub fn stdfs() -> Vfs
     {
         Vfs::Stdfs(Stdfs::new())
@@ -81,6 +136,23 @@ impl Vfs
 impl FileSystem for Vfs
 {
     /// Return the path in an absolute clean form
+    ///
+    /// ### Provides:
+    /// * environment variable expansion
+    /// * relative path resolution for `.` and `..`
+    /// * no IO resolution so it will work even with paths that don't exist
+    ///
+    /// ### Errors
+    /// * PathError::ParentNotFound(PathBuf) when parent is not found
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(vfs.abs("~").unwrap(), PathBuf::from(&home));
+    /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         match self {
@@ -90,6 +162,17 @@ impl FileSystem for Vfs
     }
 
     /// Returns the current working directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
+    /// vfs.mkdir_p("foo").unwrap();
+    /// vfs.set_cwd("foo").unwrap();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// ```
     fn cwd(&self) -> RvResult<PathBuf>
     {
         match self {
@@ -98,7 +181,22 @@ impl FileSystem for Vfs
         }
     }
 
-    /// Set the current working directory
+    /// Set the current working directory. The path is converted to an absolute value based on the
+    /// pre-existing current working directory
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
+    /// vfs.mkdir_p("foo").unwrap();
+    /// vfs.set_cwd("foo").unwrap();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
         match self {

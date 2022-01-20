@@ -99,9 +99,21 @@ impl FileSystem for Memfs
 {
     /// Return the path in an absolute clean form
     ///
+    /// ### Provides:
+    /// * environment variable expansion
+    /// * relative path resolution for `.` and `..`
+    /// * no IO resolution so it will work even with paths that don't exist
+    ///
+    /// ### Errors
+    /// * PathError::ParentNotFound(PathBuf) when parent is not found
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(memfs.abs("~").unwrap(), PathBuf::from(&home));
     /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
@@ -145,11 +157,17 @@ impl FileSystem for Memfs
         Ok(path_buf)
     }
 
-    /// Returns the current working directory as a [`PathBuf`].
+    /// Returns the current working directory
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
+    /// memfs.mkdir_p("foo").unwrap();
+    /// memfs.set_cwd("foo").unwrap();
+    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>
     {
@@ -160,17 +178,26 @@ impl FileSystem for Memfs
     /// Set the current working directory. The path is converted to an absolute value based on the
     /// pre-existing current working directory
     ///
-    /// # Arguments
-    /// * `path` - the path to set the current working directory to
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
+    /// memfs.mkdir_p("foo").unwrap();
+    /// memfs.set_cwd("foo").unwrap();
+    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
     /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
         let path = self.abs(path)?;
         let mut guard = self.0.write().unwrap();
+        if !guard.fs.contains_key(&path) {
+            return Err(PathError::does_not_exist(&path).into());
+        }
         guard.cwd = path;
         Ok(())
     }
