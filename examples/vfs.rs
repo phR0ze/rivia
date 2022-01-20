@@ -5,7 +5,6 @@ fn main()
     // Write data to a file and read it back using Stdfs and Memfs via a single vfs replacemnent
 
     // 1. Setup file to write to
-    let file1 = sys::mash(testing::TEST_TEMP_DIR, "file1");
 
     // 2. Create a new stdfs instance that we can change to memfs later
     // let vfs = Vfs::stdfs();
@@ -19,8 +18,19 @@ fn main()
     // println!("Data: {}", data);
     // Stdfs::remove(file1).unwrap();
 
-    // Testing
-    let memfs = Memfs::new();
-    memfs.mkdir_p("foo/bar").unwrap();
-    println!("{}", memfs);
+    let vfs = Vfs::memfs();
+    vfs_test(&vfs).unwrap();
+}
+
+fn vfs_test(vfs: &Vfs) -> RvResult<()>
+{
+    // 1. Create the test directory and test files
+    let dir1 = vfs.mkdir_p(testing::TEST_TEMP_DIR)?;
+    // vfs.mkfile(dir1.mash("file1"))?;
+
+    for entry in vfs.entries(testing::TEST_TEMP_DIR)?.into_iter() {
+        println!("{}", entry?.path().display());
+    }
+
+    Ok(())
 }

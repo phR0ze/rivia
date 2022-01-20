@@ -4,14 +4,19 @@
 //!
 //! ## Provides
 //!
-//! ### VFS
+//! ### Virtual FileSystem (VFS)
 //! Using the power of Rust enums we can create a simple virtual file system with multiple backend 
 //! implementations that can easily be switched out at compile time for testing purposes with 
-//! almost zero additional overhead.
+//! almost zero additional overhead. By passing in a vfs reference to functions needing to 
+//! manipulate the filesystem you can easily change the backing implementation. For those wishing 
+//! for a truely seamless experience see the `rivia-vfs` crate for a global singleton that can be 
+//! dynamically updated at runtime thus avoiding passing a vfs reference around.
 //! ```
-//! let vfs = Vfs::stdfs();
-//! let vfs = Vfs::memfs();
-//! vfs.mkdir_p("foo").unwrap();
+//! use rivia::prelude::*;
+//!
+//! let vfs = Vfs::stdfs();         // create the vfs as a standard filesystem
+//! let vfs = Vfs::memfs();         // easily switch to a memory filesystem
+//! vfs.mkdir_p("foo").unwrap();    // operations remain seamless
 //! ```
 //!
 //! ## Rejected Considerations
