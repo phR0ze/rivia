@@ -1,3 +1,9 @@
+//! Provides general extensions to common types like [`Option`], [`Result`] and [`Iterator`].
+//!
+//! ### Using Rivia extensions
+//! ```
+//! use rivia::prelude::*;
+//! ```
 #[macro_use]
 mod result;
 

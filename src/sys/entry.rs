@@ -2,8 +2,6 @@ use std::{
     cmp::Ordering,
     ffi::OsStr,
     fmt::Debug,
-    fs,
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 
@@ -13,7 +11,7 @@ use crate::{
 };
 
 /// Entry provides a virtual filesystem trait for a single filesystem item. It is implemented
-/// by multiple virtual filesystem backend providers e.g. StdfsEntry and MemfsEntry
+/// by multiple virtual filesystem backend providers e.g. [`StdfsEntry`] and [`MemfsEntry`]
 ///
 /// ### Example
 /// ```
@@ -337,13 +335,13 @@ impl Entry for VfsEntry
     }
 }
 
-/// `EntryIter` provides iteration over a single directory in the VFS filesystem.
+/// Provides iteration over a single directory in a VFS filesystem.
 ///
 /// ### Cached
 /// Optionally all entries can be read into memory from the underlying VFS and yielded from there
 /// by invoking the `cache` method. In this way the number of open file descriptors can be
 /// controlled at the cost of memory consumption.
-pub struct EntryIter
+pub(crate) struct EntryIter
 {
     pub(crate) path: PathBuf,
     pub(crate) cached: bool,

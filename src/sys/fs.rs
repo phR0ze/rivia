@@ -1,4 +1,3 @@
-//! Provides multiple filesystem implementations in a unified, extended and simplified way
 use std::{
     fmt::Debug,
     path::{Path, PathBuf},
@@ -16,6 +15,11 @@ use crate::{
 pub trait FileSystem: Debug+Send+Sync+'static
 {
     /// Return the path in an absolute clean form
+    ///
+    /// # Provides:
+    /// * environment variable expansion
+    /// * relative path resolution for `.` and `..`
+    /// * no IO resolution so it will work even with paths that don't exist
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     /// Returns the current working directory
@@ -30,8 +34,6 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Returns an iterator over the given path with recurisve path traversal
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
-
-    // fn expand(&self, path: &Path) -> RvResult<PathBuf>;
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory

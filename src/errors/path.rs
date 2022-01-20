@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// An error indicating that something went wrong with a path operation
+/// An error indicating something went wrong with a Rivia path operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PathError
 {

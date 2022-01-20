@@ -1,7 +1,6 @@
-//! Provides multiple filesystem implementations in a unified, extended and simplified way with
-//! including pathing, io and file management helpers.
+//! Provides multiple filesystem implementations in a unified, extended and simplified way
 //!
-//! ### How to use the `sys` module from the Rivia crate
+//! ### How to use the Rivia `sys` module
 //! ```
 //! use rivia::prelude::*;
 //! ```

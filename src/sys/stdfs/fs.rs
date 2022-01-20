@@ -32,6 +32,11 @@ impl Stdfs
 
     /// Return the path in an absolute clean form
     ///
+    /// # Provides:
+    /// * environment variable expansion
+    /// * relative path resolution for `.` and `..`
+    /// * no IO resolution so it will work even with paths that don't exist
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
@@ -55,7 +60,7 @@ impl Stdfs
         path_buf = sys::trim_protocol(path_buf);
 
         // Clean the resulting path
-        path_buf = sys::clean(path_buf)?;
+        path_buf = sys::clean(path_buf);
 
         // Expand relative directories if needed
         if !path_buf.is_absolute() {

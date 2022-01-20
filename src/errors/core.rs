@@ -1,6 +1,6 @@
 use std::{error::Error as StdError, fmt};
 
-// An error indicating that something went wrong
+/// An error indicating something went wrong with a core Rivia component
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CoreError
 {

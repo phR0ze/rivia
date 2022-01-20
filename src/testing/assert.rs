@@ -1,7 +1,3 @@
-//! Provides a set of testing macros to reduce test boiler plate
-//!
-//! ## For testing only
-//! All code in this module should only ever be used in testing and not in production.
 use std::{
     panic,
     sync::{Arc, Mutex},
@@ -18,9 +14,11 @@ lazy_static! {
     static ref USE_PANIC_HANDLER: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
 }
 
-/// Capture any unwinding panics, i.e. doesn't catch aborts, that may occur while executing the
-/// given closure. Any panics captured will be converted into a FnResult with the SimpleError::Msg
-/// type returned containing the panic output. This function is multi-thread safe.
+/// Capture any unwinding panics in a multi-thread safe way
+///
+/// Doesn't catch aborts, that may occur while executing the given closure. Any panics captured will
+/// be converted into a RvResult with the SimpleError::Msg type returned containing the panic
+/// output.
 pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()>
 {
     {
@@ -56,8 +54,10 @@ pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()>
 }
 
 /// Create the test `setup` function to be called in tests to create unique directories to work in
-/// for testing that depends on modifying files on disk. The intent is to provide a thread safe
-/// space from which to manipulate files during a test.
+/// for testing.
+///
+/// This call will modify files on disk. The intent is to provide a thread safe space from which to
+/// manipulate files during a test.
 ///
 /// `setup` accepts two arguments `root` and `func_name`. `root` and `func_name` are
 /// joined as a path and treated as the directory path that will be created for
@@ -105,20 +105,21 @@ macro_rules! assert_stdfs_setup_func {
     };
 }
 
-/// Call the `setup` function created by `assert_stdfs_setup_func!` with default `root` and
-/// `func_name` based on the function context the setup function is run from or optionally override
-/// those values. `root` will default to `TEST_TEMP_DIR` and `func_name` defaults to the function
-/// name using the `function!` macro. If only one override is given it is assumed to be the
-/// `func_name` to be passed into the `assert_stdfs_setup_func` function. If two parameters are
-/// given the first is assumed to be the `root` and the second to be the `func_name`.
+/// Call the `setup` function created by `assert_stdfs_setup_func!`
 ///
-/// WARNING: since doc tests always have a default function name of `rust_out::main` its required
-/// to override the `func_name` param to get a unique directory to work in as this is not possible
-/// by default.
+/// Calls `assert_stdfs_setup_func!` with default `root` and `func_name` based on the function
+/// context the setup function is run from or optionally override those values. `root` will default
+/// to `TEST_TEMP_DIR` and `func_name` defaults to the function name using the `function!` macro. If
+/// only one override is given it is assumed to be the `func_name` to be passed into the
+/// `assert_stdfs_setup_func` function. If two parameters are given the first is assumed to be the
+/// `root` and the second to be the `func_name`.
 ///
-/// ## Examples
+/// ### Warning
+/// Since doc tests always have a default function name of `rust_out::main` its required to override
+/// the `func_name` param to get a unique directory to work in as this is not possible by default.
 ///
-/// ### Using the default `root` and `func_name` is fine if called from a named function
+/// ### Examples
+/// Using the default `root` and `func_name` is fine if called from a named function
 /// ```
 /// use rivia::prelude::*;
 ///
@@ -135,7 +136,7 @@ macro_rules! assert_stdfs_setup_func {
 /// assert_stdfs_setup_default();
 /// ```
 ///
-/// ### Doc tests don't have a named function and require the `func_name` param be overridden
+/// Doc tests don't have a named function and require the `func_name` param be overridden
 /// ```
 /// use rivia::prelude::*;
 ///
@@ -149,7 +150,7 @@ macro_rules! assert_stdfs_setup_func {
 /// assert_stdfs_remove_all!(&tmpdir);
 /// ```
 ///
-/// ### `root` is treated as the first and `func_name` as the second when two params are given.
+/// `root` is treated as the first and `func_name` as the second when two params are given.
 /// ```
 /// use rivia::prelude::*;
 ///
@@ -401,8 +402,12 @@ macro_rules! assert_stdfs_touch {
     };
 }
 
-/// Assert the removal of the target file. Assertion fails if the target isn't a file or if the
-/// file exists after `Stdfs::remove` is called or if `Stdfs::remove` fails.
+/// Assert the removal of the target file
+///
+/// ### Assertion Failures
+/// * Assertion fails if the target isn't a file
+/// * Assertion fails if the file exists after `Stdfs::remove` is called
+/// * Assertion fails if the `Stdfs::remove` call fails
 ///
 /// ### Examples
 /// ```
@@ -437,8 +442,11 @@ macro_rules! assert_stdfs_remove {
     };
 }
 
-/// Assert the removal of the target path. Assertion fails if `Stdfs::remove_all` fails or the
-/// target path still exists after the call to `Stdfs::remove_all`.
+/// Assert the removal of the target path
+///
+/// ### Assertion Failures
+/// * Assertion fails if `Stdfs::remove_all` fails
+/// * Assertion fails if the target path still exists after the call to `Stdfs::remove_all`
 ///
 /// ### Examples
 /// ```

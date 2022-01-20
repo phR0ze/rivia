@@ -1,3 +1,4 @@
+/// Provides extensions for the [`Option`] type
 pub trait OptionExt<T>
 {
     fn has<U>(&self, value: U) -> bool

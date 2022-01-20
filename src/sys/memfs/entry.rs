@@ -1,21 +1,13 @@
 use std::{
-    cmp::{self, Ordering},
-    collections::{HashMap, HashSet},
-    fmt, fs,
-    hash::{Hash, Hasher},
-    io,
-    path::{Component, Path, PathBuf},
-    sync::{Arc, RwLock},
+    collections::HashSet,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
-
-use itertools::Itertools;
 
 use super::MemfsEntries;
 use crate::{
     errors::*,
-    exts::*,
-    sys::{self, Entry, EntryIter, PathExt, VfsEntry},
-    trying,
+    sys::{Entry, PathExt, VfsEntry},
 };
 
 // MemfsEntryOpts implements the builder pattern to provide advanced options for creating
@@ -122,10 +114,10 @@ impl MemfsEntry
 
     // Add an entry to this directory
     //
-    // # Arguments
+    // ### Arguments
     // * `entry` - the entry to add to this directory
     //
-    // # Errors
+    // ### Errors
     // * PathError::IsNotDir(PathBuf) when this entry is not a directory.
     // * PathError::ExistsAlready(PathBuf) when the given entry already exists.
     // entry's path

@@ -2,9 +2,6 @@ use std::{fmt, iter::Iterator};
 
 use crate::errors::*;
 
-// Iterator extensions and utilities
-//--------------------------------------------------------------------------------------------------
-
 /// Assert that the elements of the given iterables are equal and `Panics` when when not.
 ///
 /// # Examples
@@ -42,7 +39,7 @@ where
     }
 }
 
-/// Iterator adaptors to simplify some operations
+/// Provides extensions for the [`Iterator`] trait
 pub trait IteratorExt: Iterator
 {
     /// Consume the entire iterator eagerly up until but not including the last call to

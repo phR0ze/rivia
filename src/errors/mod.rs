@@ -1,9 +1,14 @@
-//! `errors` provides a common set of errors across the rivia crates to reduce the verbosity of
-//! error handling
+//! Provides a common set of errors across the rivia crates to reduce the verbosity of error
+//! handling
 //!
-//! ### Using the Rivia Core crate
+//! ### Using Rivia errors
 //! ```
-//! use rivia::*;
+//! use rivia::prelude::*;
+//!
+//! let mut err = RvError::from(std::env::VarError::NotPresent);
+//! assert!(err.downcast_ref::<std::env::VarError>().is_some());
+//! assert!(err.downcast_mut::<std::env::VarError>().is_some());
+//! assert!(err.source().is_none());
 //! ```
 mod core;
 mod iter;
@@ -20,10 +25,10 @@ pub use vfs::*;
 
 pub use self::core::*;
 
-/// `Result<T>` provides a simplified result type with a common error type
+/// Provides a simplified Rivia result type with a common Rivia error type
 pub type RvResult<T> = std::result::Result<T, RvError>;
 
-/// RiviaError wraps all the internal errors that might occur in one common error type
+/// An error that provides a common error for Rivia wrapping other internal errors
 #[derive(Debug)]
 pub enum RvError
 {

@@ -1,6 +1,6 @@
 use std::{error::Error as StdError, fmt};
 
-/// An error indicating something went wrong with an iterator operation
+/// An error indicating something went wrong with a Rivia iterator operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum IterError
 {

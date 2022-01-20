@@ -1,6 +1,6 @@
 use std::{error::Error as StdError, fmt};
 
-// An error indicating that something went wrong with a string operation
+/// An error indicating something went wrong with a Rivia String operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum StringError
 {

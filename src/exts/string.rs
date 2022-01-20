@@ -6,6 +6,7 @@ use std::{
 
 use crate::errors::*;
 
+/// Provides string manipulation extensions for the [`str`] and [`String`] types
 pub trait StringExt
 {
     /// Returns the length in characters rather than bytes i.e. this is a human understandable
@@ -66,6 +67,7 @@ impl StringExt for String
     }
 }
 
+/// Provides to_string extension for the [`Path`], [`OsStr`] and [`Component`] types
 pub trait ToStringExt
 {
     /// Returns a new [`String`] from the given type.

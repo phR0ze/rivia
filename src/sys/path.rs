@@ -1,11 +1,12 @@
-//! The `path` module provides a number of helper functions to assist in manipulating paths.
-//! Only those functions that are filesystem agnostic should be included here.
-
-use std::path::{Component, Path, PathBuf};
+// WARNING: Only those functions that are filesystem agnostic should be included here.
+use std::path::{self, Component, Path, PathBuf};
 
 use crate::{errors::*, exts::*};
 
-/// Returns the final component of the `Path`, if there is one.
+/// Returns the final component of the given `path` if there is one
+///
+/// ### Errors
+/// * PathError::FileNameNotFound(PathBuf) if there is an error return the filename
 ///
 /// ### Examples
 /// ```
@@ -19,10 +20,14 @@ pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
     path.file_name().ok_or_else(|| PathError::filename_not_found(path))?.to_string()
 }
 
-/// Return the shortest path equivalent to the path by purely lexical processing and thus does
-/// not handle links correctly in some cases, use canonicalize in those cases. It applies
-/// the following rules interatively until no further processing can be done.
+/// Return the shortest equivalent to the given `path` by purely lexical processing
 ///
+/// ### Pitfalls
+/// Purely lexical processing may not handle links correctly in some cases, use canonicalize in
+/// those cases
+///
+/// ### Algorithm
+/// Applies the following rules interatively until no further processing can be done.
 /// 1. Replace multiple slashes with a single
 /// 2. Eliminate each . path name element (the current directory)
 /// 3. Eliminate each inner .. path name element (the parent directory)
@@ -41,7 +46,7 @@ pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
 ///
 /// assert_eq!(sys::clean("./foo/./bar").unwrap(), PathBuf::from("foo/bar"));
 /// ```
-pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+pub fn clean<T: AsRef<Path>>(path: T) -> PathBuf
 {
     // Components already handles the following cases:
     // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
@@ -88,10 +93,10 @@ pub fn clean<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     if is_empty(&path_buf) {
         path_buf.push(".");
     }
-    Ok(path_buf)
+    path_buf
 }
 
-/// Returns the `Path` without its final component, if there is one.
+/// Returns the given `path` without its final component if there is one.
 ///
 /// ### Examples
 /// ```
@@ -106,7 +111,7 @@ pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     Ok(dir.to_path_buf())
 }
 
-/// Expand all environment variables in the path as well as the home directory.
+/// Expand home variable `~` and all environment variables in the path
 ///
 /// ### Examples
 /// ```
@@ -291,10 +296,11 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool
 //     Ok(())
 // }
 
-/// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
-/// Differs from the `join` implementation in that it drops root prefix of the given `path` if
-/// it exists and also drops any trailing '/' on the new resulting path. More closely aligns
-/// with the Golang implementation of join.
+/// Returns a new owned [`PathBuf`] mashed together with the given `path`
+///
+/// ### More closely aligns with Golang's implementation of join
+/// * Drops the root prefix of the given `path` if it exists unlike `join`
+/// * Drops any trailing separator e.g. `/`
 ///
 /// ### Examples
 /// ```
@@ -304,7 +310,7 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool
 /// ```
 pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf
 {
-    let base = trim_prefix(base, "/");
+    let base = trim_prefix(base, path::MAIN_SEPARATOR.to_string());
     let path = dir.as_ref().join(base);
     path.components().collect::<PathBuf>()
 }
@@ -419,8 +425,7 @@ pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBu
     }
 }
 
-// Path extensions
-// -------------------------------------------------------------------------------------------------
+/// Provides additional pathing extension functions for [`Path`] and [`PathBuf`]
 pub trait PathExt
 {
     /// Simply a wrapper for `file_name` to return the final component of the `Path`, if there is
@@ -456,7 +461,7 @@ pub trait PathExt
     ///
     /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
     /// ```
-    fn clean(&self) -> RvResult<PathBuf>;
+    fn clean(&self) -> PathBuf;
 
     // /// Returns the `Path` with the given string concatenated on without injecting
     // /// path separators.
@@ -920,7 +925,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
     /// ```
-    fn clean(&self) -> RvResult<PathBuf>
+    fn clean(&self) -> PathBuf
     {
         clean(self)
     }
@@ -1119,7 +1124,7 @@ mod tests
             ("~/foo", "~/foo"),
         ];
         for test in tests {
-            assert_eq!(sys::clean(test.1).unwrap(), PathBuf::from(test.0));
+            assert_eq!(sys::clean(test.1), PathBuf::from(test.0));
         }
     }
 
@@ -1130,6 +1135,7 @@ mod tests
 
         // Multiple home symbols should fail
         assert_eq!(sys::expand("~/~").unwrap_err().to_string(), PathError::multiple_home_symbols("~/~").to_string());
+        assert_eq!(Path::new("~/~").expand().unwrap_err().to_string(), PathError::multiple_home_symbols("~/~").to_string());
 
         // Only home expansion at the begining of the path is allowed
         assert_eq!(sys::expand("foo/~").unwrap_err().to_string(), PathError::invalid_expansion("foo/~").to_string());

@@ -119,7 +119,7 @@ impl FileSystem for Memfs
         path_buf = path_buf.trim_protocol();
 
         // Clean the resulting path
-        path_buf = path_buf.clean()?;
+        path_buf = path_buf.clean();
 
         // Expand relative directories if needed
         if !path_buf.is_absolute() {

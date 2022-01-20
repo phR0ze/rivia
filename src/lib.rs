@@ -1,8 +1,12 @@
-//! `rivia-core` provides essential macros and extensions to fill in gaps in Rust ergonomics
-//! and reduce the amount of boiler plate code required for common tasks. The intent is to
-//! provide this while keeping dependencies to a minimum.
+//! Provides essential macros and extensions to fill in gaps in Rust ergonomics and reduce the
+//! amount of boiler plate code required for common tasks. The intent is to provide this while
+//! keeping dependencies to a minimum.
 //!
-//! ### Using the `core` crate
+//! ### Provides
+//! * VFS
+//! * Entries
+//!
+//! ### Using Rivia
 //! ```
 //! use rivia::prelude::*;
 //! ```
@@ -38,7 +42,7 @@ pub mod prelude
     pub use crate::{
         errors::*,
         exts::*,
-        sys::{self, Entry, EntryIter, FileSystem, Memfs, MemfsEntry, PathExt, Stdfs, StdfsEntry, Vfs, VfsEntry},
+        sys::{self, Entry, FileSystem, Memfs, MemfsEntry, PathExt, Stdfs, StdfsEntry, Vfs, VfsEntry},
         testing,
     };
 }
@@ -75,8 +79,11 @@ macro_rules! cfgblock {
     };
 }
 
-/// Expands to a string literal of the current function's name similar to the
-/// venerable `file!` or `line!` https://github.com/rust-lang/rfcs/pull/1719.
+/// Expands to a string literal of the current function's name similar to the venerable `file!` or
+/// `line!`.
+///
+/// ### References
+/// * https://github.com/rust-lang/rfcs/pull/1719.
 ///
 /// ### Examples
 /// ```
