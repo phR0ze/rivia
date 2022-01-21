@@ -72,8 +72,32 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Returns an iterator over the given path with recurisve path traversal
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
 
-    /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning the absolute path of the created directory
+    /// Create an empty file similar to the linux touch command
+    ///
+    /// ### Provides
+    /// * handling path expansion and absolute path resolution
+    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent isn't a directory
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but isn't a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.exists("file1"), false);
+    /// assert_eq!(vfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+    /// assert_eq!(vfs.exists("file1"), true);
+    /// ```
+    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
+
+    /// Creates the given directory and any parent directories needed
+    ///
+    /// ### Provides
+    /// * handling path expansion and absolute path resolution
     fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     // fn read(&self, path: &Path) -> RvResult<()>;
@@ -220,6 +244,34 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.exists(path),
             Vfs::Memfs(x) => x.exists(path),
+        }
+    }
+
+    /// Create an empty file similar to the linux touch command
+    ///
+    /// ### Provides
+    /// * handling path expansion and absolute path resolution
+    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent isn't a directory
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but isn't a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.exists("file1"), false);
+    /// assert_eq!(vfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+    /// assert_eq!(vfs.exists("file1"), true);
+    /// ```
+    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.mkfile(path),
+            Vfs::Memfs(x) => x.mkfile(path),
         }
     }
 

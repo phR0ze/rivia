@@ -41,7 +41,7 @@ brace_style = "AlwaysNextLine"
 # Maximum length of a chain to fit on a single line.
 # Default: 60
 # Possible values: any positive integer that is less than or equal to the value specified for max_width
-chain_width = 120
+chain_width = 110
 
 # Whether to use colored output or not.
 # Default value: "Auto"
@@ -112,7 +112,7 @@ fn_args_layout = "Compressed"
 # Maximum width of the args of a function call before falling back to vertical formatting.
 # Default value: 60
 # Possible values: any positive integer that is less than or equal to the value specified for max_width
-fn_call_width = 120
+fn_call_width = 110
 
 # Put single-expression functions on a single line
 # Default value: false
@@ -232,7 +232,7 @@ match_block_trailing_comma = true
 # Maximum width of each line
 # Default value: 100
 # Possible values: any positive integer
-max_width = 140
+max_width = 115
 
 # Merge multiple derives into a single one.
 # Default value: true
@@ -325,7 +325,7 @@ struct_lit_width = 18
 
 struct_variant_width = 35
 
-single_line_if_else_max_width = 120
+single_line_if_else_max_width = 110
 
 # Number of spaces per tab
 # Default value: 4

@@ -496,7 +496,6 @@ mod tests
 {
     use super::*;
     use crate::prelude::*;
-    assert_stdfs_setup_func!();
 
     // #[test]
     // fn test_stdfs_entry_mode() {

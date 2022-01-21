@@ -258,6 +258,54 @@ impl FileSystem for Memfs
         guard.fs.contains_key(&abs)
     }
 
+    /// Create an empty file similar to the linux touch command
+    ///
+    /// ### Provides
+    /// * handling path expansion and absolute path resolution
+    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent isn't a directory
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but isn't a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.exists("file1"), false);
+    /// assert_eq!(vfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+    /// assert_eq!(vfs.exists("file1"), true);
+    /// ```
+    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        let path = self.abs(path)?;
+        let mut guard = self.0.write().unwrap();
+
+        // Validate path components
+        let dir = path.dir()?;
+        if let Some(entry) = guard.fs.get(&dir) {
+            if !entry.is_dir() {
+                return Err(PathError::is_not_dir(dir).into());
+            }
+        } else {
+            return Err(PathError::does_not_exist(dir).into());
+        }
+
+        // Validate the path itself
+        if let Some(entry) = guard.fs.get(&path) {
+            if !entry.is_file() {
+                return Err(PathError::is_not_file(path).into());
+            }
+        } else {
+            guard.fs.insert(path.clone(), MemfsEntry::opts(&path).file().new());
+            guard.data.insert(path.clone(), MemfsFile::default());
+        }
+
+        Ok(path)
+    }
+
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning the absolute path of the created directory
     ///
@@ -429,11 +477,26 @@ mod tests
     }
 
     #[test]
-    fn test_iter_over_entries()
+    fn test_memfs_cwd()
     {
         let memfs = Memfs::new();
-        memfs.mkdir_p(Path::new("foo/bar/blah")).unwrap();
-        let mut iter = memfs.entries(Path::new("/")).unwrap().into_iter();
+        assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
+
+        assert_eq!(memfs.exists("foo"), false);
+        assert_eq!(memfs.exists("foo/bar"), false);
+        memfs.set_cwd("foo").unwrap();
+        memfs.mkdir_p("bar").unwrap();
+        assert_eq!(memfs.exists("foo"), false);
+        assert_eq!(memfs.exists("/foo"), true);
+        assert_eq!(memfs.exists("/foo/bar"), true);
+    }
+
+    #[test]
+    fn test_memfs_entries()
+    {
+        let memfs = Memfs::new();
+        memfs.mkdir_p("foo/bar/blah").unwrap();
+        let mut iter = memfs.entries("/").unwrap().into_iter();
 
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo"));
@@ -443,27 +506,27 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_cwd()
+    fn test_memfs_mkfile()
     {
         let memfs = Memfs::new();
-        assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
 
-        assert_eq!(memfs.exists(Path::new("foo")), false);
-        assert_eq!(memfs.exists(Path::new("foo/bar")), false);
-        memfs.set_cwd("foo").unwrap();
-        memfs.mkdir_p(Path::new("bar")).unwrap();
-        assert_eq!(memfs.exists(Path::new("foo")), false);
-        assert_eq!(memfs.exists(Path::new("/foo")), true);
-        assert_eq!(memfs.exists(Path::new("/foo/bar")), true);
-    }
+        // Error: directory doesn't exist
+        let err = memfs.mkfile("dir1/file1").unwrap_err();
+        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::does_not_exist("/dir1"));
 
-    #[test]
-    fn test_read_write_file() -> RvResult<()>
-    {
-        let memfs = Memfs::new();
-        memfs.write_all(Path::new("foo"), b"foobar")?;
+        // Error: target exists and is not a file
+        memfs.mkdir_p("dir1").unwrap();
+        let err = memfs.mkfile("dir1").unwrap_err();
+        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_file("/dir1"));
 
-        Ok(())
+        // Make a file in the root
+        assert_eq!(memfs.exists("file2"), false);
+        assert!(memfs.mkfile("file2").is_ok());
+        assert_eq!(memfs.exists("file2"), true);
+
+        // Error: parent exists and is not a directory
+        let err = memfs.mkfile("file2/file1").unwrap_err();
+        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_dir("/file2"));
     }
 
     #[test]
@@ -472,16 +535,16 @@ mod tests
         let memfs = Memfs::new();
 
         // Check single top level
-        assert_eq!(memfs.exists(Path::new("foo")), false);
-        memfs.mkdir_p(Path::new("foo")).unwrap();
-        assert_eq!(memfs.exists(Path::new("foo")), true);
-        assert_eq!(memfs.exists(Path::new("/foo")), true);
+        assert_eq!(memfs.exists("foo"), false);
+        memfs.mkdir_p("foo").unwrap();
+        assert_eq!(memfs.exists("foo"), true);
+        assert_eq!(memfs.exists("/foo"), true);
 
         // Check nested
-        memfs.mkdir_p(Path::new("/bar/blah/ugh")).unwrap();
-        assert_eq!(memfs.exists(Path::new("bar/blah/ugh")), true);
-        assert_eq!(memfs.exists(Path::new("/bar/blah/ugh")), true);
-        assert_eq!(memfs.exists(Path::new("/foo")), true);
+        memfs.mkdir_p("/bar/blah/ugh").unwrap();
+        assert_eq!(memfs.exists("bar/blah/ugh"), true);
+        assert_eq!(memfs.exists("/bar/blah/ugh"), true);
+        assert_eq!(memfs.exists("/foo"), true);
     }
 
     #[test]
@@ -492,11 +555,11 @@ mod tests
 
         // Add a directory in another thread
         let thread = thread::spawn(move || {
-            memfs2.mkdir_p(Path::new("foo")).unwrap();
+            memfs2.mkdir_p("foo").unwrap();
         });
 
         // Wait for the directory to exist in the main thread
-        while !memfs1.exists(Path::new("foo")) {
+        while !memfs1.exists("foo") {
             thread::sleep(Duration::from_millis(5));
         }
         thread.join().unwrap();
