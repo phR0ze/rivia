@@ -262,9 +262,11 @@ impl Stdfs
     //     Stdfs::gid(&self)
     // }
 
-    /// Returns true if the given path exists and is a directory. Handles path expansion.
-    /// Only looks at the given path thus a link will not be considered a directory even
-    /// if it points to a directory.
+    /// Returns true if the given path exists and is a directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a directory return false
     ///
     /// ### Examples
     /// ```
@@ -283,9 +285,11 @@ impl Stdfs
         }
     }
 
-    /// Returns true if the given path exists and is a file. Handles path expansion.
-    /// Only looks at the given path thus a link will not be considered a file even
-    /// if it points to a file.
+    /// Returns true if the given path exists and is a file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a file return false
     ///
     /// ### Examples
     /// ```
@@ -295,7 +299,7 @@ impl Stdfs
     /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_file");
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
-    /// assert_stdfs_touch!(&file1);
+    /// assert_stdfs_mkfile!(&file1);
     /// assert_eq!(Stdfs::is_file(&file1), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
@@ -968,6 +972,52 @@ impl FileSystem for Stdfs
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
         Stdfs::exists(path)
+    }
+
+    /// Returns true if the given path exists and is a directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a directory return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let stdfs = Stdfs::new();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_method_is_dir");
+    /// assert_eq!(stdfs.is_dir(&tmpdir), true);
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert_eq!(stdfs.is_dir(&tmpdir), false);
+    /// ```
+    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::is_dir(path)
+    }
+
+    /// Returns true if the given path exists and is a file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a file return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let stdfs = Stdfs::new();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_method_is_file");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_eq!(stdfs.is_file(&file1), false);
+    /// assert_stdfs_mkfile!(&file1);
+    /// assert_eq!(stdfs.is_file(&file1), true);
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::is_file(path)
     }
 
     /// Create an empty file similar to the linux touch command

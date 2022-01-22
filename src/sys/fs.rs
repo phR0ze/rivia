@@ -104,6 +104,40 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool;
 
+    /// Returns true if the given path exists and is a directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a directory return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_dir("foo"), false);
+    /// let tmpdir = vfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(vfs.is_dir(&tmpdir), true);
+    /// ```
+    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool;
+
+    /// Returns true if the given path exists and is a file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a file return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_file("foo"), false);
+    /// let tmpdir = vfs.mkfile("foo").unwrap();
+    /// assert_eq!(vfs.is_file(&tmpdir), true);
+    /// ```
+    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool;
+
     /// Creates the given directory and any parent directories needed
     ///
     /// ### Provides
@@ -293,6 +327,52 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.exists(path),
             Vfs::Memfs(x) => x.exists(path),
+        }
+    }
+
+    /// Returns true if the given path exists and is a directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a directory return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_dir("foo"), false);
+    /// let tmpdir = vfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(vfs.is_dir(&tmpdir), true);
+    /// ```
+    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        match self {
+            Vfs::Stdfs(x) => x.is_dir(path),
+            Vfs::Memfs(x) => x.is_dir(path),
+        }
+    }
+
+    /// Returns true if the given path exists and is a file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a file return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_file("foo"), false);
+    /// let tmpfile = vfs.mkfile("foo").unwrap();
+    /// assert_eq!(vfs.is_file(&tmpfile), true);
+    /// ```
+    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        match self {
+            Vfs::Stdfs(x) => x.is_file(path),
+            Vfs::Memfs(x) => x.is_file(path),
         }
     }
 

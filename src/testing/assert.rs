@@ -124,7 +124,25 @@ macro_rules! assert_stdfs_setup {
     };
 }
 
-/// Assert that a file or directory exists
+/// Assert that a Memfs file or directory exists
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_exists!(&memfs, "/");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_exists {
+    ($memfs:expr, $path:expr) => {
+        if !$memfs.exists($path) {
+            panic_msg!("assert_memfs_exists!", "doesn't exist", $path);
+        }
+    };
+}
+
+/// Assert that a Stdfs file or directory exists
 ///
 /// ### Examples
 /// ```
@@ -148,7 +166,25 @@ macro_rules! assert_stdfs_exists {
     };
 }
 
-/// Assert the given path doesn't exist
+/// Assert the given Memfs path doesn't exist
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// assert_stdfs_no_exists!("tests/temp/assert_stdfs_no_exists");
+/// assert_stdfs_no_exists!("tests/temp/assert_stdfs_no_exists/file");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_no_exists {
+    ($memfs:expr, $path:expr) => {
+        if $memfs.exists($path) {
+            panic_msg!("assert_memfs_no_exists!", "still exists", $path);
+        }
+    };
+}
+
+/// Assert the given Stdfs path doesn't exist
 ///
 /// ### Examples
 /// ```
@@ -317,7 +353,52 @@ macro_rules! assert_stdfs_mkdir_p {
     };
 }
 
-/// Assert the creation of a file. If the file exists no change is made
+// /// Assert the creation of a Memfs file. If the file exists no change is made
+// ///
+// /// ### Examples
+// /// ```
+// /// use rivia::prelude::*;
+// ///
+// /// let memfs = Memfs::new();
+// /// let tmpdir = PathBuf::from(testing::TEST_TEMP_DIR);
+// /// let file1 = tmpdir.mash("file1");
+// /// assert_memfs_no_file!(&file1);
+// /// assert_memfs_mkfile!(&file1);
+// /// assert_memfs_is_file!(&file1);
+// /// ```
+// #[macro_export]
+// macro_rules! assert_memfs_mkfile {
+//     ($path:expr) => {
+//         let target = match Stdfs::abs($path) {
+//             Ok(x) => x,
+//             _ => panic_msg!("assert_stdfs_mkfile!", "failed to get absolute path", $path),
+//         };
+//         if Stdfs::exists(&target) {
+//             if !Stdfs::is_file(&target) {
+//                 panic_msg!("assert_stdfs_mkfile!", "is not a file", &target);
+//             }
+//         } else {
+//             match Stdfs::mkfile(&target) {
+//                 Ok(x) => {
+//                     if &x != &target {
+//                         panic_compare_msg!(
+//                             "assert_stdfs_mkfile!",
+//                             "created file path doesn't match the target",
+//                             &x,
+//                             &target
+//                         );
+//                     }
+//                 },
+//                 _ => panic_msg!("assert_stdfs_mkfile!", "failed while creating file", &target),
+//             };
+//             if !Stdfs::is_file(&target) {
+//                 panic_msg!("assert_stdfs_mkfile!", "file doesn't exist", &target);
+//             }
+//         }
+//     };
+// }
+
+/// Assert the creation of a Stdfs file. If the file exists no change is made
 ///
 /// ### Examples
 /// ```
@@ -479,6 +560,79 @@ mod tests
     use crate::prelude::*;
 
     assert_stdfs_setup_func!();
+
+    #[test]
+    fn test_assert_memfs_exists_and_no_exists()
+    {
+        let memfs = Memfs::new();
+        let tmpdir = PathBuf::from(testing::TEST_TEMP_DIR);
+
+        // Test file exists
+        {
+            let file = sys::mash(&tmpdir, "file");
+            assert_memfs_no_exists!(&memfs, &file);
+            assert!(!memfs.exists(&file));
+            // assert_memfs_mkfile!(&file);
+            // assert_memfs_exists!(&memfs, &file);
+            // assert!(memfs.exists(&file));
+
+            // assert_memfs_remove!(&file);
+            // assert_memfs_no_exists!(&file);
+            // assert!(!memfs.exists(&file));
+        }
+
+        // // Test dir exists
+        // {
+        //     let dir1 = sys::mash(&tmpdir, "dir1");
+        //     assert_stdfs_no_exists!(&dir1);
+        //     assert!(!Stdfs::exists(&dir1));
+        //     assert_stdfs_mkdir_p!(&dir1);
+        //     assert_stdfs_exists!(&dir1);
+        //     assert!(Stdfs::exists(&dir1));
+
+        //     assert_stdfs_remove_all!(&dir1);
+        //     assert_stdfs_no_exists!(&dir1);
+        //     assert!(!Stdfs::exists(&dir1));
+        // }
+
+        // // exists: bad abs
+        // let result = testing::capture_panic(|| {
+        //     assert_stdfs_exists!("");
+        // });
+        // assert_eq!(
+        //     result.unwrap_err().to_string(),
+        //     "\nassert_stdfs_exists!: failed to get absolute path\n  target: \"\"\n"
+        // );
+
+        // // exists: doesn't exist
+        // let file1 = sys::mash(&tmpdir, "file1");
+        // let result = testing::capture_panic(|| {
+        //     assert_stdfs_exists!(&file1);
+        // });
+        // assert_eq!(
+        //     result.unwrap_err().to_string(),
+        //     format!("\nassert_stdfs_exists!: doesn't exist\n  target: {:?}\n", &file1)
+        // );
+
+        // // no exists: bad abs
+        // let result = testing::capture_panic(|| {
+        //     assert_stdfs_no_exists!("");
+        // });
+        // assert_eq!(
+        //     result.unwrap_err().to_string(),
+        //     "\nassert_stdfs_no_exists!: failed to get absolute path\n  target: \"\"\n"
+        // );
+
+        // // no exists: does exist
+        // assert_stdfs_mkfile!(&file1);
+        // let result = testing::capture_panic(|| {
+        //     assert_stdfs_no_exists!(&file1);
+        // });
+        // assert_eq!(
+        //     result.unwrap_err().to_string(),
+        //     format!("\nassert_stdfs_no_exists!: still exists\n  target: {:?}\n", &file1)
+        // );
+    }
 
     #[test]
     fn test_assert_stdfs_exists_and_no_exists()

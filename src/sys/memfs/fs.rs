@@ -284,6 +284,58 @@ impl FileSystem for Memfs
         guard.fs.contains_key(&abs)
     }
 
+    /// Returns true if the given path exists and is a directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a directory return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.is_dir("foo"), false);
+    /// let tmpdir = memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.is_dir(&tmpdir), true);
+    /// ```
+    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        let abs = unwrap_or_false!(self.abs(path));
+        let guard = self.0.read().unwrap();
+
+        match guard.fs.get(&abs) {
+            Some(entry) => entry.is_dir(),
+            None => false,
+        }
+    }
+
+    /// Returns true if the given path exists and is a file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a file return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.is_file("foo"), false);
+    /// let tmpfile = memfs.mkfile("foo").unwrap();
+    /// assert_eq!(memfs.is_file(&tmpfile), true);
+    /// ```
+    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        let abs = unwrap_or_false!(self.abs(path));
+        let guard = self.0.read().unwrap();
+
+        match guard.fs.get(&abs) {
+            Some(entry) => entry.is_file(),
+            None => false,
+        }
+    }
+
     /// Creates the given directory and any parent directories needed
     ///
     /// ### Provides

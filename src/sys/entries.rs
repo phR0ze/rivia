@@ -830,6 +830,29 @@ mod tests
         assert_stdfs_remove_all!(&tmpdir);
     }
 
+    // #[test]
+    // fn test_memfs_multiple()
+    // {
+    //     let memfs = Memfs::new();
+    //     let tmpdir = PathBuf::from(testing::TEST_TEMP_DIR);
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let file1 = dir1.mash("file1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let file2 = dir2.mash("file2");
+    //     let file3 = tmpdir.mash("file3");
+    //     let link1 = tmpdir.mash("link1");
+
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkfile!(&file2);
+    //     assert_stdfs_mkfile!(&file3);
+    //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &file3, &dir1, &dir2, &file2, &file1, &link1]);
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
     #[test]
     fn test_stdfs_multiple()
     {
