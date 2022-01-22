@@ -486,10 +486,19 @@ impl Iterator for EntriesIter
 #[cfg(test)]
 mod tests
 {
-    // use std::path::{Path, PathBuf};
+    use crate::prelude::*;
+    assert_stdfs_setup_func!();
 
-    // use crate::prelude::*;
-    // assert_stdfs_setup_func!();
+    #[test]
+    fn test_memfs_single_file()
+    {
+        let memfs = Memfs::new();
+        assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+        let mut iter = memfs.entries("/").unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/file1"));
+        assert!(iter.next().is_none());
+    }
 
     // #[test]
     // fn test_vfs_entries_contents_first()
@@ -928,23 +937,41 @@ mod tests
     //     assert_stdfs_remove_all!(&tmpdir);
     // }
 
-    // #[test]
-    // fn test_vfs_entries_single()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = tmpdir.mash("file1");
+    #[test]
+    fn test_memfs_simple_nesting()
+    {
+        // Single directory
+        let memfs = Memfs::new();
+        assert_eq!(memfs.mkdir_p("dir1").unwrap(), PathBuf::from("/dir1"));
+        let mut iter = memfs.entries("dir1").unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/dir1"));
+        assert!(iter.next().is_none());
 
-    //     // Single directory
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-    //     assert!(iter.next().is_none());
+        // Single file
+        assert_eq!(memfs.mkfile("dir1/file1").unwrap(), PathBuf::from("/dir1/file1"));
+        let mut iter = memfs.entries("dir1").unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/dir1"));
+        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/dir1/file1"));
+        assert!(iter.next().is_none());
+    }
 
-    //     // Single file
-    //     assert!(Stdfs::mkfile(&file1).is_ok());
-    //     let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert!(iter.next().is_none());
+    #[test]
+    fn test_stdfs_entries_single()
+    {
+        let tmpdir = assert_stdfs_setup!();
+        let file1 = tmpdir.mash("file1");
 
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+        // Single directory
+        let mut iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        assert!(iter.next().is_none());
+
+        // Single file
+        assert!(Stdfs::mkfile(&file1).is_ok());
+        let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert!(iter.next().is_none());
+
+        assert_stdfs_remove_all!(&tmpdir);
+    }
 }

@@ -24,11 +24,10 @@ fn main()
 
 fn vfs_test(vfs: &Vfs) -> RvResult<()>
 {
-    // 1. Create the test directory and test files
     let dir1 = vfs.mkdir_p(testing::TEST_TEMP_DIR)?;
-    // vfs.mkfile(dir1.mash("file1"))?;
+    let file1 = vfs.mkfile(dir1.mash("file1"))?;
 
-    for entry in vfs.entries(testing::TEST_TEMP_DIR)?.into_iter() {
+    for entry in vfs.entries(dir1)?.into_iter() {
         println!("{}", entry?.path().display());
     }
 

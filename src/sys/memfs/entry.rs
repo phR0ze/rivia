@@ -313,19 +313,6 @@ impl Entry for MemfsEntry
         self.mode
     }
 
-    // /// Create an iterator from the given path to iterate over just the contents of this path
-    // /// non-recursively.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // /// ```
-    // fn iter(&self) -> RvResult<EntryIter>
-    // {
-    //     // self.entries(false);
-    //     // MemfsEntry::iter(&self.path, false)
-    // }
-
     /// Up cast the trait type to the enum wrapper
     ///
     /// ### Examples
@@ -410,103 +397,10 @@ impl Iterator for MemfsEntryIter
 #[cfg(test)]
 mod tests
 {
-    use crate::prelude::*;
-
-    #[test]
-    fn test_iter()
-    {
-        // MemfsEntryIter::new();
-    }
+    // use crate::prelude::*;
 
     // #[test]
-    // fn test_add_remove() -> RvResult<()>
+    // fn test_memfsentryiter_single_file()
     // {
-    //     // Add a file to a directory
-    //     let mut memfile1 = MemfsEntry::opts("/").new();
-    //     assert_eq!(memfile1.entries.len(), 0);
-    //     let memfile2 = MemfsEntry::opts("/foo").new();
-    //     memfile1.add_child(memfile2.clone())?;
-    //     assert_eq!(memfile1.entries.len(), 1);
-
-    //     // Remove a file from a directory
-    //     assert_eq!(memfile1.remove_child(&memfile2.path)?, Some(memfile2));
-    //     assert_eq!(memfile1.entries.len(), 0);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn test_remove_non_existing()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").new();
-    //     assert_eq!(memfile.remove_child("blah").unwrap(), None);
-    // }
-
-    // #[test]
-    // fn test_remove_from_file_fails()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").file().new();
-    //     assert_eq!(memfile.remove_child("bar").unwrap_err().to_string(), "Target path is not a
-    // directory: foo"); }
-
-    // #[test]
-    // fn test_add_already_exists_fails()
-    // {
-    //     let mut memfile1 = MemfsEntry::opts("/").new();
-    //     let memfile2 = MemfsEntry::opts("/foo").file().new();
-    //     memfile1.add_child(memfile2.clone()).unwrap();
-    //     assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path exists
-    // already: /foo"); }
-
-    // #[test]
-    // fn test_add_mismatch_path_fails()
-    // {
-    //     let mut memfile1 = MemfsEntry::opts("/").new();
-    //     let memfile2 = MemfsEntry::opts("foo").file().new();
-    //     assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path's
-    // directory doesn't match parent: /"); }
-
-    // #[test]
-    // fn test_add_to_link_fails()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").link().new();
-    //     assert_eq!(memfile.add_child(MemfsEntry::opts("").new()).unwrap_err().to_string(),
-    // "Target path filename not found: "); }
-
-    // #[test]
-    // fn test_add_to_file_fails()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").file().new();
-    //     assert_eq!(memfile.add_child(MemfsEntry::opts("").new()).unwrap_err().to_string(),
-    // "Target path is not a directory: foo"); }
-
-    // #[test]
-    // fn test_ordering_and_equality()
-    // {
-    //     let entry1 = MemfsEntry::opts("1").new();
-    //     let entry2 = MemfsEntry::opts("2").new();
-    //     let entry3 = MemfsEntry::opts("3").new();
-
-    //     let mut entries = vec![&entry1, &entry3, &entry2];
-    //     entries.sort();
-
-    //     assert_eq!(entries[0], &entry1);
-    //     assert_ne!(entries[1], &entry3);
-    //     assert_eq!(entries[1], &entry2);
-    //     assert_eq!(entries[2], &entry3);
-    // }
-
-    // #[test]
-    // fn test_not_readable_writable_file() -> RvResult<()>
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").new();
-
-    //     // Not readable
-    //     let mut buf = [0; 1];
-    //     assert_eq!(memfile.read(&mut buf).unwrap_err().to_string(), "Target path 'foo' is not a
-    // readable file");
-
-    //     // Not writable
-    //     assert_eq!(memfile.write(b"foobar1, ").unwrap_err().to_string(), "Target path 'foo' is
-    // not a writable file");     Ok(())
     // }
 }

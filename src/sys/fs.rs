@@ -48,8 +48,11 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>;
 
-    /// Set the current working directory. The path is converted to an absolute value based on the
-    /// pre-existing current working directory
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
     ///
     /// ### Errors
     /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
@@ -64,13 +67,62 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// vfs.set_cwd("foo").unwrap();
     /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
     /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
-    /// Returns true if the `Path` exists. Handles path expansion.
+    /// Returns an iterator over the given path
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * recursive path traversal
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_entries");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_stdfs_mkfile!(&file1);
+    /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    /// assert!(iter.next().is_none());
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
+
+    /// Returns true if the `path` exists
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.exists("/"), true);
+    /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool;
 
-    /// Returns an iterator over the given path with recurisve path traversal
-    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
+    /// Creates the given directory and any parent directories needed
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// # Errors
+    /// * io::Error if its unable to create the directory
+    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.exists("foo"), false);
+    /// assert_eq!(vfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(vfs.exists("foo"), true);
+    /// ```
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     /// Create an empty file similar to the linux touch command
     ///
@@ -93,12 +145,6 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// assert_eq!(vfs.exists("file1"), true);
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
-
-    /// Creates the given directory and any parent directories needed
-    ///
-    /// ### Provides
-    /// * handling path expansion and absolute path resolution
-    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     // fn read(&self, path: &Path) -> RvResult<()>;
 
@@ -193,8 +239,8 @@ impl FileSystem for Vfs
     ///
     /// let vfs = Vfs::memfs();
     /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
-    /// vfs.mkdir_p("foo").unwrap();
-    /// vfs.set_cwd("foo").unwrap();
+    /// assert_eq!(vfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(vfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
     /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>
@@ -205,8 +251,11 @@ impl FileSystem for Vfs
         }
     }
 
-    /// Set the current working directory. The path is converted to an absolute value based on the
-    /// pre-existing current working directory
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
     ///
     /// ### Errors
     /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
@@ -217,11 +266,11 @@ impl FileSystem for Vfs
     ///
     /// let vfs = Vfs::memfs();
     /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
-    /// vfs.mkdir_p("foo").unwrap();
-    /// vfs.set_cwd("foo").unwrap();
+    /// assert_eq!(vfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(vfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
     /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
     /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         match self {
             Vfs::Stdfs(x) => x.set_cwd(path),

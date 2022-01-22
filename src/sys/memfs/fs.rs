@@ -86,9 +86,14 @@ impl fmt::Display for Memfs
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         let guard = self.0.read().unwrap();
-        writeln!(f, "cwd: {}", guard.cwd.display())?;
-        writeln!(f, "root: {}", guard.root.display())?;
+        writeln!(f, "[cwd]: {}", guard.cwd.display())?;
+        writeln!(f, "[root]: {}", guard.root.display())?;
+        writeln!(f, "\n[fs]:")?;
         for key in guard.fs.keys().sorted() {
+            writeln!(f, "{}", key.display())?;
+        }
+        writeln!(f, "\n[files]:")?;
+        for key in guard.data.keys().sorted() {
             writeln!(f, "{}", key.display())?;
         }
         Ok(())
@@ -165,8 +170,8 @@ impl FileSystem for Memfs
     ///
     /// let memfs = Memfs::new();
     /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
-    /// memfs.mkdir_p("foo").unwrap();
-    /// memfs.set_cwd("foo").unwrap();
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(memfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
     /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>
@@ -175,8 +180,11 @@ impl FileSystem for Memfs
         Ok(fs.cwd.clone())
     }
 
-    /// Set the current working directory. The path is converted to an absolute value based on the
-    /// pre-existing current working directory
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
     ///
     /// ### Errors
     /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
@@ -187,22 +195,40 @@ impl FileSystem for Memfs
     ///
     /// let memfs = Memfs::new();
     /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
-    /// memfs.mkdir_p("foo").unwrap();
-    /// memfs.set_cwd("foo").unwrap();
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(memfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
     /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
     /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         let path = self.abs(path)?;
         let mut guard = self.0.write().unwrap();
         if !guard.fs.contains_key(&path) {
             return Err(PathError::does_not_exist(&path).into());
         }
-        guard.cwd = path;
-        Ok(())
+        guard.cwd = path.clone();
+        Ok(path)
     }
 
     /// Returns an iterator over the given path
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * recursive path traversal
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(memfs.mkfile("foo/file").unwrap(), PathBuf::from("/foo/file"));
+    /// let mut iter = memfs.entries("/").unwrap().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo"));
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/file"));
+    /// assert!(iter.next().is_none());
+    /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
         // Create closure with cloned shared memfs instance
@@ -236,10 +262,10 @@ impl FileSystem for Memfs
         })
     }
 
-    /// Returns true if the `Path` exists. Handles path expansion.
+    /// Returns true if the `path` exists
     ///
-    /// # Arguments
-    /// * `path` - the directory path to validate exists
+    /// ### Provides
+    /// * path expansion and absolute path resolution
     ///
     /// ### Examples
     /// ```
@@ -247,7 +273,7 @@ impl FileSystem for Memfs
     ///
     /// let mut memfs = Memfs::new();
     /// assert_eq!(memfs.exists("foo"), false);
-    /// memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
     /// assert_eq!(memfs.exists("foo"), true);
     /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool
@@ -258,62 +284,13 @@ impl FileSystem for Memfs
         guard.fs.contains_key(&abs)
     }
 
-    /// Create an empty file similar to the linux touch command
+    /// Creates the given directory and any parent directories needed
     ///
     /// ### Provides
-    /// * handling path expansion and absolute path resolution
-    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
-    ///
-    /// ### Errors
-    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
-    /// * PathError::IsNotDir(PathBuf) when the given path's parent isn't a directory
-    /// * PathError::IsNotFile(PathBuf) when the given path exists but isn't a file
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.exists("file1"), false);
-    /// assert_eq!(vfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
-    /// assert_eq!(vfs.exists("file1"), true);
-    /// ```
-    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
-    {
-        let path = self.abs(path)?;
-        let mut guard = self.0.write().unwrap();
-
-        // Validate path components
-        let dir = path.dir()?;
-        if let Some(entry) = guard.fs.get(&dir) {
-            if !entry.is_dir() {
-                return Err(PathError::is_not_dir(dir).into());
-            }
-        } else {
-            return Err(PathError::does_not_exist(dir).into());
-        }
-
-        // Validate the path itself
-        if let Some(entry) = guard.fs.get(&path) {
-            if !entry.is_file() {
-                return Err(PathError::is_not_file(path).into());
-            }
-        } else {
-            guard.fs.insert(path.clone(), MemfsEntry::opts(&path).file().new());
-            guard.data.insert(path.clone(), MemfsFile::default());
-        }
-
-        Ok(path)
-    }
-
-    /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning the absolute path of the created directory
-    ///
-    /// # Arguments
-    /// * `path` - the target directory to create
+    /// * path expansion and absolute path resolution
     ///
     /// # Errors
-    /// * PathError::IsNotDir(PathBuf) when this entry already exists and is not a directory.
+    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
     ///
     /// ### Examples
     /// ```
@@ -321,7 +298,7 @@ impl FileSystem for Memfs
     ///
     /// let mut memfs = Memfs::new();
     /// assert_eq!(memfs.exists("foo"), false);
-    /// memfs.mkdir_p("foo").unwrap();
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
     /// assert_eq!(memfs.exists("foo"), true);
     /// ```
     fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
@@ -349,6 +326,62 @@ impl FileSystem for Memfs
             }
         }
         Ok(abs)
+    }
+
+    /// Create an empty file similar to the linux touch command
+    ///
+    /// ### Provides
+    /// * handling path expansion and absolute path resolution
+    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent isn't a directory
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but isn't a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.exists("file1"), false);
+    /// assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+    /// assert_eq!(memfs.exists("file1"), true);
+    /// ```
+    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        let path = self.abs(path)?;
+        let mut guard = self.0.write().unwrap();
+
+        // Validate path components
+        let dir = path.dir()?;
+        if let Some(entry) = guard.fs.get(&dir) {
+            if !entry.is_dir() {
+                return Err(PathError::is_not_dir(dir).into());
+            }
+        } else {
+            return Err(PathError::does_not_exist(dir).into());
+        }
+
+        // Validate the path itself
+        if let Some(entry) = guard.fs.get(&path) {
+            if !entry.is_file() {
+                return Err(PathError::is_not_file(path).into());
+            }
+        } else {
+            // Add the new file to the file system
+            guard.fs.insert(path.clone(), MemfsEntry::opts(&path).file().new());
+
+            // Add the new file to the data system
+            guard.data.insert(path.clone(), MemfsFile::default());
+
+            // Update the parent directory
+            if let Some(parent) = guard.fs.get_mut(&dir) {
+                parent.add(path.base()?)?;
+            }
+        }
+
+        Ok(path)
     }
 
     /// Read all data from the given file and return it as a String
@@ -495,9 +528,11 @@ mod tests
     fn test_memfs_entries()
     {
         let memfs = Memfs::new();
-        memfs.mkdir_p("foo/bar/blah").unwrap();
-        let mut iter = memfs.entries("/").unwrap().into_iter();
+        assert_eq!(memfs.mkdir_p("foo/bar").unwrap(), PathBuf::from("/foo/bar"));
+        assert_eq!(memfs.mkfile("foo/bar/blah").unwrap(), PathBuf::from("/foo/bar/blah"));
 
+        println!("{}", memfs);
+        let mut iter = memfs.entries("/").unwrap().into_iter();
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo"));
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/bar"));
@@ -520,13 +555,18 @@ mod tests
         assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_file("/dir1"));
 
         // Make a file in the root
-        assert_eq!(memfs.exists("file2"), false);
-        assert!(memfs.mkfile("file2").is_ok());
-        assert_eq!(memfs.exists("file2"), true);
+        assert_eq!(memfs.exists("file1"), false);
+        assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+        assert_eq!(memfs.exists("file1"), true);
+
+        // Make a file in a directory
+        assert_eq!(memfs.exists("dir1/file2"), false);
+        assert_eq!(memfs.mkfile("dir1/file2").unwrap(), PathBuf::from("/dir1/file2"));
+        assert_eq!(memfs.exists("dir1/file2"), true);
 
         // Error: parent exists and is not a directory
-        let err = memfs.mkfile("file2/file1").unwrap_err();
-        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_dir("/file2"));
+        let err = memfs.mkfile("file1/file2").unwrap_err();
+        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_dir("/file1"));
     }
 
     #[test]
@@ -564,4 +604,96 @@ mod tests
         }
         thread.join().unwrap();
     }
+
+    // #[test]
+    // fn test_add_remove() -> RvResult<()>
+    // {
+    //     // Add a file to a directory
+    //     let mut memfile1 = MemfsEntry::opts("/").new();
+    //     assert_eq!(memfile1.entries.len(), 0);
+    //     let memfile2 = MemfsEntry::opts("/foo").new();
+    //     memfile1.add_child(memfile2.clone())?;
+    //     assert_eq!(memfile1.entries.len(), 1);
+
+    //     // Remove a file from a directory
+    //     assert_eq!(memfile1.remove_child(&memfile2.path)?, Some(memfile2));
+    //     assert_eq!(memfile1.entries.len(), 0);
+    //     Ok(())
+    // }
+
+    // #[test]
+    // fn test_remove_non_existing()
+    // {
+    //     let mut memfile = MemfsEntry::opts("foo").new();
+    //     assert_eq!(memfile.remove_child("blah").unwrap(), None);
+    // }
+
+    // #[test]
+    // fn test_remove_from_file_fails()
+    // {
+    //     let mut memfile = MemfsEntry::opts("foo").file().new();
+    //     assert_eq!(memfile.remove_child("bar").unwrap_err().to_string(), "Target path is not a
+    // directory: foo"); }
+
+    // #[test]
+    // fn test_add_already_exists_fails()
+    // {
+    //     let mut memfile1 = MemfsEntry::opts("/").new();
+    //     let memfile2 = MemfsEntry::opts("/foo").file().new();
+    //     memfile1.add_child(memfile2.clone()).unwrap();
+    //     assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path exists
+    // already: /foo"); }
+
+    // #[test]
+    // fn test_add_mismatch_path_fails()
+    // {
+    //     let mut memfile1 = MemfsEntry::opts("/").new();
+    //     let memfile2 = MemfsEntry::opts("foo").file().new();
+    //     assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path's
+    // directory doesn't match parent: /"); }
+
+    // #[test]
+    // fn test_add_to_link_fails()
+    // {
+    //     let mut memfile = MemfsEntry::opts("foo").link().new();
+    //     assert_eq!(memfile.add_child(MemfsEntry::opts("").new()).unwrap_err().to_string(),
+    // "Target path filename not found: "); }
+
+    // #[test]
+    // fn test_add_to_file_fails()
+    // {
+    //     let mut memfile = MemfsEntry::opts("foo").file().new();
+    //     assert_eq!(memfile.add_child(MemfsEntry::opts("").new()).unwrap_err().to_string(),
+    // "Target path is not a directory: foo"); }
+
+    // #[test]
+    // fn test_ordering_and_equality()
+    // {
+    //     let entry1 = MemfsEntry::opts("1").new();
+    //     let entry2 = MemfsEntry::opts("2").new();
+    //     let entry3 = MemfsEntry::opts("3").new();
+
+    //     let mut entries = vec![&entry1, &entry3, &entry2];
+    //     entries.sort();
+
+    //     assert_eq!(entries[0], &entry1);
+    //     assert_ne!(entries[1], &entry3);
+    //     assert_eq!(entries[1], &entry2);
+    //     assert_eq!(entries[2], &entry3);
+    // }
+
+    // #[test]
+    // fn test_not_readable_writable_file() -> RvResult<()>
+    // {
+    //     let mut memfile = MemfsEntry::opts("foo").new();
+
+    //     // Not readable
+    //     let mut buf = [0; 1];
+    //     assert_eq!(memfile.read(&mut buf).unwrap_err().to_string(), "Target path 'foo' is not a
+    // readable file");
+
+    //     // Not writable
+    //     assert_eq!(memfile.write(b"foobar1, ").unwrap_err().to_string(), "Target path 'foo' is
+    // not a writable file");     Ok(())
+    // }
 }

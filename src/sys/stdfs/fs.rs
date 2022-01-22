@@ -96,7 +96,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("pathext_trait_chmod");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_chmod");
     /// let file1 = tmpdir.mash("file1");
     /// assert_mkfile!(&file1);
     /// assert!(file1.chmod(0o644).is_ok());
@@ -143,8 +143,11 @@ impl Stdfs
         Ok(path)
     }
 
-    /// Set the current working directory. The path is converted to an absolute value based on the
-    /// pre-existing current working directory
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
     ///
     /// ### Errors
     /// * io::Error, kind: NotFound when the given path doesn't exist
@@ -156,20 +159,73 @@ impl Stdfs
     /// Stdfs::set_cwd(Stdfs::cwd().unwrap().mash("tests"));
     /// assert_eq!(Stdfs::cwd().unwrap().base().unwrap(), "tests".to_string());
     /// ```
-    pub fn set_cwd<T: AsRef<Path>>(path: T) -> RvResult<()>
+    pub fn set_cwd<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     {
         let path = Stdfs::abs(path)?;
-        std::env::set_current_dir(path)?;
-        Ok(())
+        std::env::set_current_dir(&path)?;
+        Ok(path)
     }
 
-    /// Returns true if the `Path` exists. Handles path expansion.
+    /// Returns an iterator over the given path
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * recursive path traversal
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(Path::new("/etc").exists(), true);
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_entries");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_stdfs_mkfile!(&file1);
+    /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    /// assert!(iter.next().is_none());
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    pub fn entries<T: AsRef<Path>>(path: T) -> RvResult<Entries>
+    {
+        let iter_func = |path: &Path, follow: bool| -> RvResult<EntryIter> {
+            Ok(EntryIter {
+                path: path.to_path_buf(),
+                cached: false,
+                following: follow,
+                iter: Box::new(StdfsEntryIter {
+                    dir: fs::read_dir(path)?,
+                }),
+            })
+        };
+
+        Ok(Entries {
+            root: StdfsEntry::from(path)?.upcast(),
+            dirs: Default::default(),
+            files: Default::default(),
+            follow: false,
+            min_depth: 0,
+            max_depth: std::usize::MAX,
+            max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
+            dirs_first: false,
+            files_first: false,
+            contents_first: false,
+            sort_by_name: false,
+            pre_op: None,
+            sort: None,
+            iter_from: Box::new(iter_func),
+        })
+    }
+
+    /// Returns true if the `path` exists
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Stdfs::exists("/etc"), true);
     /// ```
     pub fn exists<T: AsRef<Path>>(path: T) -> bool
     {
@@ -215,7 +271,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_is_dir");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_dir");
     /// assert_eq!(Stdfs::is_dir(&tmpdir), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
@@ -236,7 +292,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_is_file");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_file");
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
     /// assert_stdfs_touch!(&file1);
@@ -258,7 +314,7 @@ impl Stdfs
     // /// use rivia::prelude::*;
     // ///
     // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("pathext_trait_is_exec");
+    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_exec");
     // /// let file1 = tmpdir.mash("file1");
     // /// assert!(Stdfs::mkfile_m(&file1, 0o644).is_ok());
     // /// assert_eq!(file1.is_exec(), false);
@@ -290,7 +346,7 @@ impl Stdfs
     // /// use rivia::prelude::*;
     // ///
     // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("pathext_trait_is_readonly");
+    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_readonly");
     // /// let file1 = tmpdir.mash("file1");
     // /// assert!(Stdfs::mkfile_m(&file1, 0o644).is_ok());
     // /// assert_eq!(file1.is_readonly(), false);
@@ -310,7 +366,7 @@ impl Stdfs
     // /// use rivia::prelude::*;
     // ///
     // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("pathext_trait_is_symlink");
+    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_symlink");
     // /// let file1 = tmpdir.mash("file1");
     // /// let link1 = tmpdir.mash("link1");
     // /// assert_mkfile!(&file1);
@@ -329,7 +385,7 @@ impl Stdfs
     // /// use rivia::prelude::*;
     // ///
     // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("pathext_trait_is_symlink_dir");
+    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_symlink_dir");
     // /// let dir1 = tmpdir.mash("dir1");
     // /// let link1 = tmpdir.mash("link1");
     // /// assert_mkdir!(&dir1);
@@ -349,7 +405,7 @@ impl Stdfs
     // /// use rivia::prelude::*;
     // ///
     // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("pathext_trait_is_symlink_file");
+    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_symlink_file");
     // /// let file1 = tmpdir.mash("file1");
     // /// let link1 = tmpdir.mash("link1");
     // /// assert_mkfile!(&file1);
@@ -375,6 +431,14 @@ impl Stdfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mkfile");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_eq!(Stdfs::is_file(&file1), false);
+    /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
+    /// assert_eq!(Stdfs::is_file(&file1), true);
+    /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
     pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     {
@@ -409,7 +473,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkdir_m");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mkdir_m");
     /// let dir1 = tmpdir.mash("dir1");
     /// assert!(Stdfs::mkdir_m(&dir1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&dir1).unwrap(), 0o40555);
@@ -433,24 +497,24 @@ impl Stdfs
         Ok(path)
     }
 
-    /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning the absolute path of the created directory
+    /// Creates the given directory and any parent directories needed
     ///
-    /// # Arguments
-    /// * `path` - the target directory to create
+    /// ### Provides
+    /// * path expansion and absolute path resolution
     ///
     /// # Errors
-    /// * PathError::IsNotDir when the path already exists
+    /// * io::Error if its unable to create the directory
+    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkdir");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mkdir_p");
     /// let dir1 = tmpdir.mash("dir1");
     /// assert_eq!(Stdfs::exists(&dir1), false);
-    /// assert!(Stdfs::mkdir(&dir1).is_ok());
+    /// assert!(Stdfs::mkdir_p(&dir1).is_ok());
     /// assert_eq!(Stdfs::exists(&dir1), true);
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
@@ -475,7 +539,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mode");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mode");
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::mkfile_m(&file1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&file1).unwrap(), 0o100555);
@@ -495,7 +559,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_read");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_read");
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::write(&file1, "this is a test").is_ok());
     /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
@@ -517,7 +581,7 @@ impl Stdfs
     // /// use rivia::prelude::*;
     // ///
     // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("pathext_trait_readlink");
+    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_readlink");
     // /// let file1 = tmpdir.mash("file1");
     // /// let link1 = tmpdir.mash("link1");
     // /// assert_mkfile!(&file1);
@@ -538,7 +602,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_readlink_abs");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_readlink_abs");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_stdfs_touch!(&file1);
@@ -620,7 +684,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_remove");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove");
     /// assert!(Stdfs::remove(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
@@ -645,7 +709,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("remove_all");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove_all");
     /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
@@ -665,7 +729,7 @@ impl Stdfs
     // /// use rivia::prelude::*;
     // ///
     // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("pathext_trait_set_mode");
+    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_set_mode");
     // /// let file1 = tmpdir.mash("file1");
     // /// assert_mkfile!(&file1);
     // /// assert!(file1.chmod(0o644).is_ok());
@@ -724,7 +788,7 @@ impl Stdfs
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_symlink");
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_symlink");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_stdfs_touch!(&file1);
@@ -749,40 +813,6 @@ impl Stdfs
 
         unix::fs::symlink(src, &dst)?;
         Ok(dst)
-    }
-
-    /// Create an empty file similar to the linux touch command. Handles path expansion.
-    /// Uses default file creation permissions 0o666 - umask usually ends up being 0o644.
-    /// If the path already exists and is a file only the access and modified times are changed.
-    /// If the path already exists and isn't a file an error is returned.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_mkfile");
-    /// let file1 = tmpdir.mash("file1");
-    /// assert_eq!(Stdfs::is_file(&file1), false);
-    /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
-    /// assert_eq!(Stdfs::is_file(&file1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
-    /// ```
-    pub fn touch<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
-    {
-        let path = Stdfs::abs(path)?;
-        let meta = fs::symlink_metadata(&path);
-        if let Err(_) = meta {
-            File::create(&path)?;
-        } else {
-            let meta = meta.unwrap();
-            if !meta.is_file() {
-                return Err(PathError::IsNotFile(path).into());
-            }
-            let now = SystemTime::now();
-            Stdfs::set_file_time(&path, now, now)?;
-        }
-        Ok(path)
     }
 
     /// Set the access and modification times for the given file to the given times
@@ -876,8 +906,11 @@ impl FileSystem for Stdfs
         Stdfs::cwd()
     }
 
-    /// Set the current working directory. The path is converted to an absolute value based on the
-    /// pre-existing current working directory
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
     ///
     /// ### Errors
     /// * io::Error, kind: NotFound when the given path doesn't exist
@@ -890,58 +923,48 @@ impl FileSystem for Stdfs
     /// stdfs.set_cwd(stdfs.cwd().unwrap().mash("tests"));
     /// assert_eq!(stdfs.cwd().unwrap().base().unwrap(), "tests".to_string());
     /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::set_cwd(path)
     }
 
     /// Returns an iterator over the given path
     ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * recursive path traversal
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
     /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("vfs_stdfs_func_entries");
+    /// let stdfs = Stdfs::new();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_method_entries");
     /// let file1 = tmpdir.mash("file1");
     /// assert_stdfs_mkfile!(&file1);
-    /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
+    /// let mut iter = stdfs.entries(&file1).unwrap().into_iter();
     /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     /// assert!(iter.next().is_none());
     /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
-        let iter_func = |path: &Path, follow: bool| -> RvResult<EntryIter> {
-            Ok(EntryIter {
-                path: path.to_path_buf(),
-                cached: false,
-                following: follow,
-                iter: Box::new(StdfsEntryIter {
-                    dir: fs::read_dir(path)?,
-                }),
-            })
-        };
-
-        Ok(Entries {
-            root: StdfsEntry::from(path)?.upcast(),
-            dirs: Default::default(),
-            files: Default::default(),
-            follow: false,
-            min_depth: 0,
-            max_depth: std::usize::MAX,
-            max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
-            dirs_first: false,
-            files_first: false,
-            contents_first: false,
-            sort_by_name: false,
-            pre_op: None,
-            sort: None,
-            iter_from: Box::new(iter_func),
-        })
+        Stdfs::entries(path)
     }
 
-    /// Returns true if the `Path` exists. Handles path expansion.
+    /// Returns true if the `path` exists
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let stdfs = Stdfs::new();
+    /// assert_eq!(stdfs.exists("/etc"), true);
+    /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
         Stdfs::exists(path)
@@ -961,14 +984,41 @@ impl FileSystem for Stdfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_method_mkfile");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_eq!(Stdfs::is_file(&file1), false);
+    /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
+    /// assert_eq!(Stdfs::is_file(&file1), true);
+    /// assert_stdfs_remove_all!(&tmpdir);
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::mkfile(path)
     }
 
-    /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning the absolute path of the created directory
+    /// Creates the given directory and any parent directories needed
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// # Errors
+    /// * io::Error if its unable to create the directory
+    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_method_mkdir_p");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// assert_eq!(Stdfs::exists(&dir1), false);
+    /// assert!(Stdfs::mkdir_p(&dir1).is_ok());
+    /// assert_eq!(Stdfs::exists(&dir1), true);
+    /// assert_stdfs_remove_all!(&tmpdir);
+    /// ```
     fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::mkdir_p(path)
