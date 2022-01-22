@@ -531,7 +531,6 @@ mod tests
         assert_eq!(memfs.mkdir_p("foo/bar").unwrap(), PathBuf::from("/foo/bar"));
         assert_eq!(memfs.mkfile("foo/bar/blah").unwrap(), PathBuf::from("/foo/bar/blah"));
 
-        println!("{}", memfs);
         let mut iter = memfs.entries("/").unwrap().into_iter();
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
         assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo"));

@@ -133,7 +133,9 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
         cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(path).into()),
 
         // Home expansion only makes sense at the beinging of a path
-        cnt if cnt == 1 && !has_prefix(path, "~/") && pathstr != "~" => return Err(PathError::invalid_expansion(path).into()),
+        cnt if cnt == 1 && !has_prefix(path, "~/") && pathstr != "~" => {
+            return Err(PathError::invalid_expansion(path).into())
+        },
 
         // Single tilda only
         cnt if cnt == 1 && pathstr == "~" => home_dir()?,
@@ -562,17 +564,17 @@ pub trait PathExt
     /// ```
     fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool;
 
-    // /// Returns true if the `Path` as a String has the given suffix
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let path = PathBuf::from("/foo/bar");
-    // /// assert_eq!(path.has_suffix("/bar"), true);
-    // /// assert_eq!(path.has_suffix("foo"), false);
-    // /// ```
-    // fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool;
+    /// Returns true if the `Path` as a String has the given suffix
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has_suffix("/bar"), true);
+    /// assert_eq!(path.has_suffix("foo"), false);
+    /// ```
+    fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool;
 
     // /// Returns true if the `Path` exists and is a directory. Handles path expansion.
     // ///
@@ -986,6 +988,21 @@ impl PathExt for Path
         has_prefix(self, prefix)
     }
 
+    /// Returns true if the `Path` as a String has the given suffix
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has_suffix("/bar"), true);
+    /// assert_eq!(path.has_suffix("foo"), false);
+    /// ```
+    fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool
+    {
+        has_suffix(self, suffix)
+    }
+
     /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
     /// Differs from the `join` implementation in that it drops root prefix of the given `path` if
     /// it exists and also drops any trailing '/' on the new resulting path. More closely aligns
@@ -1134,11 +1151,20 @@ mod tests
         let home = sys::home_dir()?;
 
         // Multiple home symbols should fail
-        assert_eq!(sys::expand("~/~").unwrap_err().to_string(), PathError::multiple_home_symbols("~/~").to_string());
-        assert_eq!(Path::new("~/~").expand().unwrap_err().to_string(), PathError::multiple_home_symbols("~/~").to_string());
+        assert_eq!(
+            sys::expand("~/~").unwrap_err().to_string(),
+            PathError::multiple_home_symbols("~/~").to_string()
+        );
+        assert_eq!(
+            Path::new("~/~").expand().unwrap_err().to_string(),
+            PathError::multiple_home_symbols("~/~").to_string()
+        );
 
         // Only home expansion at the begining of the path is allowed
-        assert_eq!(sys::expand("foo/~").unwrap_err().to_string(), PathError::invalid_expansion("foo/~").to_string());
+        assert_eq!(
+            sys::expand("foo/~").unwrap_err().to_string(),
+            PathError::invalid_expansion("foo/~").to_string()
+        );
 
         // Tilda only
         assert_eq!(sys::expand("~")?, PathBuf::from(&home));
@@ -1151,9 +1177,18 @@ mod tests
         assert_eq!(sys::expand("${HOME}/foo")?, PathBuf::from(&home).join("foo"));
         assert_eq!(sys::expand("/foo/${HOME}")?, PathBuf::from("/foo").join(&home));
         assert_eq!(sys::expand("/foo/${HOME}/bar")?, PathBuf::from("/foo").join(&home).join("bar"));
-        assert_eq!(sys::expand("/foo${HOME}/bar")?, PathBuf::from("/foo".to_string() + &home.to_string()? + &"/bar".to_string()));
-        assert_eq!(sys::expand("/foo${HOME}${HOME}")?, PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?));
-        assert_eq!(sys::expand("/foo$HOME$HOME")?, PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?));
+        assert_eq!(
+            sys::expand("/foo${HOME}/bar")?,
+            PathBuf::from("/foo".to_string() + &home.to_string()? + &"/bar".to_string())
+        );
+        assert_eq!(
+            sys::expand("/foo${HOME}${HOME}")?,
+            PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?)
+        );
+        assert_eq!(
+            sys::expand("/foo$HOME$HOME")?,
+            PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?)
+        );
         Ok(())
     }
 
