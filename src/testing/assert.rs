@@ -50,6 +50,17 @@ macro_rules! assert_stdfs_setup_func {
     };
 }
 
+/// Setup some simple testing components for Memfs
+#[macro_export]
+macro_rules! assert_memfs_setup {
+    () => {{
+        let memfs = Memfs::new();
+        let tmpdir = memfs.abs(testing::TEST_TEMP_DIR).unwrap();
+        assert_memfs_mkdir_p!(&memfs, &tmpdir);
+        (memfs, tmpdir)
+    }};
+}
+
 /// Call the `stdfs_setup` function created by `assert_stdfs_setup_func!`
 ///
 /// Calls `assert_stdfs_setup_func!` with default `root` and `func_name` based on the function
@@ -338,7 +349,7 @@ macro_rules! assert_stdfs_no_dir {
 #[macro_export]
 macro_rules! assert_memfs_is_file {
     ($memfs:expr, $path:expr) => {
-        let target = match memfs.abs($path) {
+        let target = match $memfs.abs($path) {
             Ok(x) => x,
             _ => panic_msg!("assert_memfs_is_file!", "failed to get absolute path", $path),
         };
@@ -597,7 +608,45 @@ macro_rules! assert_stdfs_mkfile {
     };
 }
 
-/// Assert the removal of the target file
+/// Assert the removal of the target Memfs file
+///
+/// ### Assertion Failures
+/// * Assertion fails if the target isn't a file
+/// * Assertion fails if the file exists after `Stdfs::remove` is called
+/// * Assertion fails if the `Stdfs::remove` call fails
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_mkfile!(&memfs, "foo");
+/// assert_memfs_remove!(&memfs, "foo");
+/// assert_memfs_no_exists!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_remove {
+    ($memfs:expr, $path:expr) => {
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_remove!", "failed to get absolute path", $path),
+        };
+        if $memfs.exists(&target) {
+            if $memfs.is_file(&target) {
+                if $memfs.remove(&target).is_err() {
+                    panic_msg!("assert_memfs_remove!", "failed removing file", &target);
+                }
+                if $memfs.is_file(&target) {
+                    panic_msg!("assert_memfs_remove!", "file still exists", &target);
+                }
+            } else {
+                panic_msg!("assert_memfs_remove!", "exists and isn't a file", &target);
+            }
+        }
+    };
+}
+
+/// Assert the removal of the target Stdfs file
 ///
 /// ### Assertion Failures
 /// * Assertion fails if the target isn't a file
@@ -637,7 +686,39 @@ macro_rules! assert_stdfs_remove {
     };
 }
 
-/// Assert the removal of the target path
+/// Assert the removal of the target Memfs path
+///
+/// ### Assertion Failures
+/// * Assertion fails if `Stdfs::remove_all` fails
+/// * Assertion fails if the target path still exists after the call to `Stdfs::remove_all`
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_mkdir_p!(&memfs, "foo/bar");
+/// assert_memfs_remove_all!(&memfs, "foo");
+/// assert_memfs_no_exists!(&memfs, "foo/bar");
+/// assert_memfs_no_exists!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_remove_all {
+    ($memfs:expr, $path:expr) => {
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_remove_all!", "failed to get absolute path", $path),
+        };
+        if $memfs.remove_all(&target).is_err() {
+            panic_msg!("assert_memfs_remove_all!", "failed while removing", &target);
+        }
+        if $memfs.exists(&target) {
+            panic_msg!("assert_memfs_remove_all!", "still exists", &target);
+        }
+    };
+}
+
+/// Assert the removal of the target Stdfs path
 ///
 /// ### Assertion Failures
 /// * Assertion fails if `Stdfs::remove_all` fails
@@ -717,74 +798,75 @@ mod tests
     #[test]
     fn test_assert_memfs_exists_and_no_exists()
     {
-        let memfs = Memfs::new();
-        let tmpdir = PathBuf::from(testing::TEST_TEMP_DIR);
+        let (memfs, tmpdir) = assert_memfs_setup!();
 
         // Test file exists
         {
             let file = sys::mash(&tmpdir, "file");
             assert_memfs_no_exists!(&memfs, &file);
             assert!(!memfs.exists(&file));
-            // assert_memfs_mkfile!(&file);
-            // assert_memfs_exists!(&memfs, &file);
-            // assert!(memfs.exists(&file));
+            assert_memfs_mkfile!(&memfs, &file);
+            assert_memfs_exists!(&memfs, &file);
+            assert!(memfs.exists(&file));
 
-            // assert_memfs_remove!(&file);
-            // assert_memfs_no_exists!(&file);
-            // assert!(!memfs.exists(&file));
+            assert_memfs_remove!(&memfs, &file);
+            assert_memfs_no_exists!(&memfs, &file);
+            assert!(!memfs.exists(&file));
         }
 
-        // // Test dir exists
-        // {
-        //     let dir1 = sys::mash(&tmpdir, "dir1");
-        //     assert_stdfs_no_exists!(&dir1);
-        //     assert!(!Stdfs::exists(&dir1));
-        //     assert_stdfs_mkdir_p!(&dir1);
-        //     assert_stdfs_exists!(&dir1);
-        //     assert!(Stdfs::exists(&dir1));
+        // Test dir exists
+        {
+            let dir1 = sys::mash(&tmpdir, "dir1");
+            assert_memfs_no_exists!(&memfs, &dir1);
+            assert!(!memfs.exists(&dir1));
+            assert_memfs_mkdir_p!(&memfs, &dir1);
+            assert_memfs_exists!(&memfs, &dir1);
+            assert!(memfs.exists(&dir1));
 
-        //     assert_stdfs_remove_all!(&dir1);
-        //     assert_stdfs_no_exists!(&dir1);
-        //     assert!(!Stdfs::exists(&dir1));
-        // }
+            assert_memfs_remove_all!(&memfs, &dir1);
+            assert_memfs_no_exists!(&memfs, &dir1);
+            assert!(!memfs.exists(&dir1));
+        }
 
-        // // exists: bad abs
-        // let result = testing::capture_panic(|| {
-        //     assert_stdfs_exists!("");
-        // });
-        // assert_eq!(
-        //     result.unwrap_err().to_string(),
-        //     "\nassert_stdfs_exists!: failed to get absolute path\n  target: \"\"\n"
-        // );
+        // exists: bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_exists!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_exists!: failed to get absolute path\n  target: \"\"\n"
+        );
 
-        // // exists: doesn't exist
-        // let file1 = sys::mash(&tmpdir, "file1");
-        // let result = testing::capture_panic(|| {
-        //     assert_stdfs_exists!(&file1);
-        // });
-        // assert_eq!(
-        //     result.unwrap_err().to_string(),
-        //     format!("\nassert_stdfs_exists!: doesn't exist\n  target: {:?}\n", &file1)
-        // );
+        // exists: doesn't exist
+        let file1 = sys::mash(&tmpdir, "file1");
+        let result = testing::capture_panic(|| {
+            assert_memfs_exists!(&memfs, &file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_exists!: doesn't exist\n  target: {:?}\n", &file1)
+        );
 
-        // // no exists: bad abs
-        // let result = testing::capture_panic(|| {
-        //     assert_stdfs_no_exists!("");
-        // });
-        // assert_eq!(
-        //     result.unwrap_err().to_string(),
-        //     "\nassert_stdfs_no_exists!: failed to get absolute path\n  target: \"\"\n"
-        // );
+        // no exists: bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_no_exists!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_no_exists!: failed to get absolute path\n  target: \"\"\n"
+        );
 
-        // // no exists: does exist
-        // assert_stdfs_mkfile!(&file1);
-        // let result = testing::capture_panic(|| {
-        //     assert_stdfs_no_exists!(&file1);
-        // });
-        // assert_eq!(
-        //     result.unwrap_err().to_string(),
-        //     format!("\nassert_stdfs_no_exists!: still exists\n  target: {:?}\n", &file1)
-        // );
+        // no exists: does exist
+        assert_memfs_mkfile!(&memfs, &file1);
+        let result = testing::capture_panic(|| {
+            assert_memfs_no_exists!(&memfs, &file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_no_exists!: still exists\n  target: {:?}\n", &file1)
+        );
+
+        assert_memfs_remove_all!(&memfs, &tmpdir);
     }
 
     #[test]
@@ -862,6 +944,59 @@ mod tests
     }
 
     #[test]
+    fn test_assert_memfs_is_dir_no_dir()
+    {
+        let (memfs, tmpdir) = assert_memfs_setup!();
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        let dir2 = sys::mash(&tmpdir, "dir2");
+
+        // happy path
+        assert_memfs_no_dir!(&memfs, &dir1);
+        assert!(!memfs.is_dir(&dir1));
+        assert_memfs_mkdir_p!(&memfs, &dir1);
+        assert_memfs_is_dir!(&memfs, &dir1);
+        assert!(memfs.is_dir(&dir1));
+
+        // is_dir: bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_is_dir!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_is_dir!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // is_dir: doesn't exist
+        let result = testing::capture_panic(|| {
+            assert_memfs_is_dir!(&memfs, &dir2);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_is_dir!: doesn't exist\n  target: {:?}\n", &dir2)
+        );
+
+        // no_dir: bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_no_dir!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_no_dir!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // no_dir: does exist
+        let result = testing::capture_panic(|| {
+            assert_memfs_no_dir!(&memfs, &dir1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_no_dir!: directory still exists\n  target: {:?}\n", &dir1)
+        );
+
+        assert_memfs_remove_all!(&memfs, &tmpdir);
+    }
+
+    #[test]
     fn test_assert_stdfs_is_dir_no_dir()
     {
         let tmpdir = assert_stdfs_setup!();
@@ -912,6 +1047,59 @@ mod tests
         );
 
         assert_stdfs_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_memfs_is_file_no_file()
+    {
+        let (memfs, tmpdir) = assert_memfs_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+        let file2 = sys::mash(&tmpdir, "file2");
+
+        // happy path
+        assert_memfs_no_file!(&memfs, &file1);
+        assert!(!memfs.is_file(&file1));
+        assert_memfs_mkfile!(&memfs, &file1);
+        assert_memfs_is_file!(&memfs, &file1);
+        assert!(memfs.is_file(&file1));
+
+        // is_file: bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_is_file!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_is_file!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // is_file: doesn't exist
+        let result = testing::capture_panic(|| {
+            assert_memfs_is_file!(&memfs, &file2);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_is_file!: doesn't exist\n  target: {:?}\n", &file2)
+        );
+
+        // no_file: bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_no_file!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_no_file!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // no_file: does exist
+        let result = testing::capture_panic(|| {
+            assert_memfs_no_file!(&memfs, &file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_no_file!: file still exists\n  target: {:?}\n", &file1)
+        );
+
+        assert_memfs_remove_all!(&memfs, &tmpdir);
     }
 
     #[test]
@@ -968,6 +1156,42 @@ mod tests
     }
 
     #[test]
+    fn test_assert_memfs_mkdir_p()
+    {
+        let (memfs, tmpdir) = assert_memfs_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        assert_memfs_mkfile!(&memfs, &file1);
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_mkdir_p!(&memfs, "");
+        });
+
+        // fail abs
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_mkdir_p!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a directory
+        let result = testing::capture_panic(|| {
+            assert_memfs_mkdir_p!(&memfs, &file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("assert_memfs_mkdir_p!: Target path is not a directory: {}", &file1.display())
+        );
+
+        // happy path
+        assert_memfs_no_dir!(&memfs, &dir1);
+        assert_memfs_mkdir_p!(&memfs, &dir1);
+        assert_memfs_is_dir!(&memfs, &dir1);
+
+        assert_memfs_remove_all!(&memfs, &tmpdir);
+    }
+
+    #[test]
     fn test_assert_stdfs_mkdir_p()
     {
         let tmpdir = assert_stdfs_setup!();
@@ -1004,6 +1228,40 @@ mod tests
     }
 
     #[test]
+    fn test_assert_memfs_mkfile()
+    {
+        let (memfs, tmpdir) = assert_memfs_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+        let dir1 = sys::mash(&tmpdir, "dir1");
+        assert_memfs_mkdir_p!(&memfs, &dir1);
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_mkfile!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_mkfile!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a file
+        let result = testing::capture_panic(|| {
+            assert_memfs_mkfile!(&memfs, &dir1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_mkfile!: is not a file\n  target: \"{}\"\n", dir1.display())
+        );
+
+        // happy path
+        assert_memfs_no_file!(&memfs, &file1);
+        assert_memfs_mkfile!(&memfs, &file1);
+        assert_memfs_is_file!(&memfs, &file1);
+
+        assert_memfs_remove_all!(&memfs, &tmpdir);
+    }
+
+    #[test]
     fn test_assert_stdfs_mkfile()
     {
         let tmpdir = assert_stdfs_setup!();
@@ -1035,6 +1293,40 @@ mod tests
         assert_stdfs_is_file!(&file1);
 
         assert_stdfs_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_memfs_remove()
+    {
+        let (memfs, tmpdir) = assert_memfs_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+
+        // happy path
+        assert_memfs_remove!(&memfs, &file1);
+        assert_memfs_mkfile!(&memfs, &file1);
+        assert_memfs_is_file!(&memfs, &file1);
+        assert_memfs_remove!(&memfs, &file1);
+        assert_memfs_no_file!(&memfs, &file1);
+
+        // bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_remove!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_remove!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // is a directory
+        let result = testing::capture_panic(|| {
+            assert_memfs_remove!(&memfs, &tmpdir);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_memfs_remove!: exists and isn't a file\n  target: {:?}\n", &tmpdir)
+        );
+
+        assert_memfs_remove_all!(&memfs, &tmpdir);
     }
 
     #[test]
@@ -1080,6 +1372,27 @@ mod tests
         // assert!(Stdfs::chmod(&file1, 0o777).is_ok());
 
         assert_stdfs_remove_all!(&tmpdir);
+    }
+
+    #[test]
+    fn test_assert_memfs_remove_all()
+    {
+        let (memfs, tmpdir) = assert_memfs_setup!();
+        let file1 = sys::mash(&tmpdir, "file1");
+
+        assert_memfs_mkfile!(&memfs, &file1);
+        assert_memfs_is_file!(&memfs, &file1);
+        assert_memfs_remove_all!(&memfs, &tmpdir);
+        assert_memfs_no_dir!(&memfs, &tmpdir);
+
+        // bad abs
+        let result = testing::capture_panic(|| {
+            assert_memfs_remove_all!(&memfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_memfs_remove_all!: failed to get absolute path\n  target: \"\"\n"
+        );
     }
 
     #[test]

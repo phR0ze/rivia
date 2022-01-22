@@ -679,9 +679,14 @@ impl Stdfs
         Ok(path)
     }
 
-    /// Removes the given empty directory or file. Handles path expansion. Does not follow
-    /// symbolic links but rather removes the links themselves. A directory that contains
-    /// files will trigger an error use `remove_all` if this is undesired.
+    /// Removes the given empty directory or file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Errors
+    /// * a directory containing files will trigger an error. use `remove_all` instead
     ///
     /// ### Examples
     /// ```
@@ -705,8 +710,11 @@ impl Stdfs
         Ok(())
     }
 
-    /// Removes the given directory after removing all of its contents. Handles path expansion.
-    /// Does not follow symbolic links but rather removes the links themselves.
+    /// Removes the given directory after removing all of its contents
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
     ///
     /// ### Examples
     /// ```
@@ -1078,6 +1086,49 @@ impl FileSystem for Stdfs
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {
         Stdfs::read_all(path)
+    }
+
+    /// Removes the given empty directory or file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Errors
+    /// * a directory containing files will trigger an error. use `remove_all` instead
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove");
+    /// assert!(Stdfs::remove(&tmpdir).is_ok());
+    /// assert_eq!(Stdfs::exists(&tmpdir), false);
+    /// ```
+    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        Stdfs::remove(path)
+    }
+
+    /// Removes the given directory after removing all of its contents
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_stdfs_setup_func!();
+    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove_all");
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_eq!(Stdfs::exists(&tmpdir), false);
+    /// ```
+    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        Stdfs::remove_all(path)
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist

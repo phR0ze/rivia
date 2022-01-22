@@ -188,6 +188,49 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Read all data from the given file and return it as a String
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>;
 
+    /// Removes the given empty directory or file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Errors
+    /// * a directory containing files will trigger an error. use `remove_all` instead
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = PathBuf::from("foo");
+    /// assert!(vfs.mkfile(&file).is_ok());
+    /// assert_eq!(vfs.exists(&file), true);
+    /// assert!(vfs.remove(&file).is_ok());
+    /// assert_eq!(vfs.exists(&file), false);
+    /// ```
+    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
+
+    /// Removes the given directory after removing all of its contents
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert!(vfs.mkdir_p("foo").is_ok());
+    /// assert_eq!(vfs.exists("foo"), true);
+    /// assert!(vfs.mkfile("foo/bar").is_ok());
+    /// assert_eq!(vfs.is_file("foo/bar"), true);
+    /// assert!(vfs.remove_all("foo").is_ok());
+    /// assert_eq!(vfs.exists("foo/ar"), false);
+    /// assert_eq!(vfs.exists("foo"), false);
+    /// ```
+    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
+
     /// Write all the given data to to the indicated file creating the file first if it doesn't
     /// exist or truncating it first if it does.
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>;
@@ -420,6 +463,61 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.read_all(path),
             Vfs::Memfs(x) => x.read_all(path),
+        }
+    }
+
+    /// Removes the given empty directory or file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Errors
+    /// * a directory containing files will trigger an error. use `remove_all` instead
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = PathBuf::from("foo");
+    /// assert!(vfs.mkfile(&file).is_ok());
+    /// assert_eq!(vfs.exists(&file), true);
+    /// assert!(vfs.remove(&file).is_ok());
+    /// assert_eq!(vfs.exists(&file), false);
+    /// ```
+    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.remove(path),
+            Vfs::Memfs(x) => x.remove(path),
+        }
+    }
+
+    /// Removes the given directory after removing all of its contents
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert!(vfs.mkdir_p("foo").is_ok());
+    /// assert_eq!(vfs.exists("foo"), true);
+    /// assert!(vfs.mkfile("foo/bar").is_ok());
+    /// assert_eq!(vfs.is_file("foo/bar"), true);
+    /// assert!(vfs.remove_all("foo").is_ok());
+    /// assert_eq!(vfs.exists("foo/ar"), false);
+    /// assert_eq!(vfs.exists("foo"), false);
+    /// ```
+    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.remove_all(path),
+            Vfs::Memfs(x) => x.remove_all(path),
         }
     }
 

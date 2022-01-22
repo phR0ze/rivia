@@ -41,7 +41,7 @@ pub(crate) const DEFAULT_MAX_DESCRIPTORS: u16 = 50;
 ///
 /// ### Examples
 /// ```
-/// use fungus::prelude::*;
+/// use rivia::prelude::*;
 ///
 /// let tmpdir = sys::abs("tests/temp/entries_doc_entries").unwrap();
 /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -80,7 +80,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn dirs(mut self) -> Self
     {
@@ -95,7 +95,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn files(mut self) -> Self
     {
@@ -111,7 +111,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn follow(mut self, yes: bool) -> Self
     {
@@ -130,7 +130,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn min_depth(mut self, min: usize) -> Self
     {
@@ -153,7 +153,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn max_depth(mut self, max: usize) -> Self
     {
@@ -170,7 +170,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn pre_op(mut self, op: impl FnMut(&VfsEntry) -> RvResult<()>+Send+Sync+'static) -> Self
     {
@@ -185,7 +185,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn dirs_first(mut self) -> Self
     {
@@ -193,13 +193,17 @@ impl Entries
         self.sort(|x, y| x.file_name().cmp(&y.file_name()))
     }
 
-    /// Set the default sorter to be files first by name. This will have the affect of caching
-    /// all directory entries and iterating from memory as we traverse to enforce ordering.
-    /// Default: false
+    /// Set the default sorter to be files first by name
+    ///
+    /// This will have the affect of caching all directory entries and iterating from memory as we
+    /// traverse to enforce ordering.
+    ///
+    /// ### Default value
+    /// false
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn files_first(mut self) -> Self
     {
@@ -207,13 +211,16 @@ impl Entries
         self.sort(|x, y| x.file_name().cmp(&y.file_name()))
     }
 
-    /// Return the contents of directories before the directory itself. This is useful for
-    /// operations like chmod that revoke permission on the way out.
-    /// Default: false
+    /// Return the contents of directories before the directory itself
+    ///
+    /// This is useful for recursive operations like chmod that revoke permission on the way out.
+    ///
+    /// ### Default value
+    /// false
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn contents_first(mut self) -> Self
     {
@@ -221,12 +228,17 @@ impl Entries
         self
     }
 
-    /// Set the default sorter to be by name. This will have the affect of caching all directory
-    /// entries and iterating from memory as we traverse to enforce ordering. Default: false
+    /// Set the default sorter to be by name
+    ///
+    /// This will have the affect of caching all directory entries and iterating from memory as we
+    /// traverse to enforce ordering.
+    ///
+    /// ### Default value
+    /// false
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn sort_by_name(mut self) -> Self
     {
@@ -239,7 +251,7 @@ impl Entries
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn sort(mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering+Send+Sync+'static) -> Self
     {
@@ -302,7 +314,7 @@ impl IntoIterator for Entries
 ///
 /// ### Examples
 /// ```
-/// use fungus::prelude::*;
+/// use rivia::prelude::*;
 ///
 /// let tmpdir = sys::abs("tests/temp/entries_doc_entriesiter").unwrap();
 /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -405,7 +417,7 @@ impl EntriesIter
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     ///
     /// let tmpdir = sys::abs("tests/temp/entries_doc_filter_p").unwrap();
     /// assert!(sys::remove_all(&tmpdir).is_ok());

@@ -81,25 +81,6 @@ impl Memfs
     }
 }
 
-impl fmt::Display for Memfs
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
-    {
-        let guard = self.0.read().unwrap();
-        writeln!(f, "[cwd]: {}", guard.cwd.display())?;
-        writeln!(f, "[root]: {}", guard.root.display())?;
-        writeln!(f, "\n[fs]:")?;
-        for key in guard.fs.keys().sorted() {
-            writeln!(f, "{}", key.display())?;
-        }
-        writeln!(f, "\n[files]:")?;
-        for key in guard.data.keys().sorted() {
-            writeln!(f, "{}", key.display())?;
-        }
-        Ok(())
-    }
-}
-
 impl FileSystem for Memfs
 {
     /// Return the path in an absolute clean form
@@ -456,6 +437,85 @@ impl FileSystem for Memfs
         }
 
         Ok("".to_string())
+    }
+
+    /// Removes the given empty directory or file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Errors
+    /// * a directory containing files will trigger an error. use `remove_all` instead
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let file = PathBuf::from("foo");
+    /// assert!(memfs.mkfile(&file).is_ok());
+    /// assert_eq!(memfs.exists(&file), true);
+    /// assert!(memfs.remove(&file).is_ok());
+    /// assert_eq!(memfs.exists(&file), false);
+    /// ```
+    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        let path = self.abs(path)?;
+        let mut guard = self.0.write().unwrap();
+
+        // First check if the target contains files
+        if let Some(entry) = guard.fs.get(&path) {
+            if let Some(ref files) = entry.files {
+                if files.len() > 0 {
+                    return Err(PathError::dir_contains_files(path).into());
+                }
+            }
+        }
+
+        // Next remove the file from its parent
+        let dir = path.dir()?;
+        if let Some(entry) = guard.fs.get_mut(&dir) {
+            entry.remove(path.base()?)?;
+        }
+
+        // Next remove its data file if it exists
+        if let Some(entry) = guard.fs.get(&path) {
+            if entry.is_file() {
+                guard.data.remove(&path);
+            }
+        }
+
+        // Finally remove the entry from the filesystem
+        guard.fs.remove(&path);
+        Ok(())
+    }
+
+    /// Removes the given directory after removing all of its contents
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert!(memfs.mkdir_p("foo").is_ok());
+    /// assert_eq!(memfs.exists("foo"), true);
+    /// assert!(memfs.mkfile("foo/bar").is_ok());
+    /// assert_eq!(memfs.is_file("foo/bar"), true);
+    /// assert!(memfs.remove_all("foo").is_ok());
+    /// assert_eq!(memfs.exists("foo/ar"), false);
+    /// assert_eq!(memfs.exists("foo"), false);
+    /// ```
+    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        for entry in self.entries(path)?.contents_first().into_iter() {
+            self.remove(entry?.path())?;
+        }
+        Ok(())
     }
 
     /// Write the given data to to the target file creating the file first if it doesn't exist or
