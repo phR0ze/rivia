@@ -81,6 +81,25 @@ impl Memfs
     }
 }
 
+impl fmt::Display for Memfs
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        let guard = self.0.read().unwrap();
+        writeln!(f, "[cwd]: {}", guard.cwd.display())?;
+        writeln!(f, "[root]: {}", guard.root.display())?;
+        writeln!(f, "\n[fs]:")?;
+        for key in guard.fs.keys().sorted() {
+            writeln!(f, "{}", key.display())?;
+        }
+        writeln!(f, "\n[files]:")?;
+        for key in guard.data.keys().sorted() {
+            writeln!(f, "{}", key.display())?;
+        }
+        Ok(())
+    }
+}
+
 impl FileSystem for Memfs
 {
     /// Return the path in an absolute clean form
@@ -512,8 +531,10 @@ impl FileSystem for Memfs
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
-        for entry in self.entries(path)?.contents_first().into_iter() {
-            self.remove(entry?.path())?;
+        if self.exists(&path) {
+            for entry in self.entries(path)?.contents_first().into_iter() {
+                self.remove(entry?.path())?;
+            }
         }
         Ok(())
     }
