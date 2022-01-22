@@ -136,8 +136,12 @@ macro_rules! assert_stdfs_setup {
 #[macro_export]
 macro_rules! assert_memfs_exists {
     ($memfs:expr, $path:expr) => {
-        if !$memfs.exists($path) {
-            panic_msg!("assert_memfs_exists!", "doesn't exist", $path);
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_exists!", "failed to get absolute path", $path),
+        };
+        if !$memfs.exists(&target) {
+            panic_msg!("assert_memfs_exists!", "doesn't exist", &target);
         }
     };
 }
@@ -172,14 +176,18 @@ macro_rules! assert_stdfs_exists {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert_stdfs_no_exists!("tests/temp/assert_stdfs_no_exists");
-/// assert_stdfs_no_exists!("tests/temp/assert_stdfs_no_exists/file");
+/// let memfs = Memfs::new();
+/// assert_memfs_no_exists!(&memfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_memfs_no_exists {
     ($memfs:expr, $path:expr) => {
-        if $memfs.exists($path) {
-            panic_msg!("assert_memfs_no_exists!", "still exists", $path);
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_no_exists!", "failed to get absolute path", $path),
+        };
+        if $memfs.exists(&target) {
+            panic_msg!("assert_memfs_no_exists!", "still exists", &target);
         }
     };
 }
@@ -206,7 +214,35 @@ macro_rules! assert_stdfs_no_exists {
     };
 }
 
-/// Assert that the given path exists and is a directory
+/// Assert that the given Memfs path exists and is a directory
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_no_dir!(&memfs, "foo");
+/// assert_memfs_mkdir_p!(&memfs, "foo");
+/// assert_memfs_is_dir!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_is_dir {
+    ($memfs:expr, $path:expr) => {
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_is_dir!", "failed to get absolute path", $path),
+        };
+        if $memfs.exists(&target) {
+            if !$memfs.is_dir(&target) {
+                panic_msg!("assert_memfs_is_dir!", "exists but is not a directory", &target);
+            }
+        } else {
+            panic_msg!("assert_memfs_is_dir!", "doesn't exist", &target);
+        }
+    };
+}
+
+/// Assert that the given Stdfs path exists and is a directory
 ///
 /// ### Examples
 /// ```
@@ -234,11 +270,39 @@ macro_rules! assert_stdfs_is_dir {
     };
 }
 
-/// Assert that the given path isn't a directory
+/// Assert that the given Memfs path isn't a directory
 ///
 /// ### Examples
 /// ```
-/// use fungus::prelude::*;
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_no_dir!(&memfs, "foo");
+/// assert_memfs_mkdir_p!(&memfs, "foo");
+/// assert_memfs_is_dir!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_no_dir {
+    ($memfs:expr, $path:expr) => {
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_no_dir!", "failed to get absolute path", $path),
+        };
+        if $memfs.exists(&target) {
+            if !$memfs.is_dir(&target) {
+                panic_msg!("assert_memfs_no_dir!", "exists and is not a directory", &target);
+            } else {
+                panic_msg!("assert_memfs_no_dir!", "directory still exists", &target);
+            }
+        }
+    };
+}
+
+/// Assert that the given Stdfs path isn't a directory
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
 ///
 /// let tmpdir = PathBuf::from(TEST_TEMP_DIR).mash("assert_stdfs_no_dir");
 /// assert_stdfs_no_dir!(&tmpdir);
@@ -260,7 +324,35 @@ macro_rules! assert_stdfs_no_dir {
     };
 }
 
-/// Assert that the given path exists and is a file
+/// Assert that the given Memfs path exists and is a file
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_no_file!(&memfs, "foo");
+/// assert_memfs_mkfile!(&memfs, "foo");
+/// assert_memfs_is_file!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_is_file {
+    ($memfs:expr, $path:expr) => {
+        let target = match memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_is_file!", "failed to get absolute path", $path),
+        };
+        if $memfs.exists(&target) {
+            if !$memfs.is_file(&target) {
+                panic_msg!("assert_memfs_is_file!", "exists but is not a file", &target);
+            }
+        } else {
+            panic_msg!("assert_memfs_is_file!", "doesn't exist", &target);
+        }
+    };
+}
+
+/// Assert that the given Stdfs path exists and is a file
 ///
 /// ### Examples
 /// ```
@@ -290,7 +382,33 @@ macro_rules! assert_stdfs_is_file {
     };
 }
 
-/// Assert that the given path isn't a file
+/// Assert that the given Memfs path isn't a file
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_no_file!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_no_file {
+    ($memfs:expr, $path:expr) => {
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_no_file!", "failed to get absolute path", $path),
+        };
+        if $memfs.exists(&target) {
+            if !$memfs.is_file(&target) {
+                panic_msg!("assert_memfs_no_file!", "exists and is not a file", &target);
+            } else {
+                panic_msg!("assert_memfs_no_file!", "file still exists", &target);
+            }
+        }
+    };
+}
+
+/// Assert that the given Stdfs path isn't a file
 ///
 /// ### Examples
 /// ```
@@ -315,7 +433,44 @@ macro_rules! assert_stdfs_no_file {
     };
 }
 
-/// Assert the creation of the given directory.
+/// Assert the creation of the given Memfs directory.
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_no_dir!(&memfs, "foo");
+/// assert_memfs_mkdir_p!(&memfs, "foo");
+/// assert_memfs_is_dir!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_mkdir_p {
+    ($memfs:expr, $path:expr) => {
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_mkdir_p!", "failed to get absolute path", $path),
+        };
+        match $memfs.mkdir_p(&target) {
+            Ok(x) => {
+                if &x != &target {
+                    panic_compare_msg!(
+                        "assert_memfs_mkdir_p!",
+                        "created directory path doesn't match the target",
+                        &x,
+                        &target
+                    );
+                }
+            },
+            Err(e) => panic!("assert_memfs_mkdir_p!: {}", e.to_string()),
+        };
+        if !$memfs.is_dir(&target) {
+            panic_msg!("assert_memfs_mkdir_p!", "failed to create directory", &target);
+        }
+    };
+}
+
+/// Assert the creation of the given Stdfs directory.
 ///
 /// ### Examples
 /// ```
@@ -353,50 +508,48 @@ macro_rules! assert_stdfs_mkdir_p {
     };
 }
 
-// /// Assert the creation of a Memfs file. If the file exists no change is made
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia::prelude::*;
-// ///
-// /// let memfs = Memfs::new();
-// /// let tmpdir = PathBuf::from(testing::TEST_TEMP_DIR);
-// /// let file1 = tmpdir.mash("file1");
-// /// assert_memfs_no_file!(&file1);
-// /// assert_memfs_mkfile!(&file1);
-// /// assert_memfs_is_file!(&file1);
-// /// ```
-// #[macro_export]
-// macro_rules! assert_memfs_mkfile {
-//     ($path:expr) => {
-//         let target = match Stdfs::abs($path) {
-//             Ok(x) => x,
-//             _ => panic_msg!("assert_stdfs_mkfile!", "failed to get absolute path", $path),
-//         };
-//         if Stdfs::exists(&target) {
-//             if !Stdfs::is_file(&target) {
-//                 panic_msg!("assert_stdfs_mkfile!", "is not a file", &target);
-//             }
-//         } else {
-//             match Stdfs::mkfile(&target) {
-//                 Ok(x) => {
-//                     if &x != &target {
-//                         panic_compare_msg!(
-//                             "assert_stdfs_mkfile!",
-//                             "created file path doesn't match the target",
-//                             &x,
-//                             &target
-//                         );
-//                     }
-//                 },
-//                 _ => panic_msg!("assert_stdfs_mkfile!", "failed while creating file", &target),
-//             };
-//             if !Stdfs::is_file(&target) {
-//                 panic_msg!("assert_stdfs_mkfile!", "file doesn't exist", &target);
-//             }
-//         }
-//     };
-// }
+/// Assert the creation of a Memfs file. If the file exists no change is made
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let memfs = Memfs::new();
+/// assert_memfs_no_file!(&memfs, "foo");
+/// assert_memfs_mkfile!(&memfs, "foo");
+/// assert_memfs_is_file!(&memfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_memfs_mkfile {
+    ($memfs:expr, $path:expr) => {
+        let target = match $memfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_memfs_mkfile!", "failed to get absolute path", $path),
+        };
+        if $memfs.exists(&target) {
+            if !$memfs.is_file(&target) {
+                panic_msg!("assert_memfs_mkfile!", "is not a file", &target);
+            }
+        } else {
+            match $memfs.mkfile(&target) {
+                Ok(x) => {
+                    if &x != &target {
+                        panic_compare_msg!(
+                            "assert_memfs_mkfile!",
+                            "created file path doesn't match the target",
+                            &x,
+                            &target
+                        );
+                    }
+                },
+                _ => panic_msg!("assert_memfs_mkfile!", "failed while creating file", &target),
+            };
+            if !$memfs.is_file(&target) {
+                panic_msg!("assert_stdfs_mkfile!", "file doesn't exist", &target);
+            }
+        }
+    };
+}
 
 /// Assert the creation of a Stdfs file. If the file exists no change is made
 ///
@@ -492,7 +645,7 @@ macro_rules! assert_stdfs_remove {
 ///
 /// ### Examples
 /// ```
-/// use fungus::prelude::*;
+/// use rivia::prelude::*;
 ///
 /// assert_stdfs_setup_func!();
 /// let tmpdir = assert_stdfs_setup!("assert_stdfs_remove_all");

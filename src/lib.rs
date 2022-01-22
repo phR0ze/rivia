@@ -59,10 +59,12 @@ pub mod prelude
 
     // Export macros by name
     pub use crate::{
-        assert_stdfs_exists, assert_stdfs_is_dir, assert_stdfs_is_file, assert_stdfs_mkdir_p, assert_stdfs_mkfile,
-        assert_stdfs_no_dir, assert_stdfs_no_exists, assert_stdfs_no_file, assert_stdfs_remove,
-        assert_stdfs_remove_all, assert_stdfs_setup, assert_stdfs_setup_func, cfgblock, function, function_fqn,
-        panic_compare_msg, panic_msg, trying, unwrap_or_false,
+        assert_memfs_exists, assert_memfs_is_dir, assert_memfs_is_file, assert_memfs_mkdir_p, assert_memfs_mkfile,
+        assert_memfs_no_dir, assert_memfs_no_exists, assert_memfs_no_file, assert_stdfs_exists,
+        assert_stdfs_is_dir, assert_stdfs_is_file, assert_stdfs_mkdir_p, assert_stdfs_mkfile, assert_stdfs_no_dir,
+        assert_stdfs_no_exists, assert_stdfs_no_file, assert_stdfs_remove, assert_stdfs_remove_all,
+        assert_stdfs_setup, assert_stdfs_setup_func, cfgblock, function, function_fqn, panic_compare_msg,
+        panic_msg, trying, unwrap_or_false,
     };
     // Export internal types
     pub use crate::{
