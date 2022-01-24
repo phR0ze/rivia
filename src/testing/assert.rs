@@ -323,8 +323,8 @@ macro_rules! assert_vfs_mkfile {
 ///
 /// ### Assertion Failures
 /// * Assertion fails if the target isn't a file
-/// * Assertion fails if the file exists after `Stdfs::remove` is called
-/// * Assertion fails if the `Stdfs::remove` call fails
+/// * Assertion fails if the file exists after `remove` is called
+/// * Assertion fails if the `remove` call fails
 ///
 /// ### Examples
 /// ```
@@ -360,8 +360,8 @@ macro_rules! assert_vfs_remove {
 /// Assert the removal of the target path
 ///
 /// ### Assertion Failures
-/// * Assertion fails if `Stdfs::remove_all` fails
-/// * Assertion fails if the target path still exists after the call to `Stdfs::remove_all`
+/// * Assertion fails if `remove_all` fails
+/// * Assertion fails if the target path still exists after the call to `remove_all`
 ///
 /// ### Examples
 /// ```
@@ -395,7 +395,7 @@ macro_rules! assert_vfs_remove_all {
 /// ```ignore,no_run
 /// use rivia::prelude::*;
 ///
-/// panic_msg!("assert_stdfs_mkdir_p!", "failed to create directory", PathBuf::from("foo"));
+/// panic_msg!("assert_vfs_mkdir_p!", "failed to create directory", PathBuf::from("foo"));
 /// ```
 #[macro_export]
 macro_rules! panic_msg {
@@ -410,7 +410,7 @@ macro_rules! panic_msg {
 /// ```ignore,no_run
 /// use rivia::prelude::*;
 ///
-/// panic_msg!("assert_stdfs_mkdir_p!", "failed to create directory", PathBuf::from("foo"), PathBuf::from("foo"));
+/// panic_msg!("assert_vfs_mkdir_p!", "failed to create directory", PathBuf::from("foo"), PathBuf::from("foo"));
 /// ```
 #[macro_export]
 macro_rules! panic_compare_msg {
@@ -425,34 +425,12 @@ macro_rules! panic_compare_msg {
     };
 }
 
-#[macro_export]
-macro_rules! assert_stdfs_setup_func {
-    () => {};
-}
-
-#[macro_export]
-macro_rules! assert_stdfs_setup {
-    () => {{
-        PathBuf::from("foo")
-    }};
-}
-
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests
 {
     use crate::prelude::*;
-
-    // #[test]
-    // fn test_assert_vfs_exists_and_no_exists()
-    // {
-    //     assert_vfs_exists(testing::vfs_setup(Vfs::memfs()));
-    //     assert_vfs_exists(testing::vfs_setup_p(Vfs::stdfs(), Some(function_fqn!())));
-    // }
-
-    // fn assert_vfs_exists((vfs, tmpdir): (Vfs, PathBuf))
-    // {
 
     #[test]
     fn test_assert_vfs_exists_and_no_exists()
@@ -461,7 +439,7 @@ mod tests
 
         // Test file exists
         {
-            let file = sys::mash(&tmpdir, "file");
+            let file = tmpdir.mash("file");
             assert_vfs_no_exists!(&vfs, &file);
             assert!(!vfs.exists(&file));
             assert_vfs_mkfile!(&vfs, &file);
@@ -475,7 +453,7 @@ mod tests
 
         // Test dir exists
         {
-            let dir1 = sys::mash(&tmpdir, "dir1");
+            let dir1 = tmpdir.mash("dir1");
             assert_vfs_no_exists!(&vfs, &dir1);
             assert!(!vfs.exists(&dir1));
             assert_vfs_mkdir_p!(&vfs, &dir1);
@@ -497,7 +475,7 @@ mod tests
         );
 
         // exists: doesn't exist
-        let file1 = sys::mash(&tmpdir, "file1");
+        let file1 = tmpdir.mash("file1");
         let result = testing::capture_panic(|| {
             assert_vfs_exists!(&vfs, &file1);
         });
@@ -532,8 +510,8 @@ mod tests
     fn test_assert_vfs_is_dir_no_dir()
     {
         let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
-        let dir1 = sys::mash(&tmpdir, "dir1");
-        let dir2 = sys::mash(&tmpdir, "dir2");
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = tmpdir.mash("dir2");
 
         // happy path
         assert_vfs_no_dir!(&vfs, &dir1);
@@ -585,8 +563,8 @@ mod tests
     fn test_assert_vfs_is_file_no_file()
     {
         let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
-        let file1 = sys::mash(&tmpdir, "file1");
-        let file2 = sys::mash(&tmpdir, "file2");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
 
         // happy path
         assert_vfs_no_file!(&vfs, &file1);
@@ -638,8 +616,8 @@ mod tests
     fn test_assert_vfs_mkdir_p()
     {
         let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
-        let file1 = sys::mash(&tmpdir, "file1");
-        let dir1 = sys::mash(&tmpdir, "dir1");
+        let file1 = tmpdir.mash("file1");
+        let dir1 = tmpdir.mash("dir1");
         assert_vfs_mkfile!(&vfs, &file1);
 
         // fail abs
@@ -674,8 +652,8 @@ mod tests
     fn test_assert_vfs_mkfile()
     {
         let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
-        let file1 = sys::mash(&tmpdir, "file1");
-        let dir1 = sys::mash(&tmpdir, "dir1");
+        let file1 = tmpdir.mash("file1");
+        let dir1 = tmpdir.mash("dir1");
         assert_vfs_mkdir_p!(&vfs, &dir1);
 
         // fail abs
@@ -708,7 +686,7 @@ mod tests
     fn test_assert_vfs_remove()
     {
         let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
-        let file1 = sys::mash(&tmpdir, "file1");
+        let file1 = tmpdir.mash("file1");
 
         // happy path
         assert_vfs_remove!(&vfs, &file1);
@@ -742,7 +720,7 @@ mod tests
     fn test_assert_vfs_remove_all()
     {
         let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
-        let file1 = sys::mash(&tmpdir, "file1");
+        let file1 = tmpdir.mash("file1");
 
         assert_vfs_mkfile!(&vfs, &file1);
         assert_vfs_is_file!(&vfs, &file1);
