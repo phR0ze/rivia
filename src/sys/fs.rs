@@ -48,27 +48,6 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>;
 
-    /// Set the current working directory
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    /// * relative path will use the current working directory
-    ///
-    /// ### Errors
-    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
-    /// vfs.mkdir_p("foo").unwrap();
-    /// vfs.set_cwd("foo").unwrap();
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
-    /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
-
     /// Returns an iterator over the given path
     ///
     /// ### Provides
@@ -188,6 +167,24 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Read all data from the given file and return it as a String
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>;
 
+    /// Returns the path the given link points to
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
+    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// ```
+    fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
+
     /// Removes the given empty directory or file
     ///
     /// ### Provides
@@ -230,6 +227,51 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// assert_eq!(vfs.exists("foo"), false);
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
+
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
+    /// vfs.mkdir_p("foo").unwrap();
+    /// vfs.set_cwd("foo").unwrap();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// ```
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
+
+    /// Creates a new symbolic link
+    ///
+    /// ### Arguments
+    /// * `link` - the path of the link being created
+    /// * `target` - the path that the link will point to
+    ///
+    /// ### Provides:
+    /// * path expansion and absolute path resolution
+    /// * computes the target path `src` relative to the `dst` link name's absolute path
+    /// * returns the link path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
+    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// ```
+    fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>;
 
     /// Write all the given data to to the indicated file creating the file first if it doesn't
     /// exist or truncating it first if it does.
@@ -325,33 +367,6 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.cwd(),
             Vfs::Memfs(x) => x.cwd(),
-        }
-    }
-
-    /// Set the current working directory
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    /// * relative path will use the current working directory
-    ///
-    /// ### Errors
-    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
-    /// assert_eq!(vfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
-    /// assert_eq!(vfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
-    /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
-    {
-        match self {
-            Vfs::Stdfs(x) => x.set_cwd(path),
-            Vfs::Memfs(x) => x.set_cwd(path),
         }
     }
 
@@ -466,6 +481,30 @@ impl FileSystem for Vfs
         }
     }
 
+    /// Returns the path the given link points to
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::memfs(), Some("vfs_method_readlink"));
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
+    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// ```
+    fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.readlink(path),
+            Vfs::Memfs(x) => x.readlink(path),
+        }
+    }
+
     /// Removes the given empty directory or file
     ///
     /// ### Provides
@@ -518,6 +557,63 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.remove_all(path),
             Vfs::Memfs(x) => x.remove_all(path),
+        }
+    }
+
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
+    /// assert_eq!(vfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(vfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
+    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// ```
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.set_cwd(path),
+            Vfs::Memfs(x) => x.set_cwd(path),
+        }
+    }
+
+    /// Creates a new symbolic link
+    ///
+    /// ### Arguments
+    /// * `link` - the path of the link being created
+    /// * `target` - the path that the link will point to
+    ///
+    /// ### Provides:
+    /// * path expansion and absolute path resolution
+    /// * computes the target path `src` relative to the `dst` link name's absolute path
+    /// * returns the link path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::memfs(), Some("vfs_method_readlink"));
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
+    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// ```
+    fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.symlink(link, target),
+            Vfs::Memfs(x) => x.symlink(link, target),
         }
     }
 

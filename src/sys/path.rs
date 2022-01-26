@@ -317,6 +317,68 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf
     path.components().collect::<PathBuf>()
 }
 
+/// Returns the `Path` relative to the given `base` path
+///
+/// Think what is the path navigation required to get from `base` to `path`. Every path used should
+/// represent a directory not a file or link. For files or links trim off the last segement of the
+/// path before calling this method. No attempt is made by this method to trim off the file segment.
+///
+/// ### Arguments
+/// * `path` - path to return the navigation relative to base for, expected to be in absolute form
+/// * `base` - path to calculate navigation from, expected to be in absolute form
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+/// ```
+pub fn relative<T: AsRef<Path>, U: AsRef<Path>>(path: T, base: U) -> RvResult<PathBuf>
+{
+    let path = path.as_ref();
+    let base = base.as_ref();
+    if path != base {
+        let mut x = path.components();
+        let mut y = base.components();
+        let mut comps: Vec<Component> = vec![];
+        loop {
+            match (x.next(), y.next()) {
+                // nothing were done
+                (None, None) => break,
+
+                // base is ahead one
+                (None, _) => comps.push(Component::ParentDir),
+
+                // self is ahead the remaining
+                (Some(a), None) => {
+                    comps.push(a);
+                    comps.extend(x.by_ref());
+                    break;
+                },
+
+                // both components are the same and we haven't processed anything yet skip it
+                (Some(a), Some(b)) if comps.is_empty() && a == b => continue,
+
+                // any additional components in the base need to be backed tracked from self
+                (Some(a), Some(_)) => {
+                    // backtrack the current component and all remaining ones
+                    comps.push(Component::ParentDir);
+                    for _ in y {
+                        comps.push(Component::ParentDir);
+                    }
+
+                    // now include the current self and all remaining components
+                    comps.push(a);
+                    comps.extend(x.by_ref());
+                    break;
+                },
+            }
+        }
+        return Ok(comps.iter().collect::<PathBuf>());
+    }
+    Ok(path.to_owned())
+}
+
 /// Returns a new [`PathBuf`] with the file extension trimmed off.
 ///
 /// ### Examples
@@ -781,21 +843,25 @@ pub trait PathExt
     // /// ```
     // fn readlink_abs(&self) -> RvResult<PathBuf>;
 
-    // /// Returns the `Path` relative to the given `base` path. Think what is the path navigation
-    // /// required to get from `base` to self. Every path used should represent a directory not a file
-    // /// or link. For files or links trim off the last segement of the path before calling this
-    // /// method. No attempt is made by this method to trim off the file segment.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(
-    // ///     PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(),
-    // ///     PathBuf::from("../bar1")
-    // /// );
-    // /// ```
-    // fn relative<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
+    /// Returns the `Path` relative to the given `base` path
+    ///
+    /// Think what is the path navigation required to get from `base` to `path`. Every path used
+    /// should represent a directory not a file or link. For files or links trim off the last
+    /// segement of the path before calling this method. No attempt is made by this method to
+    /// trim off the file segment.
+    ///
+    /// ### Arguments
+    /// * `path` - path to return the navigation relative to base for, expected to be in absolute
+    ///   form
+    /// * `base` - path to calculate navigation from, expected to be in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+    /// ```
+    fn relative<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     // /// Set the given [`Mode`] on the `Path` and return the `Path`
     // ///
@@ -1019,6 +1085,29 @@ impl PathExt for Path
         mash(self, path)
     }
 
+    /// Returns the `Path` relative to the given `base` path
+    ///
+    /// Think what is the path navigation required to get from `base` to `path`. Every path used
+    /// should represent a directory not a file or link. For files or links trim off the last
+    /// segement of the path before calling this method. No attempt is made by this method to
+    /// trim off the file segment.
+    ///
+    /// ### Arguments
+    /// * `path` - path to return the navigation relative to base for, expected to be in absolute
+    ///   form
+    /// * `base` - path to calculate navigation from, expected to be in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+    /// ```
+    fn relative<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        relative(self, path)
+    }
+
     /// Returns a new [`PathBuf`] with the file extension trimmed off.
     ///
     /// ### Examples
@@ -1094,7 +1183,7 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_stdfs_clean()
+    fn test_clean()
     {
         let tests = vec![
             // Root
@@ -1146,7 +1235,7 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_expand() -> RvResult<()>
+    fn test_expand() -> RvResult<()>
     {
         let home = sys::home_dir()?;
 
@@ -1193,14 +1282,41 @@ mod tests
     }
 
     #[test]
-    fn test_sys_dirname()
+    fn test_relative()
+    {
+        // share same directory
+        assert_eq!(PathBuf::from("bar1").relative("bar2").unwrap(), PathBuf::from("../bar1"));
+        assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+        assert_eq!(PathBuf::from("~/foo/bar1").relative("~/foo/bar2").unwrap(), PathBuf::from("../bar1"));
+        assert_eq!(PathBuf::from("../foo/bar1").relative("../foo/bar2").unwrap(), PathBuf::from("../bar1"));
+
+        // share parent directory
+        assert_eq!(PathBuf::from("foo1/bar1").relative("foo2/bar2").unwrap(), PathBuf::from("../../foo1/bar1"));
+        assert_eq!(PathBuf::from("/foo1/bar1").relative("/foo2/bar2").unwrap(), PathBuf::from("../../foo1/bar1"));
+
+        // share grandparent directory
+        assert_eq!(
+            PathBuf::from("blah1/foo1/bar1").relative("blah2/foo2/bar2").unwrap(),
+            PathBuf::from("../../../blah1/foo1/bar1")
+        );
+        assert_eq!(
+            PathBuf::from("/blah1/foo1/bar1").relative("/blah2/foo2/bar2").unwrap(),
+            PathBuf::from("../../../blah1/foo1/bar1")
+        );
+
+        // symlink is the opposite i.e. src.relative(dst)
+        assert_eq!(PathBuf::from("/dir1").relative("/dir1/dir2").unwrap(), PathBuf::from(".."));
+    }
+
+    #[test]
+    fn test_dirname()
     {
         assert_eq!(sys::dir("/foo/").unwrap(), PathBuf::from("/").as_path(),);
         assert_eq!(sys::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
     }
 
     #[test]
-    fn test_sys_has_prefix()
+    fn test_has_prefix()
     {
         let path = PathBuf::from("/foo/bar");
         assert_eq!(sys::has_prefix(&path, "/foo"), true);

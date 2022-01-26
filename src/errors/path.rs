@@ -44,6 +44,9 @@ pub enum PathError
     /// An error indicating that the path is not a file.
     IsNotFile(PathBuf),
 
+    /// An error indicating that the path is not a symlink.
+    IsNotSymlink(PathBuf),
+
     /// An error indicating that the path is not a file or symlink to a file.
     IsNotFileOrSymlinkToFile(PathBuf),
 
@@ -116,6 +119,12 @@ impl PathError
     pub fn is_not_file<T: AsRef<Path>>(path: T) -> PathError
     {
         PathError::IsNotFile(path.as_ref().to_path_buf())
+    }
+
+    /// Return an error indicating that the path is not a symlink
+    pub fn is_not_symlink<T: AsRef<Path>>(path: T) -> PathError
+    {
+        PathError::IsNotSymlink(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path is not a file or symlink to file
@@ -197,6 +206,9 @@ impl fmt::Display for PathError
             },
             PathError::IsNotFile(ref path) => {
                 write!(f, "Target path is not a file: {}", path.display())
+            },
+            PathError::IsNotSymlink(ref path) => {
+                write!(f, "Target path is not a symlink: {}", path.display())
             },
             PathError::IsNotFileOrSymlinkToFile(ref path) => {
                 write!(f, "Target path is not a file or a symlink to a file: {}", path.display())
@@ -323,6 +335,11 @@ mod tests
         );
         assert_eq!(PathError::is_not_file(Path::new("foo")), PathError::IsNotFile(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::is_not_file(PathBuf::from("foo"))), "Target path is not a file: foo");
+        assert_eq!(PathError::is_not_symlink(Path::new("foo")), PathError::IsNotSymlink(PathBuf::from("foo")));
+        assert_eq!(
+            format!("{}", PathError::is_not_symlink(PathBuf::from("foo"))),
+            "Target path is not a symlink: foo"
+        );
         assert_eq!(
             PathError::is_not_file_or_symlink_to_file(Path::new("foo")),
             PathError::IsNotFileOrSymlinkToFile(PathBuf::from("foo"))

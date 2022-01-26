@@ -79,6 +79,47 @@ impl Memfs
         let guard = self.0.read().unwrap();
         guard.root.clone()
     }
+
+    /// Create the given MemfsEntry if it doesn't already exist
+    ///
+    /// Expects the entry's path to already be in absolute form
+    pub(crate) fn add(&self, entry: MemfsEntry) -> RvResult<PathBuf>
+    {
+        let path = entry.path.clone();
+        let mut guard = self.0.write().unwrap();
+
+        // Validate path components
+        let dir = path.dir()?;
+        if let Some(entry) = guard.fs.get(&dir) {
+            if !entry.is_dir() {
+                return Err(PathError::is_not_dir(dir).into());
+            }
+        } else {
+            return Err(PathError::does_not_exist(dir).into());
+        }
+
+        // Validate the path itself
+        if let Some(x) = guard.fs.get(&path) {
+            if entry.is_file() && !x.is_file() {
+                return Err(PathError::is_not_file(path).into());
+            } else if entry.is_symlink() && !x.is_symlink() {
+                return Err(PathError::is_not_symlink(path).into());
+            }
+        } else {
+            // Add the new file to the file system
+            guard.fs.insert(path.clone(), entry);
+
+            // Add the new file to the data system
+            guard.data.insert(path.clone(), MemfsFile::default());
+
+            // Update the parent directory
+            if let Some(parent) = guard.fs.get_mut(&dir) {
+                parent.add(path.base()?)?;
+            }
+        }
+
+        Ok(path)
+    }
 }
 
 impl fmt::Display for Memfs
@@ -178,36 +219,6 @@ impl FileSystem for Memfs
     {
         let fs = self.0.read().unwrap();
         Ok(fs.cwd.clone())
-    }
-
-    /// Set the current working directory
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    /// * relative path will use the current working directory
-    ///
-    /// ### Errors
-    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let memfs = Memfs::new();
-    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
-    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
-    /// assert_eq!(memfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
-    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
-    /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
-    {
-        let path = self.abs(path)?;
-        let mut guard = self.0.write().unwrap();
-        if !guard.fs.contains_key(&path) {
-            return Err(PathError::does_not_exist(&path).into());
-        }
-        guard.cwd = path.clone();
-        Ok(path)
     }
 
     /// Returns an iterator over the given path
@@ -402,38 +413,7 @@ impl FileSystem for Memfs
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
-        let path = self.abs(path)?;
-        let mut guard = self.0.write().unwrap();
-
-        // Validate path components
-        let dir = path.dir()?;
-        if let Some(entry) = guard.fs.get(&dir) {
-            if !entry.is_dir() {
-                return Err(PathError::is_not_dir(dir).into());
-            }
-        } else {
-            return Err(PathError::does_not_exist(dir).into());
-        }
-
-        // Validate the path itself
-        if let Some(entry) = guard.fs.get(&path) {
-            if !entry.is_file() {
-                return Err(PathError::is_not_file(path).into());
-            }
-        } else {
-            // Add the new file to the file system
-            guard.fs.insert(path.clone(), MemfsEntry::opts(&path).file().new());
-
-            // Add the new file to the data system
-            guard.data.insert(path.clone(), MemfsFile::default());
-
-            // Update the parent directory
-            if let Some(parent) = guard.fs.get_mut(&dir) {
-                parent.add(path.base()?)?;
-            }
-        }
-
-        Ok(path)
+        self.add(MemfsEntry::opts(self.abs(path)?).file().new())
     }
 
     /// Read all data from the given file and return it as a String
@@ -456,6 +436,36 @@ impl FileSystem for Memfs
         }
 
         Ok("".to_string())
+    }
+
+    /// Returns the path the given link points to
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+    /// assert_eq!(memfs.symlink("link1", "file1").unwrap(), PathBuf::from("/link1"));
+    /// assert_eq!(memfs.readlink("link1").unwrap(), PathBuf::from("file1"));
+    /// ```
+    fn readlink<T: AsRef<Path>>(&self, link: T) -> RvResult<PathBuf>
+    {
+        let path = self.abs(link)?;
+        let guard = self.0.read().unwrap();
+
+        // Validate the link path
+        if let Some(entry) = guard.fs.get(&path) {
+            if !entry.is_symlink() {
+                return Err(PathError::is_not_symlink(path).into());
+            }
+            return Ok(entry.alt().to_owned());
+        } else {
+            return Err(PathError::does_not_exist(path).into());
+        }
     }
 
     /// Removes the given empty directory or file
@@ -537,6 +547,75 @@ impl FileSystem for Memfs
             }
         }
         Ok(())
+    }
+
+    /// Set the current working directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * relative path will use the current working directory
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(memfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
+    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// ```
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        let path = self.abs(path)?;
+        let mut guard = self.0.write().unwrap();
+        if !guard.fs.contains_key(&path) {
+            return Err(PathError::does_not_exist(&path).into());
+        }
+        guard.cwd = path.clone();
+        Ok(path)
+    }
+
+    /// Creates a new symbolic link
+    ///
+    /// ### Arguments
+    /// * `link` - the path of the link being created
+    /// * `target` - the path that the link will point to
+    ///
+    /// ### Provides:
+    /// * path expansion and absolute path resolution
+    /// * computes the target path `src` relative to the `dst` link name's absolute path
+    /// * returns the link path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
+    /// assert_eq!(memfs.symlink("link1", "file1").unwrap(), PathBuf::from("/link1"));
+    /// assert_eq!(memfs.readlink("link1").unwrap(), PathBuf::from("file1"));
+    /// ```
+    fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
+    {
+        let link = self.abs(link)?;
+        let target = target.as_ref().to_owned();
+
+        // If target is not rooted then it is already relative to the link thus mashing
+        // the link's directory to the src and cleaning it will given an absolute path.
+        let target = self.abs(if !target.is_absolute() { link.dir()?.mash(target) } else { target })?;
+
+        // Get the target path relative to the link path if possible
+        let target = target.relative(link.dir()?)?;
+
+        // Create the new entry as a link
+        let entry = MemfsEntry::opts(&link).link().alt(target).new();
+        self.add(entry)?;
+
+        Ok(link)
     }
 
     /// Write the given data to to the target file creating the file first if it doesn't exist or

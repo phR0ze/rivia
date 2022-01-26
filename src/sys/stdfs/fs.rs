@@ -95,15 +95,14 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_chmod");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_chmod"));
     /// let file1 = tmpdir.mash("file1");
-    /// assert_mkfile!(&file1);
+    /// assert_vfs_mkfile!(vfs, &file1);
     /// assert!(file1.chmod(0o644).is_ok());
     /// assert_eq!(file1.mode().unwrap(), 0o100644);
     /// assert!(file1.chmod(0o555).is_ok());
     /// assert_eq!(file1.mode().unwrap(), 0o100555);
-    /// //assert_remove_all!(&tmpdir);
+    /// //assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<()>
     {
@@ -176,14 +175,13 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_entries");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_entries"));
     /// let file1 = tmpdir.mash("file1");
-    /// assert_stdfs_mkfile!(&file1);
+    /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
     /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
     /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     /// assert!(iter.next().is_none());
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn entries<T: AsRef<Path>>(path: T) -> RvResult<Entries>
     {
@@ -272,10 +270,9 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_dir");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_is_dir"));
     /// assert_eq!(Stdfs::is_dir(&tmpdir), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn is_dir<T: AsRef<Path>>(path: T) -> bool
     {
@@ -295,13 +292,12 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_is_file");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_is_file"));
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
-    /// assert_stdfs_mkfile!(&file1);
+    /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
     /// assert_eq!(Stdfs::is_file(&file1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn is_file<T: AsRef<Path>>(path: T) -> bool
     {
@@ -436,13 +432,12 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mkfile");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mkfile"));
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
     /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
     /// assert_eq!(Stdfs::is_file(&file1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     {
@@ -476,12 +471,11 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mkdir_m");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mkdir_m"));
     /// let dir1 = tmpdir.mash("dir1");
     /// assert!(Stdfs::mkdir_m(&dir1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&dir1).unwrap(), 0o40555);
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn mkdir_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf>
     {
@@ -514,13 +508,12 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mkdir_p");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mkdir_p"));
     /// let dir1 = tmpdir.mash("dir1");
     /// assert_eq!(Stdfs::exists(&dir1), false);
     /// assert!(Stdfs::mkdir_p(&dir1).is_ok());
     /// assert_eq!(Stdfs::exists(&dir1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn mkdir_p<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     {
@@ -542,12 +535,11 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_mode");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mode"));
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::mkfile_m(&file1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&file1).unwrap(), 0o100555);
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn mode<T: AsRef<Path>>(path: T) -> RvResult<u32>
     {
@@ -562,12 +554,11 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_read");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_read"));
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::write(&file1, "this is a test").is_ok());
     /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn read_all<T: AsRef<Path>>(path: T) -> RvResult<String>
     {
@@ -578,24 +569,27 @@ impl Stdfs
         }
     }
 
-    // /// Returns the absolute path for the link target. Handles path expansion
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_stdfs_setup_func!();
-    // /// let tmpdir = assert_stdfs_setup!("stdfs_func_readlink");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// let link1 = tmpdir.mash("link1");
-    // /// assert_mkfile!(&file1);
-    // /// assert!(Stdfs::symlink(&file1, &link1).is_ok());
-    // /// assert_eq!(link1.readlink().unwrap(), PathBuf::from("file1"));
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // pub fn readlink(&self) -> RvResult<PathBuf> {
-    //     Stdfs::readlink(self)
-    // }
+    /// Returns the path the given link points to
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_readlink"));
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
+    /// assert_eq!(&Stdfs::symlink(&link1, &file1).unwrap(), &link1);
+    /// assert_eq!(Stdfs::readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn readlink<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
+        Ok(fs::read_link(Stdfs::abs(path)?)?)
+    }
 
     /// Returns the absolute path for the given link target. Handles path expansion for
     /// the given link. Useful for determining the absolute path of source relative to the
@@ -605,14 +599,13 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_readlink_abs");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_readlink_abs"));
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
-    /// assert_stdfs_touch!(&file1);
-    /// assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-    /// assert_eq!(Stdfs::readlink_abs(link1).unwrap(), file1);
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
+    /// assert_eq!(&Stdfs::symlink(&link1, &file1).unwrap(), &link1);
+    /// assert_eq!(Stdfs::readlink_abs(&link1).unwrap(), file1);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn readlink_abs<T: AsRef<Path>>(link: T) -> RvResult<PathBuf>
     {
@@ -692,8 +685,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_remove"));
     /// assert!(Stdfs::remove(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
@@ -720,8 +712,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove_all");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_remove_all"));
     /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
@@ -792,39 +783,45 @@ impl Stdfs
     //     Ok(path)
     // }
 
-    /// Creates a new symbolic link. Handles path expansion and returns an absolute path to the
-    /// link. Always computes the target `src` path relative to the `dst` link name's absolute path.
+    /// Creates a new symbolic link
+    ///
+    /// ### Arguments
+    /// * `link` - the path of the link being created
+    /// * `target` - the path that the link will point to
+    ///
+    /// ### Provides:
+    /// * path expansion and absolute path resolution
+    /// * computes the target path `src` relative to the `dst` link name's absolute path
+    /// * returns the link path
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_symlink");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_symlink"));
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
-    /// assert_stdfs_touch!(&file1);
-    /// assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+    /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
+    /// assert_eq!(&Stdfs::symlink(&link1, &file1).unwrap(), &link1);
     /// assert_eq!(Stdfs::readlink(&link1).unwrap(), PathBuf::from("file1"));
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
-    pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> RvResult<PathBuf>
+    pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> RvResult<PathBuf>
     {
-        let src = src.as_ref().to_owned();
+        let target = target.as_ref().to_owned();
 
-        // Ensure dst is rooted properly standard lookup
-        let dst = Stdfs::abs(dst.as_ref())?;
+        // Ensure link is rooted properly
+        let link = Stdfs::abs(link.as_ref())?;
 
-        // If source is not rooted then it is already relative to the dst thus mashing the dst's
-        // directory
-        // to the src and cleaning it will given an absolute path.
-        let src = Stdfs::abs(if !src.is_absolute() { dst.dir()?.mash(src) } else { src })?;
+        // If target is not rooted then it is already relative to the link thus mashing the link's directory
+        // to the target and cleaning it will given an absolute path.
+        let target = Stdfs::abs(if !target.is_absolute() { link.dir()?.mash(target) } else { target })?;
 
         // Keep the source path relative if possible,
-        let src = Stdfs::relative(src, dst.dir()?)?;
+        let target = Stdfs::relative(target, link.dir()?)?;
 
-        unix::fs::symlink(src, &dst)?;
-        Ok(dst)
+        unix::fs::symlink(target, &link)?;
+        Ok(link)
     }
 
     /// Set the access and modification times for the given file to the given times
@@ -918,6 +915,214 @@ impl FileSystem for Stdfs
         Stdfs::cwd()
     }
 
+    /// Returns an iterator over the given path
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * recursive path traversal
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_entries"));
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// let mut iter = vfs.entries(&file1).unwrap().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    /// assert!(iter.next().is_none());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
+    {
+        Stdfs::entries(path)
+    }
+
+    /// Returns true if the `path` exists
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_exists"));
+    /// assert_vfs_exists!(vfs, &tmpdir);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// assert_vfs_no_exists!(vfs, &tmpdir);
+    /// ```
+    fn exists<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::exists(path)
+    }
+
+    /// Returns true if the given path exists and is a directory
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a directory return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_is_dir"));
+    /// assert_vfs_is_dir!(vfs, &tmpdir);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// assert_vfs_no_dir!(vfs, &tmpdir);
+    /// ```
+    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::is_dir(path)
+    }
+
+    /// Returns true if the given path exists and is a file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. links even if pointing to a file return false
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_is_file"));
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_no_file!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_is_file!(vfs, &file1);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::is_file(path)
+    }
+
+    /// Create an empty file similar to the linux touch command
+    ///
+    /// ### Provides
+    /// * handling path expansion and absolute path resolution
+    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent isn't a directory
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but isn't a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_mkfile"));
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_no_file!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_is_file!(vfs, &file1);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        Stdfs::mkfile(path)
+    }
+
+    /// Creates the given directory and any parent directories needed
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// # Errors
+    /// * io::Error if its unable to create the directory
+    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_mkdir_p"));
+    /// let dir1 = tmpdir.mash("dir1");
+    /// assert_vfs_no_dir!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_is_dir!(vfs, &dir1);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        Stdfs::mkdir_p(path)
+    }
+
+    /// Read all data from the given file and return it as a String
+    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
+    {
+        Stdfs::read_all(path)
+    }
+
+    /// Returns the path the given link points to
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_readlink"));
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_eq!(&vfs.symlink(&link1, &file1).unwrap(), &link1);
+    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn readlink<T: AsRef<Path>>(&self, link: T) -> RvResult<PathBuf>
+    {
+        Stdfs::readlink(link)
+    }
+
+    /// Removes the given empty directory or file
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Errors
+    /// * a directory containing files will trigger an error. use `remove_all` instead
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_remove"));
+    /// assert_vfs_is_dir!(vfs, &tmpdir);
+    /// assert_vfs_remove!(vfs, &tmpdir);
+    /// assert_vfs_no_dir!(vfs, &tmpdir);
+    /// ```
+    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        Stdfs::remove(path)
+    }
+
+    /// Removes the given directory after removing all of its contents
+    ///
+    /// ### Provides
+    /// * path expansion and absolute path resolution
+    /// * link exclusion i.e. removes the link themselves not what its points to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_remove_all"));
+    /// assert_vfs_is_dir!(vfs, &tmpdir);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// assert_vfs_no_dir!(vfs, &tmpdir);
+    /// ```
+    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
+        Stdfs::remove_all(path)
+    }
+
     /// Set the current working directory
     ///
     /// ### Provides
@@ -940,195 +1145,33 @@ impl FileSystem for Stdfs
         Stdfs::set_cwd(path)
     }
 
-    /// Returns an iterator over the given path
+    /// Creates a new symbolic link
     ///
-    /// ### Provides
+    /// ### Arguments
+    /// * `link` - the path of the link being created
+    /// * `target` - the path that the link will point to
+    ///
+    /// ### Provides:
     /// * path expansion and absolute path resolution
-    /// * recursive path traversal
+    /// * computes the target path `src` relative to the `dst` link name's absolute path
+    /// * returns the link path
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_stdfs_setup_func!();
-    /// let stdfs = Stdfs::new();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_method_entries");
+    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_symlink"));
     /// let file1 = tmpdir.mash("file1");
-    /// assert_stdfs_mkfile!(&file1);
-    /// let mut iter = stdfs.entries(&file1).unwrap().into_iter();
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    /// assert!(iter.next().is_none());
-    /// assert_stdfs_remove_all!(&tmpdir);
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_eq!(&vfs.symlink(&link1, &file1).unwrap(), &link1);
+    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
-    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
+    fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
     {
-        Stdfs::entries(path)
-    }
-
-    /// Returns true if the `path` exists
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let stdfs = Stdfs::new();
-    /// assert_eq!(stdfs.exists("/etc"), true);
-    /// ```
-    fn exists<T: AsRef<Path>>(&self, path: T) -> bool
-    {
-        Stdfs::exists(path)
-    }
-
-    /// Returns true if the given path exists and is a directory
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. links even if pointing to a directory return false
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let stdfs = Stdfs::new();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_method_is_dir");
-    /// assert_eq!(stdfs.is_dir(&tmpdir), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
-    /// assert_eq!(stdfs.is_dir(&tmpdir), false);
-    /// ```
-    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool
-    {
-        Stdfs::is_dir(path)
-    }
-
-    /// Returns true if the given path exists and is a file
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. links even if pointing to a file return false
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let stdfs = Stdfs::new();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_method_is_file");
-    /// let file1 = tmpdir.mash("file1");
-    /// assert_eq!(stdfs.is_file(&file1), false);
-    /// assert_stdfs_mkfile!(&file1);
-    /// assert_eq!(stdfs.is_file(&file1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
-    /// ```
-    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool
-    {
-        Stdfs::is_file(path)
-    }
-
-    /// Create an empty file similar to the linux touch command
-    ///
-    /// ### Provides
-    /// * handling path expansion and absolute path resolution
-    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
-    ///
-    /// ### Errors
-    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
-    /// * PathError::IsNotDir(PathBuf) when the given path's parent isn't a directory
-    /// * PathError::IsNotFile(PathBuf) when the given path exists but isn't a file
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_method_mkfile");
-    /// let file1 = tmpdir.mash("file1");
-    /// assert_eq!(Stdfs::is_file(&file1), false);
-    /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
-    /// assert_eq!(Stdfs::is_file(&file1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
-    /// ```
-    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
-    {
-        Stdfs::mkfile(path)
-    }
-
-    /// Creates the given directory and any parent directories needed
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    ///
-    /// # Errors
-    /// * io::Error if its unable to create the directory
-    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_method_mkdir_p");
-    /// let dir1 = tmpdir.mash("dir1");
-    /// assert_eq!(Stdfs::exists(&dir1), false);
-    /// assert!(Stdfs::mkdir_p(&dir1).is_ok());
-    /// assert_eq!(Stdfs::exists(&dir1), true);
-    /// assert_stdfs_remove_all!(&tmpdir);
-    /// ```
-    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
-    {
-        Stdfs::mkdir_p(path)
-    }
-
-    /// Read all data from the given file and return it as a String
-    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
-    {
-        Stdfs::read_all(path)
-    }
-
-    /// Removes the given empty directory or file
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. removes the link themselves not what its points to
-    ///
-    /// ### Errors
-    /// * a directory containing files will trigger an error. use `remove_all` instead
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove");
-    /// assert!(Stdfs::remove(&tmpdir).is_ok());
-    /// assert_eq!(Stdfs::exists(&tmpdir), false);
-    /// ```
-    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
-    {
-        Stdfs::remove(path)
-    }
-
-    /// Removes the given directory after removing all of its contents
-    ///
-    /// ### Provides
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. removes the link themselves not what its points to
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// assert_stdfs_setup_func!();
-    /// let tmpdir = assert_stdfs_setup!("stdfs_func_remove_all");
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
-    /// assert_eq!(Stdfs::exists(&tmpdir), false);
-    /// ```
-    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
-    {
-        Stdfs::remove_all(path)
+        Stdfs::symlink(link, target)
     }
 
     /// Write the given data to to the indicated file creating the file first if it doesn't exist
@@ -1230,5 +1273,431 @@ mod tests
     //     // Error: parent exists and is not a directory
     //     let err = memfs.mkfile("file2/file1").unwrap_err();
     //     assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_dir("/file2"));
+    // }
+    // use crate::prelude::*;
+    // assert_stdfs_setup_func!();
+
+    // fn assert_iter_eq(iter: EntriesIter, paths: Vec<&PathBuf>)
+    // {
+    //     // Using a vector here as there can be duplicates
+    //     let mut entries = Vec::new();
+    //     for entry in iter {
+    //         entries.push(entry.unwrap().path().to_path_buf());
+    //     }
+
+    //     assert_eq!(entries.len(), paths.len());
+    //     for path in paths.iter() {
+    //         assert!(entries.contains(path));
+    //     }
+    // }
+
+    // #[test]
+    // fn test_stdfs_contents_first()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let file1 = dir1.mash("file1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let file2 = dir2.mash("file2");
+    //     let file3 = tmpdir.mash("file3");
+    //     let link1 = tmpdir.mash("link1");
+
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkfile!(&file2);
+    //     assert_stdfs_mkfile!(&file3);
+    //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+
+    //     // contents first un-sorted
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().contents_first().into_iter();
+    //     assert_iter_eq(iter, vec![&link1, &file3, &file2, &dir2, &file1, &dir1, &tmpdir]);
+
+    //     // contents first sorted
+    //     let mut iter =
+    // Stdfs::entries(&tmpdir).unwrap().contents_first().dirs_first().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file3);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), link1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert!(iter.next().is_none());
+
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // #[test]
+    // fn test_stdfs_sort()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let zdir1 = tmpdir.mash("zdir1");
+    //     let dir1file1 = zdir1.mash("file1");
+    //     let dir1file2 = zdir1.mash("file2");
+    //     let zdir2 = tmpdir.mash("zdir2");
+    //     let dir2file1 = zdir2.mash("file1");
+    //     let dir2file2 = zdir2.mash("file2");
+    //     let file1 = tmpdir.mash("file1");
+    //     let file2 = tmpdir.mash("file2");
+
+    //     assert_stdfs_mkdir_p!(&zdir1);
+    //     assert_stdfs_mkdir_p!(&zdir2);
+    //     assert_stdfs_mkfile!(&dir1file1);
+    //     assert_stdfs_mkfile!(&dir1file2);
+    //     assert_stdfs_mkfile!(&dir2file1);
+    //     assert_stdfs_mkfile!(&dir2file2);
+    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkfile!(&file2);
+
+    //     // Without sorting
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     assert_iter_eq(iter, vec![
+    //         &tmpdir, &file2, &zdir1, &dir1file2, &dir1file1, &file1, &zdir2, &dir2file2,
+    // &dir2file1,     ]);
+
+    //     // with sorting on name
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().sort(|x, y|
+    // x.file_name().cmp(&y.file_name())).into_iter();     assert_eq!(iter.next().unwrap().
+    // unwrap().path(), tmpdir);     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+    //     assert!(iter.next().is_none());
+
+    //     // with sort default set
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().sort_by_name().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+    //     assert!(iter.next().is_none());
+
+    //     // sort dirs first
+    //     let zdir3 = zdir1.mash("zdir3");
+    //     let dir3file1 = zdir3.mash("file1");
+    //     let dir3file2 = zdir3.mash("file2");
+    //     assert_stdfs_mkdir_p!(&zdir3);
+    //     assert_stdfs_mkfile!(&dir3file1);
+    //     assert_stdfs_mkfile!(&dir3file2);
+
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().dirs_first().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert!(iter.next().is_none());
+
+    //     // sort files first
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().files_first().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+    //     assert!(iter.next().is_none());
+
+    //     // sort files first but in reverse aphabetic order
+    //     let mut iter = Stdfs::entries(&tmpdir)
+    //         .unwrap()
+    //         .files_first()
+    //         .sort(|x, y| y.file_name().cmp(&x.file_name()))
+    //         .into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
+    //     assert!(iter.next().is_none());
+
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // #[test]
+    // fn test_stdfs_max_descriptors()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let file1 = dir1.mash("file1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let file2 = dir2.mash("file2");
+    //     let dir3 = dir2.mash("dir3");
+    //     let file3 = dir3.mash("file3");
+
+    //     assert_stdfs_mkdir_p!(&dir3);
+    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkfile!(&file2);
+    //     assert_stdfs_mkfile!(&file3);
+
+    //     // Without descriptor cap
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &file2, &dir3, &file3, &file1]);
+
+    //     // with descritor cap - should have the same pattern
+    //     let mut paths = Stdfs::entries(&tmpdir).unwrap();
+    //     paths.max_descriptors = 1;
+    //     let iter = paths.into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &file2, &dir3, &file3, &file1]);
+
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // #[test]
+    // fn test_stdfs_loop_detection()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let link1 = dir2.mash("link1");
+
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_eq!(Stdfs::symlink(&dir1, &link1).unwrap(), link1);
+
+    //     // Non follow should be fine
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &link1]);
+
+    //     // Follow link will loop
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().follow(true).into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+    //     assert_eq!(iter.next().unwrap().unwrap_err().to_string(),
+    // PathError::link_looping(dir1).to_string());     assert!(iter.next().is_none());
+
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // #[test]
+    // fn test_stdfs_filter()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let file1 = dir1.mash("file1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let file2 = dir2.mash("file2");
+    //     let file3 = tmpdir.mash("file3");
+    //     let link1 = tmpdir.mash("link1");
+    //     let link2 = tmpdir.mash("link2");
+
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkfile!(&file2);
+    //     assert_stdfs_mkfile!(&file3);
+    //     assert_eq!(Stdfs::symlink(&dir2, &link2).unwrap(), link2);
+    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+
+    //     // Files only
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().files().into_iter();
+    //     assert_iter_eq(iter, vec![&link1, &file3, &file2, &file1]);
+
+    //     // Dirs only
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().dirs().into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &link2, &dir1, &dir2]);
+
+    //     // Custom links only
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().into_iter().filter_p(|x| x.is_symlink());
+    //     assert_iter_eq(iter, vec![&link1, &link2]);
+
+    //     // Custom name
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter().filter_p(|x|
+    // x.path().has_suffix("1"));     assert_iter_eq(iter, vec![&link1, &dir1, &file1]);
+
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // #[test]
+    // fn test_stdfs_follow()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let file1 = dir1.mash("file1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let file2 = dir2.mash("file2");
+    //     let file3 = tmpdir.mash("file3");
+    //     let link1 = tmpdir.mash("link1");
+
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkfile!(&file2);
+    //     assert_stdfs_mkfile!(&file3);
+    //     assert_eq!(Stdfs::symlink(&dir2, &link1).unwrap(), link1);
+
+    //     // Follow off
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &link1, &file3, &dir1, &dir2, &file2, &file1]);
+
+    //     // Follow on
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().follow(true).into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &dir2, &file2, &file3, &dir1, &dir2, &file2, &file1]);
+
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // #[test]
+    // fn test_stdfs_depth()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let dir1file1 = dir1.mash("file1");
+    //     let file1 = tmpdir.mash("file1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let dir2file1 = dir2.mash("file1");
+
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_mkfile!(&dir1file1);
+    //     assert_stdfs_mkfile!(&dir2file1);
+    //     assert_stdfs_mkfile!(&file1);
+
+    //     // Min: 0, Max: 0 = only root
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().max_depth(0).into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert!(iter.next().is_none());
+
+    //     // Min: 0, Max: 1 = root and immediate children
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().max_depth(1).into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1]);
+
+    //     // Min: 0, Max: 2 = root, its immediate children and their immediate children
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().max_depth(2).into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1, &dir2, &dir1file1]);
+
+    //     // Min: 1, Max: max = skip root, all rest
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(1).into_iter();
+    //     assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1, &dir2file1]);
+
+    //     // Min: 1, Max: 1 = skip root, hit root's children only
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(1).max_depth(1).into_iter();
+    //     assert_iter_eq(iter, vec![&file1, &dir1]);
+
+    //     // Min: 1, Max: 2 = skip root, hit root's chilren and theirs only
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(1).max_depth(2).into_iter();
+    //     assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1]);
+
+    //     // Min: 2, Max: 1 - max should get corrected to 2 because of ordering
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(2).max_depth(1).into_iter();
+    //     assert_eq!(iter.opts.min_depth, 2);
+    //     assert_eq!(iter.opts.max_depth, 2);
+    //     assert_iter_eq(iter, vec![&dir2, &dir1file1]);
+
+    //     // Min: 2, Max: 1 - min should get corrected to 1 because of ordering
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().max_depth(1).min_depth(2).into_iter();
+    //     assert_eq!(iter.opts.min_depth, 1);
+    //     assert_eq!(iter.opts.max_depth, 1);
+    //     assert_iter_eq(iter, vec![&file1, &dir1]);
+
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // // #[test]
+    // // fn test_memfs_multiple()
+    // // {
+    // //     let memfs = Memfs::new();
+    // //     let tmpdir = PathBuf::from(testing::TEST_TEMP_DIR);
+    // //     let dir1 = tmpdir.mash("dir1");
+    // //     let file1 = dir1.mash("file1");
+    // //     let dir2 = dir1.mash("dir2");
+    // //     let file2 = dir2.mash("file2");
+    // //     let file3 = tmpdir.mash("file3");
+    // //     let link1 = tmpdir.mash("link1");
+
+    // //     assert_stdfs_mkdir_p!(&dir2);
+    // //     assert_stdfs_mkfile!(&file1);
+    // //     assert_stdfs_mkfile!(&file2);
+    // //     assert_stdfs_mkfile!(&file3);
+    // //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+
+    // //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    // //     assert_iter_eq(iter, vec![&tmpdir, &file3, &dir1, &dir2, &file2, &file1, &link1]);
+    // //     assert_stdfs_remove_all!(&tmpdir);
+    // // }
+
+    // #[test]
+    // fn test_stdfs_multiple()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let file1 = dir1.mash("file1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let file2 = dir2.mash("file2");
+    //     let file3 = tmpdir.mash("file3");
+    //     let link1 = tmpdir.mash("link1");
+
+    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkfile!(&file2);
+    //     assert_stdfs_mkfile!(&file3);
+    //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+
+    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &file3, &dir1, &dir2, &file2, &file1, &link1]);
+    //     assert_stdfs_remove_all!(&tmpdir);
+    // }
+
+    // #[test]
+    // fn test_memfs_single()
+    // {
+    //     // Single directory
+    //     let memfs = Memfs::new();
+    //     assert_eq!(memfs.mkdir_p("dir1").unwrap(), PathBuf::from("/dir1"));
+    //     let mut iter = memfs.entries("dir1").unwrap().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/dir1"));
+    //     assert!(iter.next().is_none());
+
+    //     // Single file
+    //     assert_eq!(memfs.mkfile("dir1/file1").unwrap(), PathBuf::from("/dir1/file1"));
+    //     let mut iter = memfs.entries("/dir1/file1").unwrap().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/dir1/file1"));
+    //     assert!(iter.next().is_none());
+    // }
+
+    // #[test]
+    // fn test_stdfs_single()
+    // {
+    //     let tmpdir = assert_stdfs_setup!();
+    //     let file1 = tmpdir.mash("file1");
+
+    //     // Single directory
+    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert!(iter.next().is_none());
+
+    //     // Single file
+    //     assert!(Stdfs::mkfile(&file1).is_ok());
+    //     let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    //     assert!(iter.next().is_none());
+
+    //     assert_stdfs_remove_all!(&tmpdir);
     // }
 }

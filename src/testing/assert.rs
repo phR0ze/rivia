@@ -319,10 +319,10 @@ macro_rules! assert_vfs_mkfile {
     };
 }
 
-/// Assert the removal of the target file
+/// Assert the removal of the target file or directory
 ///
 /// ### Assertion Failures
-/// * Assertion fails if the target isn't a file
+/// * Assertion fails if the target is a directory that contains files
 /// * Assertion fails if the file exists after `remove` is called
 /// * Assertion fails if the `remove` call fails
 ///
@@ -343,15 +343,20 @@ macro_rules! assert_vfs_remove {
             _ => panic_msg!("assert_vfs_remove!", "failed to get absolute path", $path),
         };
         if $vfs.exists(&target) {
-            if $vfs.is_file(&target) {
+            if !$vfs.is_dir(&target) {
                 if $vfs.remove(&target).is_err() {
                     panic_msg!("assert_vfs_remove!", "failed removing file", &target);
                 }
-                if $vfs.is_file(&target) {
+                if $vfs.exists(&target) {
                     panic_msg!("assert_vfs_remove!", "file still exists", &target);
                 }
             } else {
-                panic_msg!("assert_vfs_remove!", "exists and isn't a file", &target);
+                if $vfs.remove(&target).is_err() {
+                    panic_msg!("assert_vfs_remove!", "failed removing directory", &target);
+                }
+                if $vfs.exists(&target) {
+                    panic_msg!("assert_vfs_remove!", "directory still exists", &target);
+                }
             }
         }
     };

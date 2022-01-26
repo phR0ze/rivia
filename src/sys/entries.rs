@@ -498,58 +498,56 @@ impl Iterator for EntriesIter
 #[cfg(test)]
 mod tests
 {
-    // use crate::prelude::*;
-    // assert_stdfs_setup_func!();
+    use crate::prelude::*;
 
-    // fn assert_iter_eq(iter: EntriesIter, paths: Vec<&PathBuf>)
-    // {
-    //     // Using a vector here as there can be duplicates
-    //     let mut entries = Vec::new();
-    //     for entry in iter {
-    //         entries.push(entry.unwrap().path().to_path_buf());
-    //     }
+    fn assert_iter_eq(iter: EntriesIter, paths: Vec<&PathBuf>)
+    {
+        // Using a vector here as there can be duplicates
+        let mut entries = Vec::new();
+        for entry in iter {
+            entries.push(entry.unwrap().path().to_path_buf());
+        }
 
-    //     assert_eq!(entries.len(), paths.len());
-    //     for path in paths.iter() {
-    //         assert!(entries.contains(path));
-    //     }
-    // }
+        assert_eq!(entries.len(), paths.len());
+        for path in paths.iter() {
+            assert!(entries.contains(path));
+        }
+    }
 
-    // #[test]
-    // fn test_stdfs_contents_first()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let dir1 = tmpdir.mash("dir1");
-    //     let file1 = dir1.mash("file1");
-    //     let dir2 = dir1.mash("dir2");
-    //     let file2 = dir2.mash("file2");
-    //     let file3 = tmpdir.mash("file3");
-    //     let link1 = tmpdir.mash("link1");
+    #[test]
+    fn test_stdfs_contents_first()
+    {
+        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = dir1.mash("file1");
+        let dir2 = dir1.mash("dir2");
+        let file2 = dir2.mash("file2");
+        let file3 = tmpdir.mash("file3");
+        let link1 = tmpdir.mash("link1");
 
-    //     assert_stdfs_mkdir_p!(&dir2);
-    //     assert_stdfs_mkfile!(&file1);
-    //     assert_stdfs_mkfile!(&file2);
-    //     assert_stdfs_mkfile!(&file3);
-    //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+        assert_vfs_mkfile!(vfs, &file3);
+        assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
 
-    //     // contents first un-sorted
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().contents_first().into_iter();
-    //     assert_iter_eq(iter, vec![&link1, &file3, &file2, &dir2, &file1, &dir1, &tmpdir]);
+        // contents first un-sorted
+        let iter = vfs.entries(&tmpdir).unwrap().contents_first().into_iter();
+        assert_iter_eq(iter, vec![&link1, &file3, &file2, &dir2, &file1, &dir1, &tmpdir]);
 
-    //     // contents first sorted
-    //     let mut iter =
-    // Stdfs::entries(&tmpdir).unwrap().contents_first().dirs_first().into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file3);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), link1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-    //     assert!(iter.next().is_none());
+        // contents first sorted
+        let mut iter = vfs.entries(&tmpdir).unwrap().contents_first().dirs_first().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file3);
+        assert_eq!(iter.next().unwrap().unwrap().path(), link1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        assert!(iter.next().is_none());
 
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
     // #[test]
     // fn test_stdfs_sort()
@@ -564,23 +562,23 @@ mod tests
     //     let file1 = tmpdir.mash("file1");
     //     let file2 = tmpdir.mash("file2");
 
-    //     assert_stdfs_mkdir_p!(&zdir1);
-    //     assert_stdfs_mkdir_p!(&zdir2);
-    //     assert_stdfs_mkfile!(&dir1file1);
-    //     assert_stdfs_mkfile!(&dir1file2);
-    //     assert_stdfs_mkfile!(&dir2file1);
-    //     assert_stdfs_mkfile!(&dir2file2);
-    //     assert_stdfs_mkfile!(&file1);
-    //     assert_stdfs_mkfile!(&file2);
+    //     assert_stdfs_mkdir_p!(vfs, &zdir1);
+    //     assert_stdfs_mkdir_p!(vfs, &zdir2);
+    //     assert_stdfs_mkfile!(vfs, &dir1file1);
+    //     assert_stdfs_mkfile!(vfs, &dir1file2);
+    //     assert_stdfs_mkfile!(vfs, &dir2file1);
+    //     assert_stdfs_mkfile!(vfs, &dir2file2);
+    //     assert_stdfs_mkfile!(vfs, &file1);
+    //     assert_stdfs_mkfile!(vfs, &file2);
 
     //     // Without sorting
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     //     assert_iter_eq(iter, vec![
     //         &tmpdir, &file2, &zdir1, &dir1file2, &dir1file1, &file1, &zdir2, &dir2file2,
     // &dir2file1,     ]);
 
     //     // with sorting on name
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().sort(|x, y|
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().sort(|x, y|
     // x.file_name().cmp(&y.file_name())).into_iter();     assert_eq!(iter.next().unwrap().
     // unwrap().path(), tmpdir);     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
@@ -593,7 +591,7 @@ mod tests
     //     assert!(iter.next().is_none());
 
     //     // with sort default set
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().sort_by_name().into_iter();
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().sort_by_name().into_iter();
     //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
@@ -609,11 +607,11 @@ mod tests
     //     let zdir3 = zdir1.mash("zdir3");
     //     let dir3file1 = zdir3.mash("file1");
     //     let dir3file2 = zdir3.mash("file2");
-    //     assert_stdfs_mkdir_p!(&zdir3);
-    //     assert_stdfs_mkfile!(&dir3file1);
-    //     assert_stdfs_mkfile!(&dir3file2);
+    //     assert_stdfs_mkdir_p!(vfs, &zdir3);
+    //     assert_stdfs_mkfile!(vfs, &dir3file1);
+    //     assert_stdfs_mkfile!(vfs, &dir3file2);
 
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().dirs_first().into_iter();
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().dirs_first().into_iter();
     //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
@@ -629,7 +627,7 @@ mod tests
     //     assert!(iter.next().is_none());
 
     //     // sort files first
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().files_first().into_iter();
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().files_first().into_iter();
     //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
@@ -645,7 +643,7 @@ mod tests
     //     assert!(iter.next().is_none());
 
     //     // sort files first but in reverse aphabetic order
-    //     let mut iter = Stdfs::entries(&tmpdir)
+    //     let mut iter = vfs.entries(&tmpdir)
     //         .unwrap()
     //         .files_first()
     //         .sort(|x, y| y.file_name().cmp(&x.file_name()))
@@ -664,7 +662,7 @@ mod tests
     //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
     //     assert!(iter.next().is_none());
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
@@ -678,22 +676,22 @@ mod tests
     //     let dir3 = dir2.mash("dir3");
     //     let file3 = dir3.mash("file3");
 
-    //     assert_stdfs_mkdir_p!(&dir3);
-    //     assert_stdfs_mkfile!(&file1);
-    //     assert_stdfs_mkfile!(&file2);
-    //     assert_stdfs_mkfile!(&file3);
+    //     assert_stdfs_mkdir_p!(vfs, &dir3);
+    //     assert_stdfs_mkfile!(vfs, &file1);
+    //     assert_stdfs_mkfile!(vfs, &file2);
+    //     assert_stdfs_mkfile!(vfs, &file3);
 
     //     // Without descriptor cap
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &file2, &dir3, &file3, &file1]);
 
     //     // with descritor cap - should have the same pattern
-    //     let mut paths = Stdfs::entries(&tmpdir).unwrap();
+    //     let mut paths = vfs.entries(&tmpdir).unwrap();
     //     paths.max_descriptors = 1;
     //     let iter = paths.into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &file2, &dir3, &file3, &file1]);
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
@@ -704,22 +702,22 @@ mod tests
     //     let dir2 = dir1.mash("dir2");
     //     let link1 = dir2.mash("link1");
 
-    //     assert_stdfs_mkdir_p!(&dir2);
+    //     assert_stdfs_mkdir_p!(vfs, &dir2);
     //     assert_eq!(Stdfs::symlink(&dir1, &link1).unwrap(), link1);
 
     //     // Non follow should be fine
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &link1]);
 
     //     // Follow link will loop
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().follow(true).into_iter();
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().follow(true).into_iter();
     //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
     //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
     //     assert_eq!(iter.next().unwrap().unwrap_err().to_string(),
     // PathError::link_looping(dir1).to_string());     assert!(iter.next().is_none());
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
@@ -734,30 +732,30 @@ mod tests
     //     let link1 = tmpdir.mash("link1");
     //     let link2 = tmpdir.mash("link2");
 
-    //     assert_stdfs_mkdir_p!(&dir2);
-    //     assert_stdfs_mkfile!(&file1);
-    //     assert_stdfs_mkfile!(&file2);
-    //     assert_stdfs_mkfile!(&file3);
+    //     assert_stdfs_mkdir_p!(vfs, &dir2);
+    //     assert_stdfs_mkfile!(vfs, &file1);
+    //     assert_stdfs_mkfile!(vfs, &file2);
+    //     assert_stdfs_mkfile!(vfs, &file3);
     //     assert_eq!(Stdfs::symlink(&dir2, &link2).unwrap(), link2);
     //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
 
     //     // Files only
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().files().into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().files().into_iter();
     //     assert_iter_eq(iter, vec![&link1, &file3, &file2, &file1]);
 
     //     // Dirs only
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().dirs().into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().dirs().into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &link2, &dir1, &dir2]);
 
     //     // Custom links only
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().into_iter().filter_p(|x| x.is_symlink());
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().into_iter().filter_p(|x| x.is_symlink());
     //     assert_iter_eq(iter, vec![&link1, &link2]);
 
     //     // Custom name
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter().filter_p(|x|
+    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter().filter_p(|x|
     // x.path().has_suffix("1"));     assert_iter_eq(iter, vec![&link1, &dir1, &file1]);
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
@@ -771,21 +769,21 @@ mod tests
     //     let file3 = tmpdir.mash("file3");
     //     let link1 = tmpdir.mash("link1");
 
-    //     assert_stdfs_mkdir_p!(&dir2);
-    //     assert_stdfs_mkfile!(&file1);
-    //     assert_stdfs_mkfile!(&file2);
-    //     assert_stdfs_mkfile!(&file3);
+    //     assert_stdfs_mkdir_p!(vfs, &dir2);
+    //     assert_stdfs_mkfile!(vfs, &file1);
+    //     assert_stdfs_mkfile!(vfs, &file2);
+    //     assert_stdfs_mkfile!(vfs, &file3);
     //     assert_eq!(Stdfs::symlink(&dir2, &link1).unwrap(), link1);
 
     //     // Follow off
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &link1, &file3, &dir1, &dir2, &file2, &file1]);
 
     //     // Follow on
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().follow(true).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().follow(true).into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &dir2, &file2, &file3, &dir1, &dir2, &file2, &file1]);
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
@@ -798,49 +796,49 @@ mod tests
     //     let dir2 = dir1.mash("dir2");
     //     let dir2file1 = dir2.mash("file1");
 
-    //     assert_stdfs_mkdir_p!(&dir2);
-    //     assert_stdfs_mkfile!(&dir1file1);
-    //     assert_stdfs_mkfile!(&dir2file1);
-    //     assert_stdfs_mkfile!(&file1);
+    //     assert_stdfs_mkdir_p!(vfs, &dir2);
+    //     assert_stdfs_mkfile!(vfs, &dir1file1);
+    //     assert_stdfs_mkfile!(vfs, &dir2file1);
+    //     assert_stdfs_mkfile!(vfs, &file1);
 
     //     // Min: 0, Max: 0 = only root
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().max_depth(0).into_iter();
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().max_depth(0).into_iter();
     //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
     //     assert!(iter.next().is_none());
 
     //     // Min: 0, Max: 1 = root and immediate children
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().max_depth(1).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().max_depth(1).into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1]);
 
     //     // Min: 0, Max: 2 = root, its immediate children and their immediate children
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().max_depth(2).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().max_depth(2).into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1, &dir2, &dir1file1]);
 
     //     // Min: 1, Max: max = skip root, all rest
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(1).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).into_iter();
     //     assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1, &dir2file1]);
 
     //     // Min: 1, Max: 1 = skip root, hit root's children only
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(1).max_depth(1).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).max_depth(1).into_iter();
     //     assert_iter_eq(iter, vec![&file1, &dir1]);
 
     //     // Min: 1, Max: 2 = skip root, hit root's chilren and theirs only
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(1).max_depth(2).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).max_depth(2).into_iter();
     //     assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1]);
 
     //     // Min: 2, Max: 1 - max should get corrected to 2 because of ordering
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().min_depth(2).max_depth(1).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(2).max_depth(1).into_iter();
     //     assert_eq!(iter.opts.min_depth, 2);
     //     assert_eq!(iter.opts.max_depth, 2);
     //     assert_iter_eq(iter, vec![&dir2, &dir1file1]);
 
     //     // Min: 2, Max: 1 - min should get corrected to 1 because of ordering
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().max_depth(1).min_depth(2).into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().max_depth(1).min_depth(2).into_iter();
     //     assert_eq!(iter.opts.min_depth, 1);
     //     assert_eq!(iter.opts.max_depth, 1);
     //     assert_iter_eq(iter, vec![&file1, &dir1]);
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 
     // // #[test]
@@ -855,15 +853,15 @@ mod tests
     // //     let file3 = tmpdir.mash("file3");
     // //     let link1 = tmpdir.mash("link1");
 
-    // //     assert_stdfs_mkdir_p!(&dir2);
-    // //     assert_stdfs_mkfile!(&file1);
-    // //     assert_stdfs_mkfile!(&file2);
-    // //     assert_stdfs_mkfile!(&file3);
+    // //     assert_stdfs_mkdir_p!(vfs, &dir2);
+    // //     assert_stdfs_mkfile!(vfs, &file1);
+    // //     assert_stdfs_mkfile!(vfs, &file2);
+    // //     assert_stdfs_mkfile!(vfs, &file3);
     // //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
 
-    // //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    // //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     // //     assert_iter_eq(iter, vec![&tmpdir, &file3, &dir1, &dir2, &file2, &file1, &link1]);
-    // //     assert_stdfs_remove_all!(&tmpdir);
+    // //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // // }
 
     // #[test]
@@ -877,15 +875,15 @@ mod tests
     //     let file3 = tmpdir.mash("file3");
     //     let link1 = tmpdir.mash("link1");
 
-    //     assert_stdfs_mkdir_p!(&dir2);
-    //     assert_stdfs_mkfile!(&file1);
-    //     assert_stdfs_mkfile!(&file2);
-    //     assert_stdfs_mkfile!(&file3);
+    //     assert_stdfs_mkdir_p!(vfs, &dir2);
+    //     assert_stdfs_mkfile!(vfs, &file1);
+    //     assert_stdfs_mkfile!(vfs, &file2);
+    //     assert_stdfs_mkfile!(vfs, &file3);
     //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
 
-    //     let iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &file3, &dir1, &dir2, &file2, &file1, &link1]);
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
@@ -912,16 +910,16 @@ mod tests
     //     let file1 = tmpdir.mash("file1");
 
     //     // Single directory
-    //     let mut iter = Stdfs::entries(&tmpdir).unwrap().into_iter();
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().into_iter();
     //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
     //     assert!(iter.next().is_none());
 
     //     // Single file
     //     assert!(Stdfs::mkfile(&file1).is_ok());
-    //     let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
+    //     let mut iter = vfs.entries(&file1).unwrap().into_iter();
     //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     //     assert!(iter.next().is_none());
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_stdfs_remove_all!(vfs, &tmpdir);
     // }
 }
