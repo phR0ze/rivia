@@ -112,6 +112,22 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     fn is_file<T: AsRef<Path>>(&self, path: T) -> bool;
 
+    /// Returns true if the given path exists and is a symlink
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Checks the path itself and not what is potentially pointed to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_symlink("foo"), false);
+    /// let tmpfile = vfs.symlink("foo", "bar").unwrap();
+    /// assert_eq!(vfs.is_symlink(&tmpfile), true);
+    /// ```
+    fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool;
+
     /// Creates the given directory and any parent directories needed
     ///
     /// * Handles path expansion and absolute path resolution
@@ -163,6 +179,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Returns the path the given link points to
     ///
     /// * Handles path expansion and absolute path resolution
+    /// * Checks the path itself and not what is potentially pointed to
     ///
     /// ### Examples
     /// ```
@@ -217,6 +234,14 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// assert_eq!(vfs.exists("foo"), false);
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
+
+    /// Returns the current root directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn root(&self) -> PathBuf;
 
     /// Set the current working directory
     ///
@@ -419,6 +444,27 @@ impl FileSystem for Vfs
         }
     }
 
+    /// Returns true if the given path exists and is a symlink
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_symlink("foo"), false);
+    /// let tmpfile = vfs.symlink("foo", "bar").unwrap();
+    /// assert_eq!(vfs.is_symlink(&tmpfile), true);
+    /// ```
+    fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        match self {
+            Vfs::Stdfs(x) => x.is_symlink(path),
+            Vfs::Memfs(x) => x.is_symlink(path),
+        }
+    }
+
     /// Create an empty file similar to the linux touch command
     ///
     /// * Handles path expansion and absolute path resolution
@@ -538,6 +584,20 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.remove_all(path),
             Vfs::Memfs(x) => x.remove_all(path),
+        }
+    }
+
+    /// Returns the current root directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn root(&self) -> PathBuf
+    {
+        match self {
+            Vfs::Stdfs(x) => x.root(),
+            Vfs::Memfs(x) => x.root(),
         }
     }
 

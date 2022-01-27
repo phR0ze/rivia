@@ -73,8 +73,8 @@ macro_rules! assert_vfs_setup {
 /// ```
 /// use rivia::prelude::*;
 ///
-///  let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_exists!(&vfs, "/");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_exists!(vfs, "/");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_exists {
@@ -95,8 +95,8 @@ macro_rules! assert_vfs_exists {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_no_exists!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_exists!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_no_exists {
@@ -117,10 +117,10 @@ macro_rules! assert_vfs_no_exists {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_no_dir!(&vfs, "foo");
-/// assert_vfs_mkdir_p!(&vfs, "foo");
-/// assert_vfs_is_dir!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_dir!(vfs, "foo");
+/// assert_vfs_mkdir_p!(vfs, "foo");
+/// assert_vfs_is_dir!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_is_dir {
@@ -145,10 +145,10 @@ macro_rules! assert_vfs_is_dir {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_no_dir!(&vfs, "foo");
-/// assert_vfs_mkdir_p!(&vfs, "foo");
-/// assert_vfs_is_dir!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_dir!(vfs, "foo");
+/// assert_vfs_mkdir_p!(vfs, "foo");
+/// assert_vfs_is_dir!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_no_dir {
@@ -173,10 +173,10 @@ macro_rules! assert_vfs_no_dir {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_no_file!(&vfs, "foo");
-/// assert_vfs_mkfile!(&vfs, "foo");
-/// assert_vfs_is_file!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_file!(vfs, "foo");
+/// assert_vfs_mkfile!(vfs, "foo");
+/// assert_vfs_is_file!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_is_file {
@@ -201,8 +201,8 @@ macro_rules! assert_vfs_is_file {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_no_file!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_file!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_no_file {
@@ -221,16 +221,70 @@ macro_rules! assert_vfs_no_file {
     };
 }
 
+/// Assert that the given path exists and is a symlink
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_symlink!(vfs, "foo");
+/// assert_vfs_symlink!(vfs, "foo", "bar");
+/// assert_vfs_is_symlink!(vfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_is_symlink {
+    ($vfs:expr, $path:expr) => {
+        let target = match $vfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_is_symlink!", "failed to get absolute path", $path),
+        };
+        if $vfs.exists(&target) {
+            if !$vfs.is_symlink(&target) {
+                panic_msg!("assert_vfs_is_link!", "exists but is not a symlink", &target);
+            }
+        } else {
+            panic_msg!("assert_vfs_is_symlink!", "symlink doesn't exist", &target);
+        }
+    };
+}
+
+/// Assert that the given path isn't a symlink
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_symlink!(vfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_no_symlink {
+    ($vfs:expr, $path:expr) => {
+        let target = match $vfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_no_symlink!", "failed to get absolute path", $path),
+        };
+        if $vfs.exists(&target) {
+            if !$vfs.is_symlink(&target) {
+                panic_msg!("assert_vfs_no_symlink!", "exists and is not a symlink", &target);
+            } else {
+                panic_msg!("assert_vfs_no_symlink!", "symlink still exists", &target);
+            }
+        }
+    };
+}
+
 /// Assert the creation of the given directory.
 ///
 /// ### Examples
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_no_dir!(&vfs, "foo");
-/// assert_vfs_mkdir_p!(&vfs, "foo");
-/// assert_vfs_is_dir!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_dir!(vfs, "foo");
+/// assert_vfs_mkdir_p!(vfs, "foo");
+/// assert_vfs_is_dir!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_mkdir_p {
@@ -264,10 +318,10 @@ macro_rules! assert_vfs_mkdir_p {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_no_file!(&vfs, "foo");
-/// assert_vfs_mkfile!(&vfs, "foo");
-/// assert_vfs_is_file!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_file!(vfs, "foo");
+/// assert_vfs_mkfile!(vfs, "foo");
+/// assert_vfs_is_file!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_mkfile {
@@ -312,10 +366,10 @@ macro_rules! assert_vfs_mkfile {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_mkfile!(&vfs, "foo");
-/// assert_vfs_remove!(&vfs, "foo");
-/// assert_vfs_no_exists!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_mkfile!(vfs, "foo");
+/// assert_vfs_remove!(vfs, "foo");
+/// assert_vfs_no_exists!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_remove {
@@ -354,11 +408,11 @@ macro_rules! assert_vfs_remove {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::vfs());
-/// assert_vfs_mkdir_p!(&vfs, "foo/bar");
-/// assert_vfs_remove_all!(&vfs, "foo");
-/// assert_vfs_no_exists!(&vfs, "foo/bar");
-/// assert_vfs_no_exists!(&vfs, "foo");
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_mkdir_p!(vfs, "foo/bar");
+/// assert_vfs_remove_all!(vfs, "foo");
+/// assert_vfs_no_exists!(vfs, "foo/bar");
+/// assert_vfs_no_exists!(vfs, "foo");
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_remove_all {
@@ -372,6 +426,44 @@ macro_rules! assert_vfs_remove_all {
         }
         if $vfs.exists(&target) {
             panic_msg!("assert_vfs_remove_all!", "still exists", &target);
+        }
+    };
+}
+
+/// Assert the creation of a symlink. If the symlink exists no change is made
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_no_symlink!(vfs, "foo");
+/// assert_vfs_symlink!(vfs, "foo", "bar");
+/// assert_vfs_is_symlink!(vfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_symlink {
+    ($vfs:expr, $link:expr, $target:expr) => {
+        let link = match $vfs.abs($link) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_symlink!", "failed to get absolute path", $link),
+        };
+        if $vfs.exists(&link) {
+            if !$vfs.is_symlink(&link) {
+                panic_msg!("assert_vfs_symlink!", "is not a symlink", &link);
+            }
+        } else {
+            match $vfs.symlink(&link, $target) {
+                Ok(x) => {
+                    if &x != &link {
+                        panic_compare_msg!("assert_vfs_symlink!", "created link path doesn't match", &x, &link);
+                    }
+                },
+                _ => panic_msg!("assert_vfs_symlink!", "failed while creating symlink", &link),
+            };
+            if !$vfs.is_symlink(&link) {
+                panic_msg!("assert_vfs_symlink!", "symlink doesn't exist", &link);
+            }
         }
     };
 }
@@ -417,25 +509,20 @@ macro_rules! panic_compare_msg {
 #[cfg(test)]
 mod tests
 {
-    use std::path::Component;
-
     use crate::prelude::*;
 
     #[test]
     fn test_vfs_setup()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
-        let mut expected = PathBuf::new();
-        expected.push(Component::RootDir);
-        let expected = expected.mash(testing::TEST_TEMP_DIR).mash("rivia::testing::assert::tests::test_vfs_setup");
+        let expected =
+            vfs.root().mash(testing::TEST_TEMP_DIR).mash("rivia::testing::assert::tests::test_vfs_setup");
         assert_eq!(&tmpdir, &expected);
         assert_vfs_exists!(vfs, &expected);
 
         // Try with a function name override
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs(), "foobar_vfs_setup");
-        let mut expected = PathBuf::new();
-        expected.push(Component::RootDir);
-        let expected = expected.mash(testing::TEST_TEMP_DIR).mash("foobar_vfs_setup");
+        let expected = vfs.root().mash(testing::TEST_TEMP_DIR).mash("foobar_vfs_setup");
         assert_eq!(&tmpdir, &expected);
         assert_vfs_exists!(vfs, &expected);
     }
@@ -621,6 +708,59 @@ mod tests
     }
 
     #[test]
+    fn test_assert_vfs_is_symlink_no_symlink()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
+
+        // happy path
+        assert_vfs_no_symlink!(&vfs, &file1);
+        assert!(!vfs.is_symlink(&file1));
+        assert_vfs_symlink!(&vfs, &link1, &file1);
+        assert_vfs_is_symlink!(&vfs, &link1);
+        assert!(vfs.is_symlink(&link1));
+
+        // is_symlink: bad abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_is_symlink!(&vfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_is_symlink!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // is_symlink: doesn't exist
+        let result = testing::capture_panic(|| {
+            assert_vfs_is_symlink!(&vfs, &file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_vfs_is_symlink!: symlink doesn't exist\n  target: {:?}\n", &file1)
+        );
+
+        // no_symlink: bad abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_no_symlink!(&vfs, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_no_symlink!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // no_symlink: does exist
+        let result = testing::capture_panic(|| {
+            assert_vfs_no_symlink!(&vfs, &link1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_vfs_no_symlink!: symlink still exists\n  target: {:?}\n", &link1)
+        );
+
+        assert_vfs_remove_all!(&vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_assert_vfs_mkdir_p()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
@@ -712,13 +852,14 @@ mod tests
             "\nassert_vfs_remove!: failed to get absolute path\n  target: \"\"\n"
         );
 
-        // is a directory
+        // directory contains files
+        assert_vfs_mkfile!(&vfs, &file1);
         let result = testing::capture_panic(|| {
             assert_vfs_remove!(&vfs, &tmpdir);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_vfs_remove!: exists and isn't a file\n  target: {:?}\n", &tmpdir)
+            format!("\nassert_vfs_remove!: failed removing directory\n  target: {:?}\n", &tmpdir)
         );
 
         assert_vfs_remove_all!(&vfs, &tmpdir);
@@ -743,5 +884,41 @@ mod tests
             result.unwrap_err().to_string(),
             "\nassert_vfs_remove_all!: failed to get absolute path\n  target: \"\"\n"
         );
+    }
+
+    #[test]
+    fn test_assert_vfs_symlink()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = dir1.mash("file1");
+        let link1 = tmpdir.mash("link1");
+        assert_vfs_mkdir_p!(&vfs, &dir1);
+        assert_vfs_mkfile!(&vfs, &file1);
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_symlink!(&vfs, "", "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_symlink!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a symlink
+        let result = testing::capture_panic(|| {
+            assert_vfs_symlink!(&vfs, &dir1, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_vfs_symlink!: is not a symlink\n  target: \"{}\"\n", dir1.display())
+        );
+
+        // happy path
+        assert_vfs_no_symlink!(&vfs, &link1);
+        assert_vfs_symlink!(&vfs, &link1, &file1);
+        assert_vfs_is_symlink!(&vfs, &link1);
+
+        assert_vfs_remove_all!(&vfs, &tmpdir);
     }
 }

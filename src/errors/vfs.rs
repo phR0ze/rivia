@@ -82,7 +82,10 @@ mod tests
         assert_eq!(VfsError::InvalidChmod("foo".to_string()).to_string(), "Invalid chmod symbols given: foo");
         assert_eq!(VfsError::InvalidChmodGroup("foo".to_string()).to_string(), "Invalid chmod group given: foo");
         assert_eq!(VfsError::InvalidChmodOp("foo".to_string()).to_string(), "Invalid chmod operation given: foo");
-        assert_eq!(VfsError::InvalidChmodPermissions("foo".to_string()).to_string(), "Invalid chmod permissions given: foo");
+        assert_eq!(
+            VfsError::InvalidChmodPermissions("foo".to_string()).to_string(),
+            "Invalid chmod permissions given: foo"
+        );
         assert_eq!(VfsError::InvalidChmodTarget("foo".to_string()).to_string(), "Invalid chmod target given: foo");
         assert_eq!(VfsError::Unavailable.to_string(), "Virtual filesystem is unavailable");
     }

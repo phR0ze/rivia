@@ -127,14 +127,14 @@ impl Entries
     /// let vfs = Memfs::new().upcast();
     /// assert_vfs_mkdir_p!(vfs, "dir");
     /// assert_vfs_mkfile!(vfs, "dir/file");
-    /// //assert_eq!(vfs.symlink("link", "file1").unwrap(), PathBuf::from("/link1"));
-    /// //let mut iter = vfs.entries("/").unwrap().files().into_iter();
-    /// //assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
+    /// assert_eq!(vfs.symlink("link", "dir").unwrap(), PathBuf::from("/link"));
+    /// let mut iter = vfs.entries("/link").unwrap().follow().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
     /// //assert!(iter.next().is_none());
     /// ```
-    pub fn follow(mut self, yes: bool) -> Self
+    pub fn follow(mut self) -> Self
     {
-        self.follow = yes;
+        self.follow = true;
         self
     }
 
@@ -572,6 +572,36 @@ mod tests
 
         // Filter on files
         let mut iter = vfs.entries(&tmpdir).unwrap().files().sort_by_name().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
+        assert!(iter.next().is_none());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_memfs_follow()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = dir1.mash("file1");
+        let link1 = tmpdir.mash("link1");
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(&vfs.symlink(&link1, &dir1).unwrap(), &link1);
+
+        if let Vfs::Memfs(ref memfs) = vfs {
+            println!("{}", memfs);
+        }
+
+        // Without follow
+        let mut iter = vfs.entries(&link1).unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), &link1);
+        assert!(iter.next().is_none());
+
+        // With follow
+        let mut iter = vfs.entries(&link1).unwrap().follow().sort_by_name().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), &link1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
         assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
         assert!(iter.next().is_none());
 

@@ -68,18 +68,6 @@ impl Memfs
         }
     }
 
-    /// Returns the current root directory
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub(crate) fn root(&self) -> PathBuf
-    {
-        let guard = self.0.read().unwrap();
-        guard.root.clone()
-    }
-
     /// Create the given MemfsEntry if it doesn't already exist
     ///
     /// Expects the entry's path to already be in absolute form
@@ -106,11 +94,13 @@ impl Memfs
                 return Err(PathError::is_not_symlink(path).into());
             }
         } else {
-            // Add the new file to the file system
-            guard.fs.insert(path.clone(), entry);
+            // Add the new file to the data system if not a link
+            if entry.is_file() {
+                guard.data.insert(path.clone(), MemfsFile::default());
+            }
 
-            // Add the new file to the data system
-            guard.data.insert(path.clone(), MemfsFile::default());
+            // Add the new file/link to the file system
+            guard.fs.insert(path.clone(), entry);
 
             // Update the parent directory
             if let Some(parent) = guard.fs.get_mut(&dir) {
@@ -131,7 +121,11 @@ impl fmt::Display for Memfs
         writeln!(f, "[root]: {}", guard.root.display())?;
         writeln!(f, "\n[fs]:")?;
         for key in guard.fs.keys().sorted() {
-            writeln!(f, "{}", key.display())?;
+            write!(f, "{}", key.display())?;
+            if guard.fs[key].link {
+                write!(f, " -> {}", guard.fs[key].alt().display())?;
+            }
+            writeln!(f)?;
         }
         writeln!(f, "\n[files]:")?;
         for key in guard.data.keys().sorted() {
@@ -342,6 +336,31 @@ impl FileSystem for Memfs
         }
     }
 
+    /// Returns true if the given path exists and is a symlink
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Checks the path itself and not what is potentially pointed to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_symlink("foo"), false);
+    /// let tmpfile = vfs.symlink("foo", "bar").unwrap();
+    /// assert_eq!(vfs.is_symlink(&tmpfile), true);
+    /// ```
+    fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        let abs = unwrap_or_false!(self.abs(path));
+        let guard = self.0.read().unwrap();
+
+        match guard.fs.get(&abs) {
+            Some(entry) => entry.is_symlink(),
+            None => false,
+        }
+    }
+
     /// Creates the given directory and any parent directories needed
     ///
     /// * Handles path expansion and absolute path resolution
@@ -537,6 +556,18 @@ impl FileSystem for Memfs
             }
         }
         Ok(())
+    }
+
+    /// Returns the current root directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn root(&self) -> PathBuf
+    {
+        let guard = self.0.read().unwrap();
+        guard.root.clone()
     }
 
     /// Set the current working directory
@@ -802,6 +833,28 @@ mod tests
             thread::sleep(Duration::from_millis(5));
         }
         thread.join().unwrap();
+    }
+
+    #[test]
+    fn test_memfs_symlink()
+    {
+        let vfs = Memfs::new().upcast();
+        let dir1 = vfs.root().mash("dir1");
+        let file1 = dir1.mash("file1");
+        let link1 = vfs.root().mash("link1");
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(&vfs.symlink(&link1, &dir1).unwrap(), &link1);
+
+        // Ensure that no file was created for the link
+        if let Vfs::Memfs(ref memfs) = vfs {
+            let guard = memfs.0.read().unwrap();
+            assert_eq!(guard.data.contains_key(&link1), false);
+        }
+
+        // let mut iter = vfs.entries("/link").unwrap().follow().into_iter();
+        // assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
+        // assert!(iter.next().is_none());
     }
 
     // #[test]

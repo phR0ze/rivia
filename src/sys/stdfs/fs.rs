@@ -301,6 +301,28 @@ impl Stdfs
         }
     }
 
+    /// Returns true if the given path exists and is a symlink
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Checks the path itself and not what is potentially pointed to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_symlink("foo"), false);
+    /// let tmpfile = vfs.symlink("foo", "bar").unwrap();
+    /// assert_eq!(vfs.is_symlink(&tmpfile), true);
+    /// ```
+    pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool
+    {
+        match fs::symlink_metadata(path.as_ref()) {
+            Ok(x) => x.file_type().is_symlink(),
+            _ => false,
+        }
+    }
+
     // /// Returns true if the `Path` exists and is an executable. Handles path expansion.
     // ///
     // /// ### Examples
@@ -714,6 +736,19 @@ impl Stdfs
         Ok(())
     }
 
+    /// Returns the current root directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    pub fn root() -> PathBuf
+    {
+        let mut root = PathBuf::new();
+        root.push(Component::RootDir);
+        root
+    }
+
     // /// Set the given [`Mode`] on the `Path` and return the `Path`
     // ///
     // /// ### Examples
@@ -982,6 +1017,25 @@ impl FileSystem for Stdfs
         Stdfs::is_file(path)
     }
 
+    /// Returns true if the given path exists and is a symlink
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Checks the path itself and not what is potentially pointed to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.is_symlink("foo"), false);
+    /// let tmpfile = vfs.symlink("foo", "bar").unwrap();
+    /// assert_eq!(vfs.is_symlink(&tmpfile), true);
+    /// ```
+    fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::is_symlink(path)
+    }
+
     /// Create an empty file similar to the linux touch command
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1099,6 +1153,17 @@ impl FileSystem for Stdfs
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
         Stdfs::remove_all(path)
+    }
+
+    /// Returns the current root directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn root(&self) -> PathBuf
+    {
+        Stdfs::root()
     }
 
     /// Set the current working directory
