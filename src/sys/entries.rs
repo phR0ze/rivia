@@ -587,7 +587,7 @@ mod tests
         assert!(iter.next().is_none());
 
         // Filter on files
-        let mut iter = vfs.entries(&tmpdir).unwrap().dirs().sort_by_name().into_iter();
+        let mut iter = vfs.entries(&tmpdir).unwrap().files().sort_by_name().into_iter();
         assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
         assert!(iter.next().is_none());
 

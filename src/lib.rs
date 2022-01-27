@@ -14,9 +14,18 @@
 //! ```
 //! use rivia::prelude::*;
 //!
-//! let vfs = Vfs::stdfs();         // create the vfs as a standard filesystem
-//! let vfs = Vfs::memfs();         // easily switch to a memory filesystem
-//! vfs.mkdir_p("foo").unwrap();    // operations remain seamless
+//! fn switching_vfs_backends((vfs, tmpdir): (Vfs, PathBuf))
+//! {
+//!     let dir = tmpdir.mash("dir");
+//!     let file = dir.mash("file");
+//!     assert_vfs_mkdir_p!(&vfs, &dir);
+//!     assert_vfs_mkfile!(&vfs, &file);
+//!     assert_vfs_remove!(&vfs, &file);
+//!     assert_vfs_remove_all!(&vfs, &tmpdir);
+//! }
+//!
+//! switching_vfs_backends(assert_vfs_setup!(Vfs::memfs()));
+//! switching_vfs_backends(assert_vfs_setup!(Vfs::stdfs()));
 //! ```
 //!
 //! ## Rejected Considerations

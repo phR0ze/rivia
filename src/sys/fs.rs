@@ -644,22 +644,22 @@ mod tests
 {
     use crate::prelude::*;
 
-    // #[test]
-    // fn test_switching_vfs_backends()
-    // {
-    //     switching_vfs_backends(assert_vfs_setup!(Vfs::memfs));
-    //     switching_vfs_backends(assert_vfs_setup!(Vfs::stdfs(), function_fqn!()));
-    // }
-    // fn switching_vfs_backends((vfs, tmpdir): (Vfs, PathBuf))
-    // {
-    //     // Create a file in a dir
-    //     let dir = tmpdir.mash("dir");
-    //     let file = dir.mash("file");
-    //     assert_vfs_mkdir_p!(&vfs, &dir);
-    //     assert_vfs_mkfile!(&vfs, &file);
+    #[test]
+    fn test_switching_vfs_backends()
+    {
+        switching_vfs_backends(assert_vfs_setup!(Vfs::memfs()));
+        switching_vfs_backends(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn switching_vfs_backends((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        // Create a file in a dir
+        let dir = tmpdir.mash("dir");
+        let file = dir.mash("file");
+        assert_vfs_mkdir_p!(&vfs, &dir);
+        assert_vfs_mkfile!(&vfs, &file);
 
-    //     // Remove the file and the dir
-    //     assert_vfs_remove!(&vfs, &file);
-    //     assert_vfs_remove_all!(&vfs, &tmpdir);
-    // }
+        // Remove the file and the dir
+        assert_vfs_remove!(&vfs, &file);
+        assert_vfs_remove_all!(&vfs, &tmpdir);
+    }
 }
