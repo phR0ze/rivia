@@ -14,8 +14,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub use assert::vfs_setup;
-pub use assert::vfs_setup_p;
 use lazy_static::lazy_static;
 
 use crate::errors::*;

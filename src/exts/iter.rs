@@ -6,7 +6,7 @@ use crate::errors::*;
 ///
 /// # Examples
 /// ```
-/// use fungus::core::*;
+/// use rivia::prelude::*;
 ///
 /// assert_iter_eq(vec![1, 2, 3].into_iter(), vec![1, 2, 3].into_iter());
 /// ```
@@ -47,7 +47,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!(vec![0, 1, 2].into_iter().consume().next(), None);
     /// ```
@@ -60,7 +60,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_iter_eq(vec![1, 2, 3].into_iter().drop(1), vec![2, 3]);
     /// assert_iter_eq(vec![1, 2, 3].into_iter().drop(-1), vec![1, 2]);
@@ -77,7 +77,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
@@ -89,7 +89,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
@@ -101,7 +101,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).last().unwrap(), 2);
     /// ```
@@ -113,7 +113,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
     /// ```
@@ -127,7 +127,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// let mut iter = vec![0, 1, 2].into_iter().slice(0, 0);
     /// assert_eq!(iter.next(), Some(0));
@@ -152,7 +152,7 @@ pub trait IteratorExt: Iterator
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).some(), true);
     /// ```
@@ -355,9 +355,11 @@ mod tests
         assert_iter_eq(vec![1, 2], vec![1, 2]);
         assert!(std::panic::catch_unwind(|| assert_iter_eq(vec![1, 2], vec![1, 3])).is_err());
         assert_iter_eq(PathBuf::from("foo/bar").components(), PathBuf::from("foo/bar").components());
-        assert!(
-            std::panic::catch_unwind(|| assert_iter_eq(PathBuf::from("foo/bar").components(), PathBuf::from("bar").components())).is_err()
-        );
+        assert!(std::panic::catch_unwind(|| assert_iter_eq(
+            PathBuf::from("foo/bar").components(),
+            PathBuf::from("bar").components()
+        ))
+        .is_err());
     }
 
     #[test]
@@ -370,22 +372,37 @@ mod tests
     #[test]
     fn test_first_result()
     {
-        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").components().first_result().unwrap());
-        assert_ne!(Component::Normal(OsStr::new("bar")), PathBuf::from("foo/bar").components().first_result().unwrap());
+        assert_eq!(
+            Component::Normal(OsStr::new("foo")),
+            PathBuf::from("foo/bar").components().first_result().unwrap()
+        );
+        assert_ne!(
+            Component::Normal(OsStr::new("bar")),
+            PathBuf::from("foo/bar").components().first_result().unwrap()
+        );
     }
 
     #[test]
     fn test_last_result()
     {
-        assert_eq!(Component::Normal(OsStr::new("bar")), PathBuf::from("foo/bar").components().last_result().unwrap());
-        assert_ne!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").components().last_result().unwrap());
+        assert_eq!(
+            Component::Normal(OsStr::new("bar")),
+            PathBuf::from("foo/bar").components().last_result().unwrap()
+        );
+        assert_ne!(
+            Component::Normal(OsStr::new("foo")),
+            PathBuf::from("foo/bar").components().last_result().unwrap()
+        );
     }
 
     #[test]
     fn test_single()
     {
         assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
-        assert_eq!((0..10).filter(|&x| x > 2).single().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::multiple_items_found()));
+        assert_eq!(
+            (0..10).filter(|&x| x > 2).single().unwrap_err().downcast_ref::<IterError>(),
+            Some(&IterError::multiple_items_found())
+        );
         assert_eq!(
             (0..10).filter(|&x| x > 2 && x < 5).single().unwrap_err().downcast_ref::<IterError>(),
             Some(&IterError::multiple_items_found())

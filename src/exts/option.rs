@@ -11,7 +11,7 @@ impl<T> OptionExt<T> for Option<T>
     ///
     /// # Examples
     /// ```
-    /// use fungus::core::*;
+    /// use rivia::prelude::*;
     ///
     /// let x: Option<u32> = Some(2);
     /// assert!(x.has(2));

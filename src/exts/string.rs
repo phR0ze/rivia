@@ -14,7 +14,7 @@ pub trait StringExt
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!("foo".size(), 3);
     /// assert_eq!("ƒoo".len(), 4); // fancy f!
@@ -26,7 +26,7 @@ pub trait StringExt
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!("/foo/bar".to_string().trim_suffix("/bar"), "/foo");
     /// ```
@@ -74,7 +74,7 @@ pub trait ToStringExt
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     ///
     /// assert_eq!(OsStr::new("foo").to_string().unwrap(), "foo");
     /// assert_eq!(Path::new("/foo").to_string().unwrap(), "/foo");

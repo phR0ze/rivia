@@ -16,7 +16,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 {
     /// Return the path in an absolute clean form
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * environment variable expansion
     /// * relative path resolution for `.` and `..`
     /// * no IO resolution so it will work even with paths that don't exist
@@ -50,7 +50,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Returns an iterator over the given path
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * recursive path traversal
     ///
@@ -71,7 +71,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Returns true if the `path` exists
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// ### Examples
@@ -85,7 +85,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Returns true if the given path exists and is a directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a directory return false
     ///
@@ -102,7 +102,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Returns true if the given path exists and is a file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a file return false
     ///
@@ -119,7 +119,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Creates the given directory and any parent directories needed
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// # Errors
@@ -139,7 +139,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Create an empty file similar to the linux touch command
     ///
-    /// ### Provides
+    /// ### Detail
     /// * handling path expansion and absolute path resolution
     /// * default file creation permissions 0o666 with umask usually ends up being 0o644
     ///
@@ -169,14 +169,14 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Returns the path the given link points to
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_vfs_mkfile!(vfs, &file1);
@@ -187,7 +187,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Removes the given empty directory or file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -209,7 +209,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Removes the given directory after removing all of its contents
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -230,7 +230,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
 
     /// Set the current working directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * relative path will use the current working directory
     ///
@@ -255,7 +255,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// * `link` - the path of the link being created
     /// * `target` - the path that the link will point to
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * path expansion and absolute path resolution
     /// * computes the target path `src` relative to the `dst` link name's absolute path
     /// * returns the link path
@@ -264,7 +264,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_vfs_mkfile!(vfs, &file1);
@@ -326,7 +326,7 @@ impl FileSystem for Vfs
 {
     /// Return the path in an absolute clean form
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * environment variable expansion
     /// * relative path resolution for `.` and `..`
     /// * no IO resolution so it will work even with paths that don't exist
@@ -390,7 +390,7 @@ impl FileSystem for Vfs
 
     /// Returns true if the given path exists and is a directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a directory return false
     ///
@@ -413,7 +413,7 @@ impl FileSystem for Vfs
 
     /// Returns true if the given path exists and is a file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a file return false
     ///
@@ -436,7 +436,7 @@ impl FileSystem for Vfs
 
     /// Create an empty file similar to the linux touch command
     ///
-    /// ### Provides
+    /// ### Detail
     /// * handling path expansion and absolute path resolution
     /// * default file creation permissions 0o666 with umask usually ends up being 0o644
     ///
@@ -483,7 +483,7 @@ impl FileSystem for Vfs
 
     /// Returns the path the given link points to
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// ### Examples
@@ -507,7 +507,7 @@ impl FileSystem for Vfs
 
     /// Removes the given empty directory or file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -535,7 +535,7 @@ impl FileSystem for Vfs
 
     /// Removes the given directory after removing all of its contents
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -562,7 +562,7 @@ impl FileSystem for Vfs
 
     /// Set the current working directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * relative path will use the current working directory
     ///
@@ -593,7 +593,7 @@ impl FileSystem for Vfs
     /// * `link` - the path of the link being created
     /// * `target` - the path that the link will point to
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * path expansion and absolute path resolution
     /// * computes the target path `src` relative to the `dst` link name's absolute path
     /// * returns the link path
@@ -644,22 +644,22 @@ mod tests
 {
     use crate::prelude::*;
 
-    #[test]
-    fn test_switching_vfs_backends()
-    {
-        switching_vfs_backends(testing::vfs_setup(Vfs::memfs()));
-        switching_vfs_backends(testing::vfs_setup_p(Vfs::stdfs(), Some(function_fqn!())));
-    }
-    fn switching_vfs_backends((vfs, tmpdir): (Vfs, PathBuf))
-    {
-        // Create a file in a dir
-        let dir = tmpdir.mash("dir");
-        let file = dir.mash("file");
-        assert_vfs_mkdir_p!(&vfs, &dir);
-        assert_vfs_mkfile!(&vfs, &file);
+    // #[test]
+    // fn test_switching_vfs_backends()
+    // {
+    //     switching_vfs_backends(assert_vfs_setup!(Vfs::memfs));
+    //     switching_vfs_backends(assert_vfs_setup!(Vfs::stdfs(), function_fqn!()));
+    // }
+    // fn switching_vfs_backends((vfs, tmpdir): (Vfs, PathBuf))
+    // {
+    //     // Create a file in a dir
+    //     let dir = tmpdir.mash("dir");
+    //     let file = dir.mash("file");
+    //     assert_vfs_mkdir_p!(&vfs, &dir);
+    //     assert_vfs_mkfile!(&vfs, &file);
 
-        // Remove the file and the dir
-        assert_vfs_remove!(&vfs, &file);
-        assert_vfs_remove_all!(&vfs, &tmpdir);
-    }
+    //     // Remove the file and the dir
+    //     assert_vfs_remove!(&vfs, &file);
+    //     assert_vfs_remove_all!(&vfs, &tmpdir);
+    // }
 }

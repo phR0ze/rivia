@@ -32,7 +32,7 @@ impl Stdfs
 
     /// Return the path in an absolute clean form
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * environment variable expansion
     /// * relative path resolution for `.` and `..`
     /// * no IO resolution so it will work even with paths that don't exist
@@ -144,7 +144,7 @@ impl Stdfs
 
     /// Set the current working directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * relative path will use the current working directory
     ///
@@ -167,7 +167,7 @@ impl Stdfs
 
     /// Returns an iterator over the given path
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * recursive path traversal
     ///
@@ -216,7 +216,7 @@ impl Stdfs
 
     /// Returns true if the `path` exists
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// ### Examples
@@ -262,7 +262,7 @@ impl Stdfs
 
     /// Returns true if the given path exists and is a directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a directory return false
     ///
@@ -284,7 +284,7 @@ impl Stdfs
 
     /// Returns true if the given path exists and is a file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a file return false
     ///
@@ -419,7 +419,7 @@ impl Stdfs
 
     /// Create an empty file similar to the linux touch command
     ///
-    /// ### Provides
+    /// ### Detail
     /// * handling path expansion and absolute path resolution
     /// * default file creation permissions 0o666 with umask usually ends up being 0o644
     ///
@@ -497,7 +497,7 @@ impl Stdfs
 
     /// Creates the given directory and any parent directories needed
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// # Errors
@@ -571,7 +571,7 @@ impl Stdfs
 
     /// Returns the path the given link points to
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// ### Examples
@@ -674,7 +674,7 @@ impl Stdfs
 
     /// Removes the given empty directory or file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -704,7 +704,7 @@ impl Stdfs
 
     /// Removes the given directory after removing all of its contents
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -789,7 +789,7 @@ impl Stdfs
     /// * `link` - the path of the link being created
     /// * `target` - the path that the link will point to
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * path expansion and absolute path resolution
     /// * computes the target path `src` relative to the `dst` link name's absolute path
     /// * returns the link path
@@ -879,7 +879,7 @@ impl FileSystem for Stdfs
 {
     /// Return the path in an absolute clean form
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * environment variable expansion
     /// * relative path resolution for `.` and `..`
     /// * no IO resolution so it will work even with paths that don't exist
@@ -917,7 +917,7 @@ impl FileSystem for Stdfs
 
     /// Returns an iterator over the given path
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * recursive path traversal
     ///
@@ -940,7 +940,7 @@ impl FileSystem for Stdfs
 
     /// Returns true if the `path` exists
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// ### Examples
@@ -959,7 +959,7 @@ impl FileSystem for Stdfs
 
     /// Returns true if the given path exists and is a directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a directory return false
     ///
@@ -979,7 +979,7 @@ impl FileSystem for Stdfs
 
     /// Returns true if the given path exists and is a file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. links even if pointing to a file return false
     ///
@@ -1001,7 +1001,7 @@ impl FileSystem for Stdfs
 
     /// Create an empty file similar to the linux touch command
     ///
-    /// ### Provides
+    /// ### Detail
     /// * handling path expansion and absolute path resolution
     /// * default file creation permissions 0o666 with umask usually ends up being 0o644
     ///
@@ -1028,7 +1028,7 @@ impl FileSystem for Stdfs
 
     /// Creates the given directory and any parent directories needed
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// # Errors
@@ -1059,7 +1059,7 @@ impl FileSystem for Stdfs
 
     /// Returns the path the given link points to
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     ///
     /// ### Examples
@@ -1082,7 +1082,7 @@ impl FileSystem for Stdfs
 
     /// Removes the given empty directory or file
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -1105,7 +1105,7 @@ impl FileSystem for Stdfs
 
     /// Removes the given directory after removing all of its contents
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * link exclusion i.e. removes the link themselves not what its points to
     ///
@@ -1125,7 +1125,7 @@ impl FileSystem for Stdfs
 
     /// Set the current working directory
     ///
-    /// ### Provides
+    /// ### Detail
     /// * path expansion and absolute path resolution
     /// * relative path will use the current working directory
     ///
@@ -1151,7 +1151,7 @@ impl FileSystem for Stdfs
     /// * `link` - the path of the link being created
     /// * `target` - the path that the link will point to
     ///
-    /// ### Provides:
+    /// ### Detail:
     /// * path expansion and absolute path resolution
     /// * computes the target path `src` relative to the `dst` link name's absolute path
     /// * returns the link path

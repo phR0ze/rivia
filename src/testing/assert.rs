@@ -5,31 +5,6 @@ use crate::{
     sys::{FileSystem, PathExt, Vfs},
 };
 
-/// Wrapper around `vfs_setup_p` to automatically resolve the function name if possible
-///
-/// ### Warning
-/// Since doc tests always have a default function name of `rust_out::main` its required to use the
-/// `vfs_setup_p` form to pass to avoid testing collisions.
-///
-/// ### Returns
-/// * `vfs` - the vfs instance passed to the function for reference
-/// * `tmpdir` - the temp directory that was created for the test function to work in
-///
-/// ### Examples
-/// ```
-/// use rivia::prelude::*;
-///
-/// fn test_setup_default() {
-///     let (vfs, tmpdir) = testing::vfs_setup!(Vfs::vfs());
-///     assert_vfs_remove_all!(vfs, tmpdir);
-/// }
-/// test_setup_default();
-/// ```
-pub fn vfs_setup(vfs: Vfs) -> (Vfs, PathBuf)
-{
-    vfs_setup_p(vfs, None)
-}
-
 /// Setup Vfs testing components
 ///
 /// This provides an abstraction over FileSystem implementations such that we can easily switch out
@@ -51,38 +26,45 @@ pub fn vfs_setup(vfs: Vfs) -> (Vfs, PathBuf)
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let (vfs, tmpdir) = testing::vfs_setup_p!(Vfs::vfs(), "unique_func_name");
+/// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs(), "unique_func_name");
 /// assert_vfs_remove_all!(vfs, tmpdir);
 /// ```
-pub fn vfs_setup_p(vfs: Vfs, func_name: Option<&str>) -> (Vfs, PathBuf)
-{
-    // Get the absolute path to the tmpdir
-    let abs = match vfs.abs(super::TEST_TEMP_DIR) {
-        Ok(x) => x,
-        _ => panic_msg!("assert_vfs_setup!", "failed to get absolute path", super::TEST_TEMP_DIR),
-    };
+#[macro_export]
+macro_rules! assert_vfs_setup {
+    ($vfs:expr $(, $func:expr )?) => {{
+        // Setting this value here as a weird work around to Rust either not fully instantiating
+        // the vfs value or to it cleaning up the instance before its used. Either way it won't work
+        // with `let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());` syntax unless this is set here.
+        let vfs = $vfs;
 
-    // Optionally override the derived function name with the one given
-    let tmpdir = abs.mash(match func_name {
-        Some(name) => name.as_ref(),
-        None => function_fqn!(),
-    });
-    if tmpdir == abs {
-        panic_msg!("assert_vfs_setup!", "function name is empty", &tmpdir);
-    }
+        // Get the absolute path to the tmpdir
+        let abs = match vfs.abs(testing::TEST_TEMP_DIR) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_setup!", "failed to get absolute path", testing::TEST_TEMP_DIR),
+        };
 
-    // Ensure the tmpdir has been removed
-    if vfs.remove_all(&tmpdir).is_err() {
-        panic_msg!("assert_vfs_setup!", "failed while removing directory", &tmpdir);
-    }
+        // Optionally override the derived function name with the one given
+        #[allow(unused_variables)]
+        let func_name: Option<&str> = None;
+        $( let func_name = Some($func); )?
+        let tmpdir = abs.mash(match func_name {
+            Some(name) => name.as_ref(),
+            None => function_fqn!(),
+        });
+        if tmpdir == abs {
+            panic_msg!("assert_vfs_setup!", "function name is empty", &tmpdir);
+        }
 
-    // Create the tmpdir directory
-    match vfs.mkdir_p(&tmpdir) {
-        Ok(dir) => dir,
-        _ => panic_msg!("assert_vfs_setup!", "failed while creating directory", &tmpdir),
-    };
+        // Ensure the tmpdir has been removed
+        if vfs.remove_all(&tmpdir).is_err() {
+            panic_msg!("assert_vfs_setup!", "failed while removing directory", &tmpdir);
+        }
 
-    (vfs, tmpdir)
+        // Create the tmpdir directory
+        assert_vfs_mkdir_p!(vfs, &tmpdir);
+
+        (vfs, tmpdir)
+    }};
 }
 
 /// Assert that a file or directory exists
@@ -435,12 +417,33 @@ macro_rules! panic_compare_msg {
 #[cfg(test)]
 mod tests
 {
+    use std::path::Component;
+
     use crate::prelude::*;
+
+    #[test]
+    fn test_vfs_setup()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let mut expected = PathBuf::new();
+        expected.push(Component::RootDir);
+        let expected = expected.mash(testing::TEST_TEMP_DIR).mash("rivia::testing::assert::tests::test_vfs_setup");
+        assert_eq!(&tmpdir, &expected);
+        assert_vfs_exists!(vfs, &expected);
+
+        // Try with a function name override
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs(), "foobar_vfs_setup");
+        let mut expected = PathBuf::new();
+        expected.push(Component::RootDir);
+        let expected = expected.mash(testing::TEST_TEMP_DIR).mash("foobar_vfs_setup");
+        assert_eq!(&tmpdir, &expected);
+        assert_vfs_exists!(vfs, &expected);
+    }
 
     #[test]
     fn test_assert_vfs_exists_and_no_exists()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
 
         // Test file exists
         {
@@ -514,7 +517,7 @@ mod tests
     #[test]
     fn test_assert_vfs_is_dir_no_dir()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let dir1 = tmpdir.mash("dir1");
         let dir2 = tmpdir.mash("dir2");
 
@@ -567,7 +570,7 @@ mod tests
     #[test]
     fn test_assert_vfs_is_file_no_file()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
 
@@ -620,7 +623,7 @@ mod tests
     #[test]
     fn test_assert_vfs_mkdir_p()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
         let dir1 = tmpdir.mash("dir1");
         assert_vfs_mkfile!(&vfs, &file1);
@@ -656,7 +659,7 @@ mod tests
     #[test]
     fn test_assert_vfs_mkfile()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
         let dir1 = tmpdir.mash("dir1");
         assert_vfs_mkdir_p!(&vfs, &dir1);
@@ -690,7 +693,7 @@ mod tests
     #[test]
     fn test_assert_vfs_remove()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
 
         // happy path
@@ -724,7 +727,7 @@ mod tests
     #[test]
     fn test_assert_vfs_remove_all()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
 
         assert_vfs_mkfile!(&vfs, &file1);

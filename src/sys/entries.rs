@@ -74,13 +74,22 @@ pub struct Entries
 
 impl Entries
 {
-    /// Filter entries down to just directories.
+    /// Filter entries down to just directories
     ///
-    /// Default: false
+    /// ### Detail
+    /// * default is `false`
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// assert_vfs_mkdir_p!(vfs, "zdir");
+    /// assert_vfs_mkfile!(vfs, "file");
+    /// let mut iter = vfs.entries("/").unwrap().dirs().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/"));
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/zdir"));
+    /// assert!(iter.next().is_none());
     /// ```
     pub fn dirs(mut self) -> Self
     {
@@ -89,13 +98,21 @@ impl Entries
         self
     }
 
-    /// Filter entries down to just files.
+    /// Filter entries down to just files
     ///
-    /// Default: false
+    /// ### Detail
+    /// * default is `false`
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// assert_vfs_mkdir_p!(vfs, "dir");
+    /// assert_vfs_mkfile!(vfs, "file");
+    /// let mut iter = vfs.entries("/").unwrap().files().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
+    /// assert!(iter.next().is_none());
     /// ```
     pub fn files(mut self) -> Self
     {
@@ -104,14 +121,23 @@ impl Entries
         self
     }
 
-    /// Set `follow` to follow links that point to directories and iterate over the contents
-    /// of the linked directory as allowd by `depth`.
+    /// Follow links that point to directories
     ///
-    /// Default: false
+    /// ### Detail
+    /// * default is `false`
+    /// * will iterate over the contents of directories pointed to when `true`
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// assert_vfs_mkdir_p!(vfs, "dir");
+    /// assert_vfs_mkfile!(vfs, "dir/file");
+    /// //assert_eq!(vfs.symlink("link", "file1").unwrap(), PathBuf::from("/link1"));
+    /// //let mut iter = vfs.entries("/").unwrap().files().into_iter();
+    /// //assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
+    /// //assert!(iter.next().is_none());
     /// ```
     pub fn follow(mut self, yes: bool) -> Self
     {
@@ -119,14 +145,15 @@ impl Entries
         self
     }
 
-    /// Set the min depth that Entries should traverse. The given path is considered depth 0.
-    /// To only include that path and not recurse set `max_depth(0)`. By default recusrion i.e.
-    /// `max_depth` is effectively unbounded.
+    /// Set the min depth that Entries should traverse
     ///
-    /// Note setting `min_depth` first will autocorrect later calls to `max_depth` to be consistent
+    /// ### Detail
+    /// * default is `0`
+    /// * the given path is considered depth 0
+    /// * to only include the given path and not recurse set `max_depth(0)`
+    /// * by default recursion is unbounded. use `max_depth(VALUE)` to bound it
+    /// * setting `min_depth` first will autocorrect later calls to `max_depth` to be consistent
     /// in relation to `min_depth`. The inverse would be true if `max_depth` was called first.
-    ///
-    /// Default: 0
     ///
     /// ### Examples
     /// ```
@@ -141,15 +168,15 @@ impl Entries
         self
     }
 
-    /// Set the max depth that Entries should traverse exclusive. The given path is considered depth
-    /// 0, while its children would be considered to be at depth 1. So a max of 0 would include the
-    /// given path only and exclude its children. To include the given path an its children only
-    /// you'd set `max_depth(1)`. By default recusrion i.e. `max_depth` is effectively unbounded.
+    /// Set the max depth that Entries should traverse exclusive
     ///
-    /// Note setting `max_depth` first will autocorrect later calls to `min_depth` to be consistent
-    /// in relation to `max_depth`. The inverse would be true if `min_depth` was called first.
-    ///
-    /// Default: std::usize::MAX
+    /// ### Detail
+    /// * default is `std::usize::MAX`
+    /// * the given path is considered depth 0
+    /// * to only include the given path and not recurse set `max_depth(0)`
+    /// * by default recursion is unbounded. use `max_depth(VALUE)` to bound it
+    /// * setting `min_depth` first will autocorrect later calls to `max_depth` to be consistent
+    /// in relation to `min_depth`. The inverse would be true if `max_depth` was called first.
     ///
     /// ### Examples
     /// ```
@@ -164,9 +191,12 @@ impl Entries
         self
     }
 
-    /// Set the pre-operation function to run over each directory before processing. This will
-    /// happen before reading the filesystem traversal and is useful for things like changing
-    /// permissions or ownership to allow for recusion.
+    /// Set the pre-operation function to run over each directory before processing
+    ///
+    /// ### Detail
+    /// * defaults to `None`
+    /// * runs the pre-operation before reading the filesystem
+    /// * useful for changing permissions or ownership on the way in to allow for recursion
     ///
     /// ### Examples
     /// ```
@@ -178,14 +208,16 @@ impl Entries
         self
     }
 
-    /// Set the default sorter to be directories first by name. This will have the affect of caching
-    /// all directory entries and iterating from memory as we traverse to enforce ordering.
+    /// Set the default sorter to be directories first by name
     ///
-    /// Default: false
+    /// ### Detail
+    /// * defaults to `false`
+    /// * caches all entries and iterates from memory
+    /// * sorts directories first and then by name
     ///
     /// ### Examples
     /// ```
-    /// use fungus::prelude::*;
+    /// use rivia::prelude::*;
     /// ```
     pub fn dirs_first(mut self) -> Self
     {
@@ -195,11 +227,10 @@ impl Entries
 
     /// Set the default sorter to be files first by name
     ///
-    /// This will have the affect of caching all directory entries and iterating from memory as we
-    /// traverse to enforce ordering.
-    ///
-    /// ### Default value
-    /// false
+    /// ### Detail
+    /// * defaults to `false`
+    /// * caches all entries and iterates from memory
+    /// * sorts directories first and then by name
     ///
     /// ### Examples
     /// ```
@@ -213,10 +244,10 @@ impl Entries
 
     /// Return the contents of directories before the directory itself
     ///
-    /// This is useful for recursive operations like chmod that revoke permission on the way out.
-    ///
-    /// ### Default value
-    /// false
+    /// ### Detail
+    /// * defaults to `false`
+    /// * a recursive operation useful for things like revoking permission on the way out
+    /// * shouldn't
     ///
     /// ### Examples
     /// ```
@@ -230,11 +261,9 @@ impl Entries
 
     /// Set the default sorter to be by name
     ///
-    /// This will have the affect of caching all directory entries and iterating from memory as we
-    /// traverse to enforce ordering.
-    ///
-    /// ### Default value
-    /// false
+    /// ### Detail
+    /// * defaults to `false`
+    /// * caches all entries and iterates from memory to enforce ordering
     ///
     /// ### Examples
     /// ```
@@ -247,7 +276,9 @@ impl Entries
     }
 
     /// Set a function for sorting entries.
-    /// Default: None
+    ///
+    /// ### Detail
+    /// * defaults to `None`
     ///
     /// ### Examples
     /// ```
@@ -515,9 +546,58 @@ mod tests
     }
 
     #[test]
-    fn test_stdfs_contents_first()
+    fn test_memfs_dirs()
     {
-        let (vfs, tmpdir) = testing::vfs_setup(Vfs::memfs());
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let dir1 = tmpdir.mash("zdir");
+        let file1 = tmpdir.mash("file");
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+
+        // Without dirs set, but sorted to get consistency
+        let mut iter = vfs.entries(&tmpdir).unwrap().sort_by_name().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), &tmpdir);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
+        assert!(iter.next().is_none());
+
+        // Filter on dirs
+        let mut iter = vfs.entries(&tmpdir).unwrap().dirs().sort_by_name().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), &tmpdir);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
+        assert!(iter.next().is_none());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_memfs_files()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let dir1 = tmpdir.mash("zdir");
+        let file1 = tmpdir.mash("file");
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+
+        // Without files set, but sorted to get consistency
+        let mut iter = vfs.entries(&tmpdir).unwrap().sort_by_name().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), &tmpdir);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
+        assert!(iter.next().is_none());
+
+        // Filter on files
+        let mut iter = vfs.entries(&tmpdir).unwrap().dirs().sort_by_name().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
+        assert!(iter.next().is_none());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_memfs_contents_first()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -529,7 +609,7 @@ mod tests
         assert_vfs_mkfile!(vfs, &file1);
         assert_vfs_mkfile!(vfs, &file2);
         assert_vfs_mkfile!(vfs, &file3);
-        assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+        assert_eq!(vfs.symlink(&link1, &file3).unwrap(), link1);
 
         // contents first un-sorted
         let iter = vfs.entries(&tmpdir).unwrap().contents_first().into_iter();
@@ -541,134 +621,134 @@ mod tests
         assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
         assert_eq!(iter.next().unwrap().unwrap().path(), file1);
         assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-        assert_eq!(iter.next().unwrap().unwrap().path(), file3);
         assert_eq!(iter.next().unwrap().unwrap().path(), link1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file3);
         assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
         assert!(iter.next().is_none());
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
+    #[test]
+    fn test_memfs_sort()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let zdir1 = tmpdir.mash("zdir1");
+        let dir1file1 = zdir1.mash("file1");
+        let dir1file2 = zdir1.mash("file2");
+        let zdir2 = tmpdir.mash("zdir2");
+        let dir2file1 = zdir2.mash("file1");
+        let dir2file2 = zdir2.mash("file2");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+
+        assert_vfs_mkdir_p!(vfs, &zdir1);
+        assert_vfs_mkdir_p!(vfs, &zdir2);
+        assert_vfs_mkfile!(vfs, &dir1file1);
+        assert_vfs_mkfile!(vfs, &dir1file2);
+        assert_vfs_mkfile!(vfs, &dir2file1);
+        assert_vfs_mkfile!(vfs, &dir2file2);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+
+        // Without sorting
+        let iter = vfs.entries(&tmpdir).unwrap().into_iter();
+        assert_iter_eq(iter, vec![
+            &tmpdir, &file2, &zdir1, &dir1file2, &dir1file1, &file1, &zdir2, &dir2file2, &dir2file1,
+        ]);
+
+        // with manual sorting on name
+        let mut iter = vfs.entries(&tmpdir).unwrap().sort(|x, y| x.file_name().cmp(&y.file_name())).into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+        assert!(iter.next().is_none());
+
+        // with sort by name default
+        let mut iter = vfs.entries(&tmpdir).unwrap().sort_by_name().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+        assert!(iter.next().is_none());
+
+        // sort dirs first
+        let zdir3 = zdir1.mash("zdir3");
+        let dir3file1 = zdir3.mash("file1");
+        let dir3file2 = zdir3.mash("file2");
+        assert_vfs_mkdir_p!(vfs, &zdir3);
+        assert_vfs_mkfile!(vfs, &dir3file1);
+        assert_vfs_mkfile!(vfs, &dir3file2);
+
+        let mut iter = vfs.entries(&tmpdir).unwrap().dirs_first().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert!(iter.next().is_none());
+
+        //     // sort files first
+        //     let mut iter = vfs.entries(&tmpdir).unwrap().files_first().into_iter();
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+        //     assert!(iter.next().is_none());
+
+        //     // sort files first but in reverse aphabetic order
+        //     let mut iter = vfs.entries(&tmpdir)
+        //         .unwrap()
+        //         .files_first()
+        //         .sort(|x, y| y.file_name().cmp(&x.file_name()))
+        //         .into_iter();
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
+        //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
+        //     assert!(iter.next().is_none());
+
+        //     assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
     // #[test]
-    // fn test_stdfs_sort()
+    // fn test_vfs_max_descriptors()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let zdir1 = tmpdir.mash("zdir1");
-    //     let dir1file1 = zdir1.mash("file1");
-    //     let dir1file2 = zdir1.mash("file2");
-    //     let zdir2 = tmpdir.mash("zdir2");
-    //     let dir2file1 = zdir2.mash("file1");
-    //     let dir2file2 = zdir2.mash("file2");
-    //     let file1 = tmpdir.mash("file1");
-    //     let file2 = tmpdir.mash("file2");
-
-    //     assert_stdfs_mkdir_p!(vfs, &zdir1);
-    //     assert_stdfs_mkdir_p!(vfs, &zdir2);
-    //     assert_stdfs_mkfile!(vfs, &dir1file1);
-    //     assert_stdfs_mkfile!(vfs, &dir1file2);
-    //     assert_stdfs_mkfile!(vfs, &dir2file1);
-    //     assert_stdfs_mkfile!(vfs, &dir2file2);
-    //     assert_stdfs_mkfile!(vfs, &file1);
-    //     assert_stdfs_mkfile!(vfs, &file2);
-
-    //     // Without sorting
-    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
-    //     assert_iter_eq(iter, vec![
-    //         &tmpdir, &file2, &zdir1, &dir1file2, &dir1file1, &file1, &zdir2, &dir2file2,
-    // &dir2file1,     ]);
-
-    //     // with sorting on name
-    //     let mut iter = vfs.entries(&tmpdir).unwrap().sort(|x, y|
-    // x.file_name().cmp(&y.file_name())).into_iter();     assert_eq!(iter.next().unwrap().
-    // unwrap().path(), tmpdir);     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
-    //     assert!(iter.next().is_none());
-
-    //     // with sort default set
-    //     let mut iter = vfs.entries(&tmpdir).unwrap().sort_by_name().into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
-    //     assert!(iter.next().is_none());
-
-    //     // sort dirs first
-    //     let zdir3 = zdir1.mash("zdir3");
-    //     let dir3file1 = zdir3.mash("file1");
-    //     let dir3file2 = zdir3.mash("file2");
-    //     assert_stdfs_mkdir_p!(vfs, &zdir3);
-    //     assert_stdfs_mkfile!(vfs, &dir3file1);
-    //     assert_stdfs_mkfile!(vfs, &dir3file2);
-
-    //     let mut iter = vfs.entries(&tmpdir).unwrap().dirs_first().into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert!(iter.next().is_none());
-
-    //     // sort files first
-    //     let mut iter = vfs.entries(&tmpdir).unwrap().files_first().into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
-    //     assert!(iter.next().is_none());
-
-    //     // sort files first but in reverse aphabetic order
-    //     let mut iter = vfs.entries(&tmpdir)
-    //         .unwrap()
-    //         .files_first()
-    //         .sort(|x, y| y.file_name().cmp(&x.file_name()))
-    //         .into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), zdir3);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir3file1);
-    //     assert!(iter.next().is_none());
-
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
-    // }
-
-    // #[test]
-    // fn test_stdfs_max_descriptors()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpdir = assert_vfs_setup!();
     //     let dir1 = tmpdir.mash("dir1");
     //     let file1 = dir1.mash("file1");
     //     let dir2 = dir1.mash("dir2");
@@ -676,10 +756,10 @@ mod tests
     //     let dir3 = dir2.mash("dir3");
     //     let file3 = dir3.mash("file3");
 
-    //     assert_stdfs_mkdir_p!(vfs, &dir3);
-    //     assert_stdfs_mkfile!(vfs, &file1);
-    //     assert_stdfs_mkfile!(vfs, &file2);
-    //     assert_stdfs_mkfile!(vfs, &file3);
+    //     assert_vfs_mkdir_p!(vfs, &dir3);
+    //     assert_vfs_mkfile!(vfs, &file1);
+    //     assert_vfs_mkfile!(vfs, &file2);
+    //     assert_vfs_mkfile!(vfs, &file3);
 
     //     // Without descriptor cap
     //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
@@ -691,19 +771,19 @@ mod tests
     //     let iter = paths.into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &file2, &dir3, &file3, &file1]);
 
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
-    // fn test_stdfs_loop_detection()
+    // fn test_vfs_loop_detection()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpdir = assert_vfs_setup!();
     //     let dir1 = tmpdir.mash("dir1");
     //     let dir2 = dir1.mash("dir2");
     //     let link1 = dir2.mash("link1");
 
-    //     assert_stdfs_mkdir_p!(vfs, &dir2);
-    //     assert_eq!(Stdfs::symlink(&dir1, &link1).unwrap(), link1);
+    //     assert_vfs_mkdir_p!(vfs, &dir2);
+    //     assert_eq!(Stdfs::symlink(&link1, &dir1).unwrap(), link1);
 
     //     // Non follow should be fine
     //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
@@ -717,13 +797,13 @@ mod tests
     //     assert_eq!(iter.next().unwrap().unwrap_err().to_string(),
     // PathError::link_looping(dir1).to_string());     assert!(iter.next().is_none());
 
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
-    // fn test_stdfs_filter()
+    // fn test_vfs_filter()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpdir = assert_vfs_setup!();
     //     let dir1 = tmpdir.mash("dir1");
     //     let file1 = dir1.mash("file1");
     //     let dir2 = dir1.mash("dir2");
@@ -732,12 +812,12 @@ mod tests
     //     let link1 = tmpdir.mash("link1");
     //     let link2 = tmpdir.mash("link2");
 
-    //     assert_stdfs_mkdir_p!(vfs, &dir2);
-    //     assert_stdfs_mkfile!(vfs, &file1);
-    //     assert_stdfs_mkfile!(vfs, &file2);
-    //     assert_stdfs_mkfile!(vfs, &file3);
-    //     assert_eq!(Stdfs::symlink(&dir2, &link2).unwrap(), link2);
-    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
+    //     assert_vfs_mkdir_p!(vfs, &dir2);
+    //     assert_vfs_mkfile!(vfs, &file1);
+    //     assert_vfs_mkfile!(vfs, &file2);
+    //     assert_vfs_mkfile!(vfs, &file3);
+    //     assert_eq!(Stdfs::symlink(&link2, &dir2).unwrap(), link2);
+    //     assert_eq!(Stdfs::symlink(&link1, &file1).unwrap(), link1);
 
     //     // Files only
     //     let iter = vfs.entries(&tmpdir).unwrap().files().into_iter();
@@ -755,13 +835,13 @@ mod tests
     //     let iter = vfs.entries(&tmpdir).unwrap().into_iter().filter_p(|x|
     // x.path().has_suffix("1"));     assert_iter_eq(iter, vec![&link1, &dir1, &file1]);
 
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
-    // fn test_stdfs_follow()
+    // fn test_vfs_follow()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpdir = assert_vfs_setup!();
     //     let dir1 = tmpdir.mash("dir1");
     //     let file1 = dir1.mash("file1");
     //     let dir2 = dir1.mash("dir2");
@@ -769,11 +849,11 @@ mod tests
     //     let file3 = tmpdir.mash("file3");
     //     let link1 = tmpdir.mash("link1");
 
-    //     assert_stdfs_mkdir_p!(vfs, &dir2);
-    //     assert_stdfs_mkfile!(vfs, &file1);
-    //     assert_stdfs_mkfile!(vfs, &file2);
-    //     assert_stdfs_mkfile!(vfs, &file3);
-    //     assert_eq!(Stdfs::symlink(&dir2, &link1).unwrap(), link1);
+    //     assert_vfs_mkdir_p!(vfs, &dir2);
+    //     assert_vfs_mkfile!(vfs, &file1);
+    //     assert_vfs_mkfile!(vfs, &file2);
+    //     assert_vfs_mkfile!(vfs, &file3);
+    //     assert_eq!(Stdfs::symlink(&link1, &dir2).unwrap(), link1);
 
     //     // Follow off
     //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
@@ -783,23 +863,23 @@ mod tests
     //     let iter = vfs.entries(&tmpdir).unwrap().follow(true).into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &dir2, &file2, &file3, &dir1, &dir2, &file2, &file1]);
 
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
-    // fn test_stdfs_depth()
+    // fn test_vfs_depth()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpdir = assert_vfs_setup!();
     //     let dir1 = tmpdir.mash("dir1");
     //     let dir1file1 = dir1.mash("file1");
     //     let file1 = tmpdir.mash("file1");
     //     let dir2 = dir1.mash("dir2");
     //     let dir2file1 = dir2.mash("file1");
 
-    //     assert_stdfs_mkdir_p!(vfs, &dir2);
-    //     assert_stdfs_mkfile!(vfs, &dir1file1);
-    //     assert_stdfs_mkfile!(vfs, &dir2file1);
-    //     assert_stdfs_mkfile!(vfs, &file1);
+    //     assert_vfs_mkdir_p!(vfs, &dir2);
+    //     assert_vfs_mkfile!(vfs, &dir1file1);
+    //     assert_vfs_mkfile!(vfs, &dir2file1);
+    //     assert_vfs_mkfile!(vfs, &file1);
 
     //     // Min: 0, Max: 0 = only root
     //     let mut iter = vfs.entries(&tmpdir).unwrap().max_depth(0).into_iter();
@@ -838,7 +918,7 @@ mod tests
     //     assert_eq!(iter.opts.max_depth, 1);
     //     assert_iter_eq(iter, vec![&file1, &dir1]);
 
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 
     // // #[test]
@@ -853,21 +933,21 @@ mod tests
     // //     let file3 = tmpdir.mash("file3");
     // //     let link1 = tmpdir.mash("link1");
 
-    // //     assert_stdfs_mkdir_p!(vfs, &dir2);
-    // //     assert_stdfs_mkfile!(vfs, &file1);
-    // //     assert_stdfs_mkfile!(vfs, &file2);
-    // //     assert_stdfs_mkfile!(vfs, &file3);
-    // //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+    // //     assert_vfs_mkdir_p!(vfs, &dir2);
+    // //     assert_vfs_mkfile!(vfs, &file1);
+    // //     assert_vfs_mkfile!(vfs, &file2);
+    // //     assert_vfs_mkfile!(vfs, &file3);
+    // //     assert_eq!(Stdfs::symlink(&link1, &file3).unwrap(), link1);
 
     // //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     // //     assert_iter_eq(iter, vec![&tmpdir, &file3, &dir1, &dir2, &file2, &file1, &link1]);
-    // //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    // //     assert_vfs_remove_all!(vfs, &tmpdir);
     // // }
 
     // #[test]
-    // fn test_stdfs_multiple()
+    // fn test_vfs_multiple()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpdir = assert_vfs_setup!();
     //     let dir1 = tmpdir.mash("dir1");
     //     let file1 = dir1.mash("file1");
     //     let dir2 = dir1.mash("dir2");
@@ -875,15 +955,15 @@ mod tests
     //     let file3 = tmpdir.mash("file3");
     //     let link1 = tmpdir.mash("link1");
 
-    //     assert_stdfs_mkdir_p!(vfs, &dir2);
-    //     assert_stdfs_mkfile!(vfs, &file1);
-    //     assert_stdfs_mkfile!(vfs, &file2);
-    //     assert_stdfs_mkfile!(vfs, &file3);
-    //     assert_eq!(Stdfs::symlink(&file3, &link1).unwrap(), link1);
+    //     assert_vfs_mkdir_p!(vfs, &dir2);
+    //     assert_vfs_mkfile!(vfs, &file1);
+    //     assert_vfs_mkfile!(vfs, &file2);
+    //     assert_vfs_mkfile!(vfs, &file3);
+    //     assert_eq!(Stdfs::symlink(&link1, &file3).unwrap(), link1);
 
     //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
     //     assert_iter_eq(iter, vec![&tmpdir, &file3, &dir1, &dir2, &file2, &file1, &link1]);
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]
@@ -904,9 +984,9 @@ mod tests
     // }
 
     // #[test]
-    // fn test_stdfs_single()
+    // fn test_vfs_single()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let tmpdir = assert_vfs_setup!();
     //     let file1 = tmpdir.mash("file1");
 
     //     // Single directory
@@ -920,6 +1000,6 @@ mod tests
     //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     //     assert!(iter.next().is_none());
 
-    //     assert_stdfs_remove_all!(vfs, &tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 }

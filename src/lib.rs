@@ -61,7 +61,7 @@ pub mod prelude
     pub use crate::{
         assert_vfs_exists, assert_vfs_is_dir, assert_vfs_is_file, assert_vfs_mkdir_p, assert_vfs_mkfile,
         assert_vfs_no_dir, assert_vfs_no_exists, assert_vfs_no_file, assert_vfs_remove, assert_vfs_remove_all,
-        cfgblock, function, function_fqn, panic_compare_msg, panic_msg, trying, unwrap_or_false,
+        assert_vfs_setup, cfgblock, function, function_fqn, panic_compare_msg, panic_msg, trying, unwrap_or_false,
     };
     // Export internal types
     pub use crate::{
