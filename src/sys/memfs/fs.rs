@@ -145,10 +145,9 @@ impl FileSystem for Memfs
 {
     /// Return the path in an absolute clean form
     ///
-    /// ### Detail:
-    /// * environment variable expansion
-    /// * relative path resolution for `.` and `..`
-    /// * no IO resolution so it will work even with paths that don't exist
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * No IO resolution so it will work even with paths that don't exist
     ///
     /// ### Errors
     /// * PathError::ParentNotFound(PathBuf) when parent is not found
@@ -223,9 +222,8 @@ impl FileSystem for Memfs
 
     /// Returns an iterator over the given path
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
-    /// * recursive path traversal
+    /// * Handles path expansion and absolute path resolution
+    /// * Handles recursive path traversal
     ///
     /// ### Examples
     /// ```
@@ -275,8 +273,7 @@ impl FileSystem for Memfs
 
     /// Returns true if the `path` exists
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
+    /// * Handles path expansion and absolute path resolution
     ///
     /// ### Examples
     /// ```
@@ -297,9 +294,8 @@ impl FileSystem for Memfs
 
     /// Returns true if the given path exists and is a directory
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. links even if pointing to a directory return false
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides link exclusion i.e. links even if pointing to a directory return false
     ///
     /// ### Examples
     /// ```
@@ -323,9 +319,8 @@ impl FileSystem for Memfs
 
     /// Returns true if the given path exists and is a file
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. links even if pointing to a file return false
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides link exclusion i.e. links even if pointing to a file return false
     ///
     /// ### Examples
     /// ```
@@ -349,8 +344,7 @@ impl FileSystem for Memfs
 
     /// Creates the given directory and any parent directories needed
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
+    /// * Handles path expansion and absolute path resolution
     ///
     /// # Errors
     /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
@@ -393,9 +387,8 @@ impl FileSystem for Memfs
 
     /// Create an empty file similar to the linux touch command
     ///
-    /// ### Detail
-    /// * handling path expansion and absolute path resolution
-    /// * default file creation permissions 0o666 with umask usually ends up being 0o644
+    /// * Handles path expansion and absolute path resolution
+    /// * Default file creation permissions 0o666 with umask usually ends up being 0o644
     ///
     /// ### Errors
     /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
@@ -440,8 +433,7 @@ impl FileSystem for Memfs
 
     /// Returns the path the given link points to
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
+    /// * Handles path expansion and absolute path resolution
     ///
     /// ### Examples
     /// ```
@@ -470,9 +462,8 @@ impl FileSystem for Memfs
 
     /// Removes the given empty directory or file
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. removes the link themselves not what its points to
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides link exclusion i.e. removes the link themselves not what its points to
     ///
     /// ### Errors
     /// * a directory containing files will trigger an error. use `remove_all` instead
@@ -522,9 +513,8 @@ impl FileSystem for Memfs
 
     /// Removes the given directory after removing all of its contents
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
-    /// * link exclusion i.e. removes the link themselves not what its points to
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides link exclusion i.e. removes the link themselves not what its points to
     ///
     /// ### Examples
     /// ```
@@ -551,9 +541,8 @@ impl FileSystem for Memfs
 
     /// Set the current working directory
     ///
-    /// ### Detail
-    /// * path expansion and absolute path resolution
-    /// * relative path will use the current working directory
+    /// * Handles path expansion and absolute path resolution
+    /// * Relative path will use the current working directory
     ///
     /// ### Errors
     /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
@@ -581,14 +570,13 @@ impl FileSystem for Memfs
 
     /// Creates a new symbolic link
     ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Computes the target path `src` relative to the `dst` link name's absolute path
+    /// * Returns the link path
+    ///
     /// ### Arguments
     /// * `link` - the path of the link being created
     /// * `target` - the path that the link will point to
-    ///
-    /// ### Detail:
-    /// * path expansion and absolute path resolution
-    /// * computes the target path `src` relative to the `dst` link name's absolute path
-    /// * returns the link path
     ///
     /// ### Examples
     /// ```

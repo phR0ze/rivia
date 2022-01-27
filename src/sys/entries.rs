@@ -1,30 +1,3 @@
-//! # Entries
-//! Provides a builder pattern for constructing iterators for travsersing VFS filesystems. Inspired
-//! by WalkDir, Entries provides a similar feature set in a simplified manner that is Virtual File
-//! System (VFS) friendly.
-//!
-//! ## Features
-//! * Support for Rivia VFS
-//! * Recursive directory traversal with depth control
-//! * Symbolic link following
-//! * Automatic link path reading
-//! * Directory entries `.` and `..` are ommitted
-//!
-//! ## Construction
-//! Use the VFS builder functions to construct an instance e.g. sys::entries or Stdfs::entries.
-//!
-//! ## Traversal
-//! Entries is a depth first algorithm by default with directories yielded before their contents.
-//! However this behavior can be changed by setting the `contents_first` options to direct Entries
-//! to yield the contents of directories first before the directory its self which is useful for
-//! operations like chmod that revoke permissions to read.
-//!
-//! ## File Descriptors
-//! Considering that most unix type systems have a limit of 1024 file descriptors, Paths is careful
-//! not to exhaust this resource by limiting its internal consumption to no more than 50 at a time.
-//! Anything beyond that will be read into memory and iterated from there internally rather than
-//! holding more than 50 open file descriptors.
-
 use std::{cmp::Ordering, fmt, path::Path};
 
 use crate::{
@@ -35,24 +8,47 @@ use crate::{
 
 pub(crate) const DEFAULT_MAX_DESCRIPTORS: u16 = 50;
 
-/// Entries provides a builder pattern for traversing VFS filesystems.
+/// Provides a builder pattern for constructing iterators for travsersing VFS filesystems
 ///
-/// Use the VFS builder functions to construct an instance e.g. sys::entries or Stdfs::entries.
+/// * Support for Rivia VFS
+/// * Recursive directory traversal with depth control
+/// * Symbolic link following
+/// * Automatic link path reading
+/// * Directory entries `.` and `..` are ommitted
+/// * Use the builder functions on [`Vfs`], `Stdfs` and `Memfs` to create an `Entries` instance
+///
+/// ### Inspired by WalkDir
+/// Entries provides a similar feature set in a simplified manner that is Virtual File System (VFS)
+/// friendly.
+///
+/// ## Traversal
+/// Entries is a depth first algorithm by default with directories yielded before their contents.
+/// However this behavior can be changed by setting the `contents_first` options to direct Entries
+/// to yield the contents of directories first before the directory its self which is useful for
+/// operations like chmod that revoke permissions to read.
+///
+/// ## File Descriptors
+/// Considering that most unix type systems have a limit of 1024 file descriptors, Paths is careful
+/// not to exhaust this resource by limiting its internal consumption to no more than 50 at a time.
+/// Anything beyond that will be read into memory and iterated from there internally rather than
+/// holding more than 50 open file descriptors.
 ///
 /// ### Examples
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let tmpdir = sys::abs("tests/temp/entries_doc_entries").unwrap();
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
-/// let file1 = tmpdir.mash("file1");
-/// assert_eq!(sys::mkfile(&file1).unwrap(), file1);
-/// let mut iter = sys::entries(&tmpdir).unwrap().into_iter();
-/// assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-/// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+/// let vfs = Memfs::new().upcast();
+/// assert_vfs_mkdir_p!(vfs, "dir1");
+/// assert_vfs_mkfile!(vfs, "file1");
+/// assert_vfs_mkdir_p!(vfs, "dir2");
+/// assert_vfs_mkfile!(vfs, "dir2/file2");
+/// let mut iter = vfs.entries("/").unwrap().dirs_first().sort_by_name().into_iter();
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir1"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir2"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir2/file2"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file1"));
 /// assert!(iter.next().is_none());
-/// assert!(sys::remove_all(tmpdir).is_ok());
 /// ```
 pub struct Entries
 {
@@ -76,8 +72,7 @@ impl Entries
 {
     /// Filter entries down to just directories
     ///
-    /// ### Detail
-    /// * default is `false`
+    /// * Default is `false`
     ///
     /// ### Examples
     /// ```
@@ -100,8 +95,7 @@ impl Entries
 
     /// Filter entries down to just files
     ///
-    /// ### Detail
-    /// * default is `false`
+    /// * Default is `false`
     ///
     /// ### Examples
     /// ```
@@ -123,9 +117,8 @@ impl Entries
 
     /// Follow links that point to directories
     ///
-    /// ### Detail
-    /// * default is `false`
-    /// * will iterate over the contents of directories pointed to when `true`
+    /// * Default is `false`
+    /// * Will iterate over the contents of directories pointed to when `true`
     ///
     /// ### Examples
     /// ```
@@ -147,12 +140,11 @@ impl Entries
 
     /// Set the min depth that Entries should traverse
     ///
-    /// ### Detail
-    /// * default is `0`
-    /// * the given path is considered depth 0
-    /// * to only include the given path and not recurse set `max_depth(0)`
-    /// * by default recursion is unbounded. use `max_depth(VALUE)` to bound it
-    /// * setting `min_depth` first will autocorrect later calls to `max_depth` to be consistent
+    /// * Default is `0`
+    /// * The given path is considered depth 0
+    /// * To only include the given path and not recurse set `max_depth(0)`
+    /// * By default recursion is unbounded. use `max_depth(VALUE)` to bound it
+    /// * Setting `min_depth` first will autocorrect later calls to `max_depth` to be consistent
     /// in relation to `min_depth`. The inverse would be true if `max_depth` was called first.
     ///
     /// ### Examples
@@ -170,12 +162,11 @@ impl Entries
 
     /// Set the max depth that Entries should traverse exclusive
     ///
-    /// ### Detail
-    /// * default is `std::usize::MAX`
-    /// * the given path is considered depth 0
-    /// * to only include the given path and not recurse set `max_depth(0)`
-    /// * by default recursion is unbounded. use `max_depth(VALUE)` to bound it
-    /// * setting `min_depth` first will autocorrect later calls to `max_depth` to be consistent
+    /// * Default is `std::usize::MAX`
+    /// * The given path is considered depth 0
+    /// * To only include the given path and not recurse set `max_depth(0)`
+    /// * By default recursion is unbounded. use `max_depth(VALUE)` to bound it
+    /// * Setting `min_depth` first will autocorrect later calls to `max_depth` to be consistent
     /// in relation to `min_depth`. The inverse would be true if `max_depth` was called first.
     ///
     /// ### Examples
@@ -193,10 +184,9 @@ impl Entries
 
     /// Set the pre-operation function to run over each directory before processing
     ///
-    /// ### Detail
-    /// * defaults to `None`
-    /// * runs the pre-operation before reading the filesystem
-    /// * useful for changing permissions or ownership on the way in to allow for recursion
+    /// * Defaults to `None`
+    /// * Runs the pre-operation before reading the filesystem
+    /// * Useful for changing permissions or ownership on the way in to allow for recursion
     ///
     /// ### Examples
     /// ```
@@ -210,10 +200,9 @@ impl Entries
 
     /// Set the default sorter to be directories first by name
     ///
-    /// ### Detail
-    /// * defaults to `false`
-    /// * caches all entries and iterates from memory
-    /// * sorts directories first and then by name
+    /// * Defaults to `false`
+    /// * Caches all entries and iterates from memory
+    /// * Sorts directories first and then by name
     ///
     /// ### Examples
     /// ```
@@ -227,10 +216,9 @@ impl Entries
 
     /// Set the default sorter to be files first by name
     ///
-    /// ### Detail
-    /// * defaults to `false`
-    /// * caches all entries and iterates from memory
-    /// * sorts directories first and then by name
+    /// * Defaults to `false`
+    /// * Caches all entries and iterates from memory
+    /// * Sorts directories first and then by name
     ///
     /// ### Examples
     /// ```
@@ -244,10 +232,8 @@ impl Entries
 
     /// Return the contents of directories before the directory itself
     ///
-    /// ### Detail
-    /// * defaults to `false`
-    /// * a recursive operation useful for things like revoking permission on the way out
-    /// * shouldn't
+    /// * Defaults to `false`
+    /// * A recursive operation useful for things like revoking permission on the way out
     ///
     /// ### Examples
     /// ```
@@ -261,9 +247,8 @@ impl Entries
 
     /// Set the default sorter to be by name
     ///
-    /// ### Detail
-    /// * defaults to `false`
-    /// * caches all entries and iterates from memory to enforce ordering
+    /// * Defaults to `false`
+    /// * Caches all entries and iterates from memory to enforce ordering
     ///
     /// ### Examples
     /// ```
@@ -277,8 +262,7 @@ impl Entries
 
     /// Set a function for sorting entries.
     ///
-    /// ### Detail
-    /// * defaults to `None`
+    /// * Defaults to `None`
     ///
     /// ### Examples
     /// ```
@@ -450,16 +434,16 @@ impl EntriesIter
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let tmpdir = sys::abs("tests/temp/entries_doc_filter_p").unwrap();
-    /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// assert!(sys::mkdir(&tmpdir).is_ok());
-    /// let file1 = tmpdir.mash("file1");
-    /// assert_eq!(sys::mkfile(&file1).unwrap(), file1);
-    /// let mut iter =
-    ///     sys::entries(&tmpdir).unwrap().into_iter().filter_p(|x| x.path().has_suffix("1"));
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    /// let vfs = Memfs::new().upcast();
+    /// assert_vfs_mkdir_p!(vfs, "dir1");
+    /// assert_vfs_mkfile!(vfs, "file1");
+    /// assert_vfs_mkdir_p!(vfs, "dir2");
+    /// assert_vfs_mkfile!(vfs, "dir2/file2");
+    /// let mut iter = vfs.entries("/").unwrap().into_iter().filter_p(|x| x.path().has_suffix("1"));
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/"));
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir1"));
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file1"));
     /// assert!(iter.next().is_none());
-    /// assert!(sys::remove_all(tmpdir).is_ok());
     /// ```
     pub fn filter_p(mut self, predicate: impl FnMut(&VfsEntry) -> bool+'static) -> Self
     {

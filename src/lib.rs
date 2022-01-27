@@ -38,7 +38,8 @@
 //! done. What's more the benefit of trackig the VFS for chain calling is dubious when you introduce
 //! the complexity of multiple ways to get access to VFS operations. Considering the ergonomic
 //! impact and commplexity of such a change. I won't be implementing a notion of a `VfsPath` in
-//! favor of a single point of entry into the VFS operations and much cleaner ergonomics.
+//! favor of a single point of entry into the VFS operations and much cleaner ergonomics i.e. always
+//! use the Filesystem backend trait implementation via Vfs for every Filesystem related operation.
 //!
 //! ### Using Rivia
 //! ```
