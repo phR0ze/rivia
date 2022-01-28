@@ -12,7 +12,7 @@ use crate::{errors::*, exts::*};
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert_eq!("bar", sys::base("/foo/bar")).unwrap());
+/// assert_eq!(sys::base("/foo/bar").unwrap(), "bar".to_string());
 /// ```
 pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
 {
@@ -22,8 +22,7 @@ pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
 
 /// Return the shortest equivalent to the given `path` by purely lexical processing
 ///
-/// ### Pitfalls
-/// Purely lexical processing may not handle links correctly in some cases, use canonicalize in
+/// * Purely lexical processing may not handle links correctly in some cases, use `canonicalize` in
 /// those cases
 ///
 /// ### Algorithm

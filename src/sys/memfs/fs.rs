@@ -626,9 +626,20 @@ impl FileSystem for Memfs
         // Convert relative links to absolute to ensure they are clean
         let target = self.abs(if !target.is_absolute() { link.dir()?.mash(target) } else { target })?;
 
-        // Create the new entry as a link
-        let entry = MemfsEntry::opts(&link).link_to(target)?.new();
-        self.add(entry)?;
+        // Create the new entry as a link and set its target as a file by default
+        let mut entry_opts = MemfsEntry::opts(&link).file().link_to(&target)?;
+
+        // If the target exists and is a directory switch the type
+        {
+            let guard = self.0.read().unwrap();
+            if let Some(ref x) = guard.fs.get(&target) {
+                if x.is_dir() {
+                    entry_opts = entry_opts.dir();
+                }
+            }
+        }
+
+        self.add(entry_opts.new())?;
 
         Ok(link)
     }
