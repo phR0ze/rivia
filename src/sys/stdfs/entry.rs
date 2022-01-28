@@ -1,6 +1,4 @@
 use std::{
-    cmp::Ordering,
-    ffi::OsStr,
     fmt::Debug,
     fs,
     os::unix::fs::PermissionsExt,
@@ -9,7 +7,7 @@ use std::{
 
 use crate::{
     errors::*,
-    sys::{self, Entry, EntryIter, Stdfs, VfsEntry},
+    sys::{self, Entry, PathExt, Stdfs, VfsEntry},
     trying,
 };
 
@@ -41,8 +39,9 @@ use crate::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct StdfsEntry
 {
-    path: PathBuf, // path of the entry
-    alt: PathBuf,  // alternate path for the entry, used with links
+    path: PathBuf, // abs path
+    alt: PathBuf,  // abs path link is pointing to
+    rel: PathBuf,  // relative path link is pointing to
     dir: bool,     // is this entry a dir
     file: bool,    // is this entry a file
     link: bool,    // is this entry a link
@@ -58,6 +57,7 @@ impl Default for StdfsEntry
         Self {
             path: PathBuf::new(),
             alt: PathBuf::new(),
+            rel: PathBuf::new(),
             dir: false,
             file: false,
             link: false,
@@ -75,6 +75,7 @@ impl Clone for StdfsEntry
         Self {
             path: self.path.clone(),
             alt: self.alt.clone(),
+            rel: self.rel.clone(),
             dir: self.dir,
             file: self.file,
             link: self.link,
@@ -87,28 +88,6 @@ impl Clone for StdfsEntry
 
 impl StdfsEntry
 {
-    /// Create a Stdfs entry using the given properties
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub(crate) fn new<T: Into<PathBuf>>(
-        path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool,
-    ) -> Self
-    {
-        StdfsEntry {
-            path: path.into(),
-            alt: alt.into(),
-            dir,
-            file,
-            link,
-            mode,
-            follow,
-            cached,
-        }
-    }
-
     /// Create a Stdfs entry from the given path. The path is always expanded, cleaned and
     /// turned into an absolute value. Additionally filesystem properties are cached.
     ///
@@ -121,18 +100,19 @@ impl StdfsEntry
         let path = Stdfs::abs(path)?;
         let mut link = false;
         let mut alt = PathBuf::new();
+        let mut rel = PathBuf::new();
         let mut meta = fs::symlink_metadata(&path)?;
 
         // Load link information for links
         if meta.file_type().is_symlink() {
             link = true;
-            let src = fs::read_link(&path)?;
+            let target = fs::read_link(&path)?;
 
-            // Ensure src is rooted properly
-            let rooted = if !src.is_absolute() { sys::mash(sys::dir(&path)?, src) } else { src };
+            // Ensure target is an absolute path
+            alt = Stdfs::abs(if !target.is_absolute() { path.dir()?.mash(target) } else { target })?;
 
-            // Set the link's source
-            alt = Stdfs::abs(rooted)?;
+            // Get the target path relative to the link path if possible
+            rel = alt.relative(path.dir()?)?;
 
             // Switch to the link's source metadata
             meta = fs::metadata(&path)?;
@@ -141,6 +121,7 @@ impl StdfsEntry
         Ok(StdfsEntry {
             path,
             alt,
+            rel,
             dir: meta.is_dir(),
             file: meta.is_file(),
             link,
@@ -172,11 +153,12 @@ impl StdfsEntry
 
 impl Entry for StdfsEntry
 {
-    /// `path` reports the actual file or directory when `is_symlink` reports false. When
-    /// `is_symlink` reports true and `follow` reports true `path` will report the actual file
-    /// or directory that the link points to and `alt` will report the link's path. When
-    /// `is_symlink` reports true and `follow` reports false `path` will report the link's path
-    /// and `alt` will report the actual file or directory the link points to.
+    /// Returns the actual file or directory path when `is_symlink` reports false
+    ///
+    /// * When `is_symlink` returns true and `following` returns true `path` will return the actual
+    ///   file or directory that the link points to and `alt` will report the link's path
+    /// * When `is_symlink` returns true and `following` returns false `path` will report the link's
+    ///   path and `alt` will report the actual file or directory the link points to.
     ///
     /// ### Examples
     /// ```
@@ -187,22 +169,23 @@ impl Entry for StdfsEntry
         &self.path
     }
 
-    /// Move the `path` value out of this struct as an owned value
+    /// Returns a PathBuf of the path
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn path_buf(self) -> PathBuf
+    fn path_buf(&self) -> PathBuf
     {
-        self.path
+        self.path.clone()
     }
 
-    /// `alt` will be empty unless `is_symlink` reports true. When `is_symlink` reports true and
-    /// `follow` reports true `alt` will report the path to the link and `path` will report the
-    /// path to the actual file or directory the link points to. When `is_symlink` reports true
-    /// and `follow` reports false `alt` will report the actual file or directory the link points
-    /// to and `path` will report the link path.
+    /// Returns the path the link is pointing to if `is_symlink` reports true
+    ///
+    /// * When `is_symlink` returns true and `following` returns true `path` will return the actual
+    ///   file or directory that the link points to and `alt` will report the link's path
+    /// * When `is_symlink` returns true and `following` returns false `path` will report the link's
+    ///   path and `alt` will report the actual file or directory the link points to.
     ///
     /// ### Examples
     /// ```
@@ -213,15 +196,37 @@ impl Entry for StdfsEntry
         &self.alt
     }
 
-    /// Move the `link` value out of this struct as an owned value
+    /// Returns a PathBuf of the path
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn alt_buf(self) -> PathBuf
+    fn alt_buf(&self) -> PathBuf
     {
-        self.alt
+        self.alt.clone()
+    }
+
+    /// Returns the path the link is pointing to in relative form if `is_symlink` reports true
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn rel(&self) -> &Path
+    {
+        &self.rel
+    }
+
+    /// Retunrns a PathBuf of the relative path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn rel_buf(&self) -> PathBuf
+    {
+        self.rel.clone()
     }
 
     /// Switch the `path` and `alt` values if `is_symlink` reports true.

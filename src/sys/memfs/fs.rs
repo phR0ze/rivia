@@ -626,11 +626,8 @@ impl FileSystem for Memfs
         // Convert relative links to absolute to ensure they are clean
         let target = self.abs(if !target.is_absolute() { link.dir()?.mash(target) } else { target })?;
 
-        // Get the target path relative to the link path if possible
-        // let target = target.relative(link.dir()?)?;
-
         // Create the new entry as a link
-        let entry = MemfsEntry::opts(&link).link_to(target).new();
+        let entry = MemfsEntry::opts(&link).link_to(target)?.new();
         self.add(entry)?;
 
         Ok(link)
@@ -853,8 +850,11 @@ mod tests
                 // Check the correct path is set for the link
                 assert_eq!(entry.path(), &link1);
 
-                // Check that the target has been computed relativily despite being passed in as absolute
-                assert_eq!(entry.alt(), Path::new("dir1"));
+                // Check that the target is absolute
+                assert_eq!(entry.alt(), &dir1);
+
+                // Check that the target's relative path is accurate
+                assert_eq!(entry.rel(), Path::new("dir1"));
             }
         }
     }

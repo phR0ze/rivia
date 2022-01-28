@@ -16,7 +16,8 @@ use crate::{
 pub(crate) struct MemfsEntryOpts
 {
     path: PathBuf, // path of the entry
-    alt: PathBuf,  // alternate path for the entry, used with links
+    alt: PathBuf,  // abs path to target link is pointing to
+    rel: PathBuf,  // relative path to target link is pointing to
     dir: bool,     // is this entry a dir
     file: bool,    // is this entry a file
     link: bool,    // is this entry a link
@@ -32,6 +33,7 @@ impl MemfsEntryOpts
             files: if self.dir { Some(HashSet::new()) } else { None },
             path: self.path,
             alt: self.alt,
+            rel: self.rel,
             dir: self.dir,
             file: self.file,
             link: self.link,
@@ -55,11 +57,12 @@ impl MemfsEntryOpts
         self
     }
 
-    pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> Self
+    pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> RvResult<Self>
     {
         self.link = true;
         self.alt = path.into();
-        self
+        self.rel = self.alt.relative(self.path.dir()?)?;
+        Ok(self)
     }
 
     pub(crate) fn mode(mut self, mode: u32) -> Self
@@ -78,9 +81,9 @@ impl MemfsEntryOpts
 #[derive(Debug)]
 pub struct MemfsEntry
 {
-    pub(crate) path: PathBuf,                  // entry path
-    pub(crate) alt: PathBuf,                   // alternate entry path, used with links
-    pub(crate) rel: PathBuf,                   // alternate entry path, used with links
+    pub(crate) path: PathBuf,                  // abs path
+    pub(crate) alt: PathBuf,                   // abs path link is pointing to
+    pub(crate) rel: PathBuf,                   // relative path link is pointing to
     pub(crate) dir: bool,                      // is this entry a dir
     pub(crate) file: bool,                     // is this entry a file
     pub(crate) link: bool,                     // is this entry a link
@@ -100,6 +103,7 @@ impl MemfsEntry
         MemfsEntryOpts {
             path: path.into(),
             alt: PathBuf::new(),
+            rel: PathBuf::new(),
             dir: true, // directory by default
             file: false,
             link: false,
@@ -188,41 +192,41 @@ impl MemfsEntry
 
 impl Entry for MemfsEntry
 {
-    /// Returns the actual file or directory when `is_symlink` reports false
+    /// Returns the actual file or directory path when `is_symlink` reports false
     ///
-    /// * When
-    /// `is_symlink` reports true and `follow` reports true `path` will report the actual file or
-    /// directory that the link points to and `alt` will report the link's path. When `is_symlink`
-    /// reports true and `follow` reports false `path` will report the link's path and `alt` will
-    /// report the actual file or directory the link points to.
+    /// * When `is_symlink` returns true and `following` returns true `path` will return the actual
+    ///   file or directory that the link points to and `alt` will report the link's path
+    /// * When `is_symlink` returns true and `following` returns false `path` will report the link's
+    ///   path and `alt` will report the actual file or directory the link points to.
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let entry = MemfsEntry::opts("foo").new();
     /// ```
     fn path(&self) -> &Path
     {
         &self.path
     }
 
-    /// Move the `path` value out of this struct as an owned value
+    /// Returns a PathBuf of the path
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn path_buf(self) -> PathBuf
+    fn path_buf(&self) -> PathBuf
     {
-        self.path
+        self.path.clone()
     }
 
-    /// Returns an empty Path unless `is_symlink` reports true
+    /// Returns the path the link is pointing to if `is_symlink` reports true
     ///
-    /// * When `is_symlink` reports true and
-    /// `follow` reports true `alt` will report the path to the link and `path` will report the
-    /// path to the actual file or directory the link points to. When `is_symlink` reports trueand
-    /// `follow` reports false `alt` will report the actual file or directory the link points to
-    /// and `path` will report the link path.
+    /// * When `is_symlink` returns true and `following` returns true `path` will return the actual
+    ///   file or directory that the link points to and `alt` will report the link's path
+    /// * When `is_symlink` returns true and `following` returns false `path` will report the link's
+    ///   path and `alt` will report the actual file or directory the link points to.
     ///
     /// ### Examples
     /// ```
@@ -233,15 +237,37 @@ impl Entry for MemfsEntry
         &self.alt
     }
 
-    /// Move the `link` value out of this struct as an owned value
+    /// Returns a PathBuf of the path
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn alt_buf(self) -> PathBuf
+    fn alt_buf(&self) -> PathBuf
     {
-        self.alt
+        self.alt.clone()
+    }
+
+    /// Returns the path the link is pointing to in relative form if `is_symlink` reports true
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn rel(&self) -> &Path
+    {
+        &self.rel
+    }
+
+    /// Retunrns a PathBuf of the relative path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn rel_buf(&self) -> PathBuf
+    {
+        self.rel.clone()
     }
 
     /// Switch the `path` and `alt` values if `is_symlink` reports true.
@@ -330,6 +356,7 @@ impl Clone for MemfsEntry
         Self {
             path: self.path.clone(),
             alt: self.alt.clone(),
+            rel: self.rel.clone(),
             dir: self.dir,
             file: self.file,
             link: self.link,
@@ -405,11 +432,13 @@ mod tests
         // Check that follow switchs the path and alt path
         let path = memfs.root().mash("link");
         let target = memfs.root().mash("target");
-        let entry = MemfsEntry::opts(&path).link_to(&target).new();
+        let entry = MemfsEntry::opts(&path).link_to(&target).unwrap().new();
         assert_eq!(entry.path(), &path);
         assert_eq!(entry.alt(), &target);
+        assert_eq!(entry.rel(), Path::new("target"));
         let entry = entry.follow(true);
         assert_eq!(entry.path(), &target);
         assert_eq!(entry.alt(), &path);
+        assert_eq!(entry.rel(), Path::new("target"));
     }
 }

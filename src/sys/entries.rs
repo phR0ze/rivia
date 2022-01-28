@@ -81,9 +81,9 @@ impl Entries
     /// let vfs = Memfs::new().upcast();
     /// assert_vfs_mkdir_p!(vfs, "zdir");
     /// assert_vfs_mkfile!(vfs, "file");
-    /// let mut iter = vfs.entries("/").unwrap().dirs().into_iter();
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/"));
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/zdir"));
+    /// let mut iter = vfs.entries(vfs.root()).unwrap().dirs().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), vfs.root());
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), vfs.root().mash("zdir"));
     /// assert!(iter.next().is_none());
     /// ```
     pub fn dirs(mut self) -> Self
@@ -104,8 +104,8 @@ impl Entries
     /// let vfs = Memfs::new().upcast();
     /// assert_vfs_mkdir_p!(vfs, "dir");
     /// assert_vfs_mkfile!(vfs, "file");
-    /// let mut iter = vfs.entries("/").unwrap().files().into_iter();
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
+    /// let mut iter = vfs.entries(vfs.root()).unwrap().files().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), vfs.root().mash("file"));
     /// assert!(iter.next().is_none());
     /// ```
     pub fn files(mut self) -> Self
@@ -125,11 +125,15 @@ impl Entries
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new().upcast();
-    /// assert_vfs_mkdir_p!(vfs, "dir");
-    /// assert_vfs_mkfile!(vfs, "dir/file");
-    /// assert_vfs_symlink!(vfs, "link", "dir");
-    /// let mut iter = vfs.entries("/link").unwrap().follow().into_iter();
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &dir);
+    /// let mut iter = vfs.entries(&link).unwrap().follow().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir);
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
     /// //assert!(iter.next().is_none());
     /// ```
     pub fn follow(mut self) -> Self
@@ -530,9 +534,13 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_dirs()
+    fn test_vfs_dirs()
     {
-        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        test_dirs(assert_vfs_setup!(Vfs::memfs()));
+        test_dirs(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_dirs((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("zdir");
         let file1 = tmpdir.mash("file");
         assert_vfs_mkdir_p!(vfs, &dir1);
@@ -555,9 +563,13 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_files()
+    fn test_vfs_files()
     {
-        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        test_files(assert_vfs_setup!(Vfs::memfs()));
+        test_files(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_files((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("zdir");
         let file1 = tmpdir.mash("file");
         assert_vfs_mkdir_p!(vfs, &dir1);
@@ -579,19 +591,19 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_follow()
+    fn test_vfs_follow()
     {
-        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        test_follow(assert_vfs_setup!(Vfs::memfs()));
+        test_follow(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_follow((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let link1 = tmpdir.mash("link1");
         assert_vfs_mkdir_p!(vfs, &dir1);
         assert_vfs_mkfile!(vfs, &file1);
         assert_vfs_symlink!(vfs, &link1, &dir1);
-
-        if let Vfs::Memfs(ref memfs) = vfs {
-            println!("{}", memfs);
-        }
 
         // Without follow
         let mut iter = vfs.entries(&link1).unwrap().into_iter();
@@ -600,10 +612,68 @@ mod tests
 
         // With follow
         let mut iter = vfs.entries(&link1).unwrap().follow().sort_by_name().into_iter();
-        assert_eq!(iter.next().unwrap().unwrap().path(), &link1);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
-        // assert!(iter.next().is_none());
+        assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
+        assert!(iter.next().is_none());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_vfs_depth()
+    {
+        test_depth(assert_vfs_setup!(Vfs::memfs()));
+        test_depth(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_depth((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let dir1file1 = dir1.mash("file1");
+        let file1 = tmpdir.mash("file1");
+        let dir2 = dir1.mash("dir2");
+        let dir2file1 = dir2.mash("file1");
+
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_vfs_mkfile!(vfs, &dir1file1);
+        assert_vfs_mkfile!(vfs, &dir2file1);
+        assert_vfs_mkfile!(vfs, &file1);
+
+        // Min: 0, Max: 0 = only root
+        let mut iter = vfs.entries(&tmpdir).unwrap().max_depth(0).into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+        assert!(iter.next().is_none());
+
+        // Min: 0, Max: 1 = root and immediate children
+        let iter = vfs.entries(&tmpdir).unwrap().max_depth(1).into_iter();
+        assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1]);
+
+        // Min: 0, Max: 2 = root, its immediate children and their immediate children
+        let iter = vfs.entries(&tmpdir).unwrap().max_depth(2).into_iter();
+        assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1, &dir2, &dir1file1]);
+
+        // Min: 1, Max: max = skip root, all rest
+        let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).into_iter();
+        assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1, &dir2file1]);
+
+        // Min: 1, Max: 1 = skip root, hit root's children only
+        let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).max_depth(1).into_iter();
+        assert_iter_eq(iter, vec![&file1, &dir1]);
+
+        // Min: 1, Max: 2 = skip root, hit root's chilren and theirs only
+        let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).max_depth(2).into_iter();
+        assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1]);
+
+        // Min: 2, Max: 1 - max should get corrected to 2 because of ordering
+        let iter = vfs.entries(&tmpdir).unwrap().min_depth(2).max_depth(1).into_iter();
+        assert_eq!(iter.opts.min_depth, 2);
+        assert_eq!(iter.opts.max_depth, 2);
+        assert_iter_eq(iter, vec![&dir2, &dir1file1]);
+
+        // Min: 2, Max: 1 - min should get corrected to 1 because of ordering
+        let iter = vfs.entries(&tmpdir).unwrap().max_depth(1).min_depth(2).into_iter();
+        assert_eq!(iter.opts.min_depth, 1);
+        assert_eq!(iter.opts.max_depth, 1);
+        assert_iter_eq(iter, vec![&file1, &dir1]);
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
@@ -879,62 +949,6 @@ mod tests
 
     //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
-
-    // #[test]
-    // fn test_vfs_depth()
-    // {
-    //     let tmpdir = assert_vfs_setup!();
-    //     let dir1 = tmpdir.mash("dir1");
-    //     let dir1file1 = dir1.mash("file1");
-    //     let file1 = tmpdir.mash("file1");
-    //     let dir2 = dir1.mash("dir2");
-    //     let dir2file1 = dir2.mash("file1");
-
-    //     assert_vfs_mkdir_p!(vfs, &dir2);
-    //     assert_vfs_mkfile!(vfs, &dir1file1);
-    //     assert_vfs_mkfile!(vfs, &dir2file1);
-    //     assert_vfs_mkfile!(vfs, &file1);
-
-    //     // Min: 0, Max: 0 = only root
-    //     let mut iter = vfs.entries(&tmpdir).unwrap().max_depth(0).into_iter();
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-    //     assert!(iter.next().is_none());
-
-    //     // Min: 0, Max: 1 = root and immediate children
-    //     let iter = vfs.entries(&tmpdir).unwrap().max_depth(1).into_iter();
-    //     assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1]);
-
-    //     // Min: 0, Max: 2 = root, its immediate children and their immediate children
-    //     let iter = vfs.entries(&tmpdir).unwrap().max_depth(2).into_iter();
-    //     assert_iter_eq(iter, vec![&tmpdir, &file1, &dir1, &dir2, &dir1file1]);
-
-    //     // Min: 1, Max: max = skip root, all rest
-    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).into_iter();
-    //     assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1, &dir2file1]);
-
-    //     // Min: 1, Max: 1 = skip root, hit root's children only
-    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).max_depth(1).into_iter();
-    //     assert_iter_eq(iter, vec![&file1, &dir1]);
-
-    //     // Min: 1, Max: 2 = skip root, hit root's chilren and theirs only
-    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(1).max_depth(2).into_iter();
-    //     assert_iter_eq(iter, vec![&file1, &dir1, &dir2, &dir1file1]);
-
-    //     // Min: 2, Max: 1 - max should get corrected to 2 because of ordering
-    //     let iter = vfs.entries(&tmpdir).unwrap().min_depth(2).max_depth(1).into_iter();
-    //     assert_eq!(iter.opts.min_depth, 2);
-    //     assert_eq!(iter.opts.max_depth, 2);
-    //     assert_iter_eq(iter, vec![&dir2, &dir1file1]);
-
-    //     // Min: 2, Max: 1 - min should get corrected to 1 because of ordering
-    //     let iter = vfs.entries(&tmpdir).unwrap().max_depth(1).min_depth(2).into_iter();
-    //     assert_eq!(iter.opts.min_depth, 1);
-    //     assert_eq!(iter.opts.max_depth, 1);
-    //     assert_iter_eq(iter, vec![&file1, &dir1]);
-
-    //     assert_vfs_remove_all!(vfs, &tmpdir);
-    // }
-
     // // #[test]
     // // fn test_memfs_multiple()
     // // {
