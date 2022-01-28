@@ -93,7 +93,9 @@ impl StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub(crate) fn new<T: Into<PathBuf>>(path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool) -> Self
+    pub(crate) fn new<T: Into<PathBuf>>(
+        path: T, alt: T, dir: bool, file: bool, link: bool, mode: u32, follow: bool, cached: bool,
+    ) -> Self
     {
         StdfsEntry {
             path: path.into(),
@@ -114,7 +116,7 @@ impl StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn from<T: AsRef<Path>>(path: T) -> RvResult<Self>
+    pub(crate) fn from<T: AsRef<Path>>(path: T) -> RvResult<Self>
     {
         let path = Stdfs::abs(path)?;
         let mut link = false;
@@ -154,7 +156,7 @@ impl StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn follow(mut self, follow: bool) -> Self
+    pub(crate) fn follow(mut self, follow: bool) -> Self
     {
         if follow && !self.follow {
             self.follow = true;

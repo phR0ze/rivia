@@ -41,12 +41,6 @@ impl MemfsEntryOpts
         }
     }
 
-    pub(crate) fn alt<T: Into<PathBuf>>(mut self, path: T) -> Self
-    {
-        self.alt = path.into();
-        self
-    }
-
     pub(crate) fn dir(mut self) -> Self
     {
         self.dir = true;
@@ -61,9 +55,10 @@ impl MemfsEntryOpts
         self
     }
 
-    pub(crate) fn link(mut self) -> Self
+    pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> Self
     {
         self.link = true;
+        self.alt = path.into();
         self
     }
 
@@ -85,6 +80,7 @@ pub struct MemfsEntry
 {
     pub(crate) path: PathBuf,                  // entry path
     pub(crate) alt: PathBuf,                   // alternate entry path, used with links
+    pub(crate) rel: PathBuf,                   // alternate entry path, used with links
     pub(crate) dir: bool,                      // is this entry a dir
     pub(crate) file: bool,                     // is this entry a file
     pub(crate) link: bool,                     // is this entry a link
@@ -98,7 +94,6 @@ impl MemfsEntry
 {
     /// Create a new MemfsEntryOpts to allow for more advanced Memfs creation
     ///
-    /// # Arguments
     /// * `abs` - target path expected to already be in absolute form
     pub(crate) fn opts<T: Into<PathBuf>>(path: T) -> MemfsEntryOpts
     {
@@ -114,7 +109,6 @@ impl MemfsEntry
 
     // Add an entry to this directory
     //
-    // ### Arguments
     // * `entry` - the entry to add to this directory
     //
     // ### Errors
@@ -194,7 +188,9 @@ impl MemfsEntry
 
 impl Entry for MemfsEntry
 {
-    /// `path` reports the actual file or directory when `is_symlink` reports false. When
+    /// Returns the actual file or directory when `is_symlink` reports false
+    ///
+    /// * When
     /// `is_symlink` reports true and `follow` reports true `path` will report the actual file or
     /// directory that the link points to and `alt` will report the link's path. When `is_symlink`
     /// reports true and `follow` reports false `path` will report the link's path and `alt` will
@@ -220,7 +216,9 @@ impl Entry for MemfsEntry
         self.path
     }
 
-    /// `alt` will be empty unless `is_symlink` reports true. When `is_symlink` reports true and
+    /// Returns an empty Path unless `is_symlink` reports true
+    ///
+    /// * When `is_symlink` reports true and
     /// `follow` reports true `alt` will report the path to the link and `path` will report the
     /// path to the actual file or directory the link points to. When `is_symlink` reports trueand
     /// `follow` reports false `alt` will report the actual file or directory the link points to
@@ -397,10 +395,21 @@ impl Iterator for MemfsEntryIter
 #[cfg(test)]
 mod tests
 {
-    // use crate::prelude::*;
+    use crate::prelude::*;
 
-    // #[test]
-    // fn test_memfsentryiter_single_file()
-    // {
-    // }
+    #[test]
+    fn test_follow()
+    {
+        let memfs = Memfs::new();
+
+        // Check that follow switchs the path and alt path
+        let path = memfs.root().mash("link");
+        let target = memfs.root().mash("target");
+        let entry = MemfsEntry::opts(&path).link_to(&target).new();
+        assert_eq!(entry.path(), &path);
+        assert_eq!(entry.alt(), &target);
+        let entry = entry.follow(true);
+        assert_eq!(entry.path(), &target);
+        assert_eq!(entry.alt(), &path);
+    }
 }

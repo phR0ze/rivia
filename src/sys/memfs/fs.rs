@@ -623,15 +623,14 @@ impl FileSystem for Memfs
         let link = self.abs(link)?;
         let target = target.as_ref().to_owned();
 
-        // If target is not rooted then it is already relative to the link thus mashing
-        // the link's directory to the src and cleaning it will given an absolute path.
+        // Convert relative links to absolute to ensure they are clean
         let target = self.abs(if !target.is_absolute() { link.dir()?.mash(target) } else { target })?;
 
         // Get the target path relative to the link path if possible
-        let target = target.relative(link.dir()?)?;
+        // let target = target.relative(link.dir()?)?;
 
         // Create the new entry as a link
-        let entry = MemfsEntry::opts(&link).link().alt(target).new();
+        let entry = MemfsEntry::opts(&link).link_to(target).new();
         self.add(entry)?;
 
         Ok(link)
@@ -699,6 +698,7 @@ mod tests
     fn test_memfs_abs()
     {
         let memfs = Memfs::new();
+        memfs.mkdir_p("foo").unwrap();
         memfs.set_cwd("foo").unwrap();
         let cwd = memfs.cwd().unwrap(); // foo
         let prev = cwd.dir().unwrap(); // /
@@ -745,14 +745,9 @@ mod tests
     {
         let memfs = Memfs::new();
         assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
-
-        assert_eq!(memfs.exists("foo"), false);
-        assert_eq!(memfs.exists("foo/bar"), false);
+        memfs.mkdir_p("foo").unwrap();
         memfs.set_cwd("foo").unwrap();
-        memfs.mkdir_p("bar").unwrap();
-        assert_eq!(memfs.exists("foo"), false);
-        assert_eq!(memfs.exists("/foo"), true);
-        assert_eq!(memfs.exists("/foo/bar"), true);
+        assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
     }
 
     #[test]
@@ -844,17 +839,24 @@ mod tests
         let link1 = vfs.root().mash("link1");
         assert_vfs_mkdir_p!(vfs, &dir1);
         assert_vfs_mkfile!(vfs, &file1);
-        assert_eq!(&vfs.symlink(&link1, &dir1).unwrap(), &link1);
+        assert_vfs_symlink!(vfs, &link1, &dir1);
 
-        // Ensure that no file was created for the link
+        // Validate the link was created correctly
         if let Vfs::Memfs(ref memfs) = vfs {
             let guard = memfs.0.read().unwrap();
-            assert_eq!(guard.data.contains_key(&link1), false);
-        }
 
-        // let mut iter = vfs.entries("/link").unwrap().follow().into_iter();
-        // assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file"));
-        // assert!(iter.next().is_none());
+            // Ensure that no file was created for the link
+            assert_eq!(guard.data.contains_key(&link1), false);
+
+            // Ensure that the entry has the right properties
+            if let Some(entry) = guard.fs.get(&link1) {
+                // Check the correct path is set for the link
+                assert_eq!(entry.path(), &link1);
+
+                // Check that the target has been computed relativily despite being passed in as absolute
+                assert_eq!(entry.alt(), Path::new("dir1"));
+            }
+        }
     }
 
     // #[test]
