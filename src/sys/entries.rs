@@ -134,7 +134,7 @@ impl Entries
     /// let mut iter = vfs.entries(&link).unwrap().follow().into_iter();
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir);
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
-    /// //assert!(iter.next().is_none());
+    /// assert!(iter.next().is_none());
     /// ```
     pub fn follow(mut self) -> Self
     {
@@ -154,6 +154,13 @@ impl Entries
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let mut iter = vfs.entries(vfs.root()).unwrap().min_depth(1).into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
+    /// assert!(iter.next().is_none());
     /// ```
     pub fn min_depth(mut self, min: usize) -> Self
     {
@@ -176,6 +183,15 @@ impl Entries
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let mut iter = vfs.entries(vfs.root()).unwrap().min_depth(1).max_depth(1).into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir);
+    /// assert!(iter.next().is_none());
     /// ```
     pub fn max_depth(mut self, max: usize) -> Self
     {

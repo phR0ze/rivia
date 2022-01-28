@@ -1,6 +1,6 @@
 [package]
 name = "rivia"
-version = "0.0.71"
+version = "0.0.72"
 edition = "2021"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
