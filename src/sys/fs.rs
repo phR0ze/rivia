@@ -172,6 +172,21 @@ pub trait FileSystem: Debug+Send+Sync+'static
     // fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
 
     /// Read all data from the given file and return it as a String
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let file = memfs.root().mash("file");
+    /// memfs.write_all(&file, b"foobar 1").unwrap();
+    /// assert_eq!(memfs.read_all(&file).unwrap(), "foobar 1".to_string());
+    /// ```
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>;
 
     /// Returns the path the given link points to
@@ -492,6 +507,30 @@ impl FileSystem for Vfs
         }
     }
 
+    /// Creates the given directory and any parent directories needed
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// # Errors
+    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_vfs_no_dir!(vfs, "foo");
+    /// assert_vfs_mkdir_p!(vfs, "foo");
+    /// assert_vfs_is_dir!(vfs, "foo");
+    /// ```
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.mkdir_p(path),
+            Vfs::Memfs(x) => x.mkdir_p(path),
+        }
+    }
+
     /// Create an empty file similar to the linux touch command
     ///
     /// * Handles path expansion and absolute path resolution
@@ -507,9 +546,9 @@ impl FileSystem for Vfs
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.exists("file1"), false);
-    /// assert_eq!(vfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
-    /// assert_eq!(vfs.exists("file1"), true);
+    /// assert_vfs_no_file!(vfs, "foo");
+    /// assert_vfs_mkfile!(vfs, "foo");
+    /// assert_vfs_is_file!(vfs, "foo");
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
@@ -519,17 +558,22 @@ impl FileSystem for Vfs
         }
     }
 
-    /// Creates the given directory and any parent directories needed, handling path expansion and
-    /// returning the absolute path of the created directory
-    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
-    {
-        match self {
-            Vfs::Stdfs(x) => x.mkdir_p(path),
-            Vfs::Memfs(x) => x.mkdir_p(path),
-        }
-    }
-
     /// Read all data from the given file and return it as a String
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1");
+    /// ```
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {
         match self {

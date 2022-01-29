@@ -1237,47 +1237,49 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_stdfs_abs() -> RvResult<()>
+    fn test_stdfs_abs()
     {
-        let cwd = Stdfs::cwd()?;
-        let prev = cwd.dir()?;
+        let cwd = Stdfs::cwd().unwrap();
+        let prev = cwd.dir().unwrap();
 
         // expand relative directory
-        assert_eq!(Stdfs::abs("foo")?, cwd.mash("foo"));
+        assert_eq!(Stdfs::abs("foo").unwrap(), cwd.mash("foo"));
 
         // expand previous directory and drop trailing slashes
-        assert_eq!(Stdfs::abs("..//")?, prev);
-        assert_eq!(Stdfs::abs("../")?, prev);
-        assert_eq!(Stdfs::abs("..")?, prev);
+        assert_eq!(Stdfs::abs("..//").unwrap(), prev);
+        assert_eq!(Stdfs::abs("../").unwrap(), prev);
+        assert_eq!(Stdfs::abs("..").unwrap(), prev);
 
         // expand current directory and drop trailing slashes
-        assert_eq!(Stdfs::abs(".//")?, cwd);
-        assert_eq!(Stdfs::abs("./")?, cwd);
-        assert_eq!(Stdfs::abs(".")?, cwd);
+        assert_eq!(Stdfs::abs(".//").unwrap(), cwd);
+        assert_eq!(Stdfs::abs("./").unwrap(), cwd);
+        assert_eq!(Stdfs::abs(".").unwrap(), cwd);
 
         // home dir
-        let home = PathBuf::from(sys::home_dir()?);
-        assert_eq!(Stdfs::abs("~")?, home);
-        assert_eq!(Stdfs::abs("~/")?, home);
+        let home = PathBuf::from(sys::home_dir().unwrap());
+        assert_eq!(Stdfs::abs("~").unwrap(), home);
+        assert_eq!(Stdfs::abs("~/").unwrap(), home);
 
         // expand home path
-        assert_eq!(Stdfs::abs("~/foo")?, home.mash("foo"));
+        assert_eq!(Stdfs::abs("~/foo").unwrap(), home.mash("foo"));
 
         // More complicated
-        assert_eq!(Stdfs::abs("~/foo/bar/../.")?, home.mash("foo"));
-        assert_eq!(Stdfs::abs("~/foo/bar/../")?, home.mash("foo"));
-        assert_eq!(Stdfs::abs("~/foo/bar/../blah")?, home.mash("foo/blah"));
+        assert_eq!(Stdfs::abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
+        assert_eq!(Stdfs::abs("~/foo/bar/../").unwrap(), home.mash("foo"));
+        assert_eq!(Stdfs::abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
 
         // Move up the path multiple levels
-        assert_eq!(Stdfs::abs("/foo/bar/blah/../../foo1")?, PathBuf::from("/foo/foo1"));
-        assert_eq!(Stdfs::abs("/../../foo")?, PathBuf::from("/foo"));
+        assert_eq!(Stdfs::abs("/foo/bar/blah/../../foo1").unwrap(), PathBuf::from("/foo/foo1"));
+        assert_eq!(Stdfs::abs("/../../foo").unwrap(), PathBuf::from("/foo"));
 
         // Move up until invalid
         assert_eq!(
             Stdfs::abs("../../../../../../../foo").unwrap_err().to_string(),
             PathError::ParentNotFound(PathBuf::from("/")).to_string()
         );
-        Ok(())
+
+        // absolute path doesn't exist
+        assert_eq!(Stdfs::abs("").unwrap_err().to_string(), PathError::Empty.to_string());
     }
 
     // #[test]

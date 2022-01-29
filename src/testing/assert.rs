@@ -348,6 +348,38 @@ macro_rules! assert_vfs_mkfile {
     };
 }
 
+/// Assert data read from the file matches the input data
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Vfs::memfs();
+/// assert_vfs_no_file!(vfs, "foo");
+/// assert_vfs_write_all!(vfs, "foo", b"foobar 1");
+/// assert_vfs_read_all!(vfs, "foo", b"foobar 1");
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_read_all {
+    ($vfs:expr, $path:expr, $data:expr) => {
+        let target = match $vfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_read_all!", "failed to get absolute path", $path),
+        };
+        if !$vfs.is_file(&target) {
+            panic_msg!("assert_vfs_read_all!", "file doesn't exist or is not a file", &target);
+        }
+        match $vfs.read_all(&target) {
+            Ok(data) => {
+                if data != $data {
+                    panic_msg!("assert_vfs_read_all!", "read data doesn't equal given data", &target);
+                }
+            },
+            _ => panic_msg!("assert_vfs_read_all!", "failed while reading file", &target),
+        };
+    };
+}
+
 /// Assert the removal of the target file or directory
 ///
 /// ### Assertion Failures
@@ -461,6 +493,41 @@ macro_rules! assert_vfs_symlink {
     };
 }
 
+/// Assert data is written to the given file
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Vfs::memfs();
+/// assert_vfs_no_file!(vfs, "foo");
+/// assert_vfs_write_all!(vfs, "foo");
+/// assert_vfs_is_file!(vfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_write_all {
+    ($vfs:expr, $path:expr, $data:expr) => {
+        let target = match $vfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_write_all!", "failed to get absolute path", $path),
+        };
+        if $vfs.exists(&target) {
+            if !$vfs.is_file(&target) {
+                panic_msg!("assert_vfs_write_all!", "is not a file", &target);
+            }
+        } else {
+            match $vfs.write_all(&target, $data) {
+                Ok(_) => {
+                    if !$vfs.is_file(&target) {
+                        panic_msg!("assert_vfs_write_all!", "is not a file", &target);
+                    }
+                },
+                _ => panic_msg!("assert_vfs_write_all!", "failed while writing file", &target),
+            };
+        }
+    };
+}
+
 /// Helper function for testing to simply panic with the given message in a repeatable formatting.
 ///
 /// ### Examples
@@ -528,34 +595,34 @@ mod tests
         // Test file exists
         {
             let file = tmpdir.mash("file");
-            assert_vfs_no_exists!(&vfs, &file);
+            assert_vfs_no_exists!(vfs, &file);
             assert!(!vfs.exists(&file));
-            assert_vfs_mkfile!(&vfs, &file);
-            assert_vfs_exists!(&vfs, &file);
+            assert_vfs_mkfile!(vfs, &file);
+            assert_vfs_exists!(vfs, &file);
             assert!(vfs.exists(&file));
 
-            assert_vfs_remove!(&vfs, &file);
-            assert_vfs_no_exists!(&vfs, &file);
+            assert_vfs_remove!(vfs, &file);
+            assert_vfs_no_exists!(vfs, &file);
             assert!(!vfs.exists(&file));
         }
 
         // Test dir exists
         {
             let dir1 = tmpdir.mash("dir1");
-            assert_vfs_no_exists!(&vfs, &dir1);
+            assert_vfs_no_exists!(vfs, &dir1);
             assert!(!vfs.exists(&dir1));
-            assert_vfs_mkdir_p!(&vfs, &dir1);
-            assert_vfs_exists!(&vfs, &dir1);
+            assert_vfs_mkdir_p!(vfs, &dir1);
+            assert_vfs_exists!(vfs, &dir1);
             assert!(vfs.exists(&dir1));
 
-            assert_vfs_remove_all!(&vfs, &dir1);
-            assert_vfs_no_exists!(&vfs, &dir1);
+            assert_vfs_remove_all!(vfs, &dir1);
+            assert_vfs_no_exists!(vfs, &dir1);
             assert!(!vfs.exists(&dir1));
         }
 
         // exists: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_exists!(&vfs, "");
+            assert_vfs_exists!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -565,7 +632,7 @@ mod tests
         // exists: doesn't exist
         let file1 = tmpdir.mash("file1");
         let result = testing::capture_panic(|| {
-            assert_vfs_exists!(&vfs, &file1);
+            assert_vfs_exists!(vfs, &file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -574,7 +641,7 @@ mod tests
 
         // no exists: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_no_exists!(&vfs, "");
+            assert_vfs_no_exists!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -582,16 +649,16 @@ mod tests
         );
 
         // no exists: does exist
-        assert_vfs_mkfile!(&vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file1);
         let result = testing::capture_panic(|| {
-            assert_vfs_no_exists!(&vfs, &file1);
+            assert_vfs_no_exists!(vfs, &file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
             format!("\nassert_vfs_no_exists!: still exists\n  target: {:?}\n", &file1)
         );
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]
@@ -602,15 +669,15 @@ mod tests
         let dir2 = tmpdir.mash("dir2");
 
         // happy path
-        assert_vfs_no_dir!(&vfs, &dir1);
+        assert_vfs_no_dir!(vfs, &dir1);
         assert!(!vfs.is_dir(&dir1));
-        assert_vfs_mkdir_p!(&vfs, &dir1);
-        assert_vfs_is_dir!(&vfs, &dir1);
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_is_dir!(vfs, &dir1);
         assert!(vfs.is_dir(&dir1));
 
         // is_dir: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_is_dir!(&vfs, "");
+            assert_vfs_is_dir!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -619,7 +686,7 @@ mod tests
 
         // is_dir: doesn't exist
         let result = testing::capture_panic(|| {
-            assert_vfs_is_dir!(&vfs, &dir2);
+            assert_vfs_is_dir!(vfs, &dir2);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -628,7 +695,7 @@ mod tests
 
         // no_dir: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_no_dir!(&vfs, "");
+            assert_vfs_no_dir!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -637,14 +704,14 @@ mod tests
 
         // no_dir: does exist
         let result = testing::capture_panic(|| {
-            assert_vfs_no_dir!(&vfs, &dir1);
+            assert_vfs_no_dir!(vfs, &dir1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
             format!("\nassert_vfs_no_dir!: directory still exists\n  target: {:?}\n", &dir1)
         );
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]
@@ -655,15 +722,15 @@ mod tests
         let file2 = tmpdir.mash("file2");
 
         // happy path
-        assert_vfs_no_file!(&vfs, &file1);
+        assert_vfs_no_file!(vfs, &file1);
         assert!(!vfs.is_file(&file1));
-        assert_vfs_mkfile!(&vfs, &file1);
-        assert_vfs_is_file!(&vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_is_file!(vfs, &file1);
         assert!(vfs.is_file(&file1));
 
         // is_file: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_is_file!(&vfs, "");
+            assert_vfs_is_file!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -672,7 +739,7 @@ mod tests
 
         // is_file: doesn't exist
         let result = testing::capture_panic(|| {
-            assert_vfs_is_file!(&vfs, &file2);
+            assert_vfs_is_file!(vfs, &file2);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -681,7 +748,7 @@ mod tests
 
         // no_file: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_no_file!(&vfs, "");
+            assert_vfs_no_file!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -690,14 +757,14 @@ mod tests
 
         // no_file: does exist
         let result = testing::capture_panic(|| {
-            assert_vfs_no_file!(&vfs, &file1);
+            assert_vfs_no_file!(vfs, &file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
             format!("\nassert_vfs_no_file!: file still exists\n  target: {:?}\n", &file1)
         );
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]
@@ -708,15 +775,15 @@ mod tests
         let link1 = tmpdir.mash("link1");
 
         // happy path
-        assert_vfs_no_symlink!(&vfs, &file1);
+        assert_vfs_no_symlink!(vfs, &file1);
         assert!(!vfs.is_symlink(&file1));
-        assert_vfs_symlink!(&vfs, &link1, &file1);
-        assert_vfs_is_symlink!(&vfs, &link1);
+        assert_vfs_symlink!(vfs, &link1, &file1);
+        assert_vfs_is_symlink!(vfs, &link1);
         assert!(vfs.is_symlink(&link1));
 
         // is_symlink: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_is_symlink!(&vfs, "");
+            assert_vfs_is_symlink!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -725,7 +792,7 @@ mod tests
 
         // is_symlink: doesn't exist
         let result = testing::capture_panic(|| {
-            assert_vfs_is_symlink!(&vfs, &file1);
+            assert_vfs_is_symlink!(vfs, &file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -734,7 +801,7 @@ mod tests
 
         // no_symlink: bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_no_symlink!(&vfs, "");
+            assert_vfs_no_symlink!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -743,14 +810,14 @@ mod tests
 
         // no_symlink: does exist
         let result = testing::capture_panic(|| {
-            assert_vfs_no_symlink!(&vfs, &link1);
+            assert_vfs_no_symlink!(vfs, &link1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
             format!("\nassert_vfs_no_symlink!: symlink still exists\n  target: {:?}\n", &link1)
         );
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]
@@ -759,11 +826,11 @@ mod tests
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
         let dir1 = tmpdir.mash("dir1");
-        assert_vfs_mkfile!(&vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file1);
 
         // fail abs
         let result = testing::capture_panic(|| {
-            assert_vfs_mkdir_p!(&vfs, "");
+            assert_vfs_mkdir_p!(vfs, "");
         });
 
         // fail abs
@@ -774,7 +841,7 @@ mod tests
 
         // exists but not a directory
         let result = testing::capture_panic(|| {
-            assert_vfs_mkdir_p!(&vfs, &file1);
+            assert_vfs_mkdir_p!(vfs, &file1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -782,11 +849,11 @@ mod tests
         );
 
         // happy path
-        assert_vfs_no_dir!(&vfs, &dir1);
-        assert_vfs_mkdir_p!(&vfs, &dir1);
-        assert_vfs_is_dir!(&vfs, &dir1);
+        assert_vfs_no_dir!(vfs, &dir1);
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_is_dir!(vfs, &dir1);
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]
@@ -795,11 +862,11 @@ mod tests
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
         let dir1 = tmpdir.mash("dir1");
-        assert_vfs_mkdir_p!(&vfs, &dir1);
+        assert_vfs_mkdir_p!(vfs, &dir1);
 
         // fail abs
         let result = testing::capture_panic(|| {
-            assert_vfs_mkfile!(&vfs, "");
+            assert_vfs_mkfile!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -808,7 +875,7 @@ mod tests
 
         // exists but not a file
         let result = testing::capture_panic(|| {
-            assert_vfs_mkfile!(&vfs, &dir1);
+            assert_vfs_mkfile!(vfs, &dir1);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -816,11 +883,44 @@ mod tests
         );
 
         // happy path
-        assert_vfs_no_file!(&vfs, &file1);
-        assert_vfs_mkfile!(&vfs, &file1);
-        assert_vfs_is_file!(&vfs, &file1);
+        assert_vfs_no_file!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_is_file!(vfs, &file1);
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_assert_vfs_read_all()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_read_all!(vfs, "", "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_read_all!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a file
+        let result = testing::capture_panic(|| {
+            assert_vfs_read_all!(vfs, &tmpdir, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!(
+                "\nassert_vfs_read_all!: file doesn't exist or is not a file\n  target: \"{}\"\n",
+                &tmpdir.display()
+            )
+        );
+
+        let file = tmpdir.mash("foo");
+        assert_vfs_write_all!(vfs, &file, b"foobar 1");
+        assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]
@@ -830,15 +930,15 @@ mod tests
         let file1 = tmpdir.mash("file1");
 
         // happy path
-        assert_vfs_remove!(&vfs, &file1);
-        assert_vfs_mkfile!(&vfs, &file1);
-        assert_vfs_is_file!(&vfs, &file1);
-        assert_vfs_remove!(&vfs, &file1);
-        assert_vfs_no_file!(&vfs, &file1);
+        assert_vfs_remove!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_is_file!(vfs, &file1);
+        assert_vfs_remove!(vfs, &file1);
+        assert_vfs_no_file!(vfs, &file1);
 
         // bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_remove!(&vfs, "");
+            assert_vfs_remove!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -846,16 +946,16 @@ mod tests
         );
 
         // directory contains files
-        assert_vfs_mkfile!(&vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file1);
         let result = testing::capture_panic(|| {
-            assert_vfs_remove!(&vfs, &tmpdir);
+            assert_vfs_remove!(vfs, &tmpdir);
         });
         assert_eq!(
             result.unwrap_err().to_string(),
             format!("\nassert_vfs_remove!: failed removing directory\n  target: {:?}\n", &tmpdir)
         );
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]
@@ -864,14 +964,14 @@ mod tests
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
         let file1 = tmpdir.mash("file1");
 
-        assert_vfs_mkfile!(&vfs, &file1);
-        assert_vfs_is_file!(&vfs, &file1);
-        assert_vfs_remove_all!(&vfs, &tmpdir);
-        assert_vfs_no_dir!(&vfs, &tmpdir);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_is_file!(vfs, &file1);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+        assert_vfs_no_dir!(vfs, &tmpdir);
 
         // bad abs
         let result = testing::capture_panic(|| {
-            assert_vfs_remove_all!(&vfs, "");
+            assert_vfs_remove_all!(vfs, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -886,12 +986,12 @@ mod tests
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let link1 = tmpdir.mash("link1");
-        assert_vfs_mkdir_p!(&vfs, &dir1);
-        assert_vfs_mkfile!(&vfs, &file1);
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
 
         // fail abs
         let result = testing::capture_panic(|| {
-            assert_vfs_symlink!(&vfs, "", "");
+            assert_vfs_symlink!(vfs, "", "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -900,7 +1000,7 @@ mod tests
 
         // exists but not a symlink
         let result = testing::capture_panic(|| {
-            assert_vfs_symlink!(&vfs, &dir1, "");
+            assert_vfs_symlink!(vfs, &dir1, "");
         });
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -908,10 +1008,40 @@ mod tests
         );
 
         // happy path
-        assert_vfs_no_symlink!(&vfs, &link1);
-        assert_vfs_symlink!(&vfs, &link1, &file1);
-        assert_vfs_is_symlink!(&vfs, &link1);
+        assert_vfs_no_symlink!(vfs, &link1);
+        assert_vfs_symlink!(vfs, &link1, &file1);
+        assert_vfs_is_symlink!(vfs, &link1);
 
-        assert_vfs_remove_all!(&vfs, &tmpdir);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_assert_vfs_write_all()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_write_all!(vfs, "", "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_write_all!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a file
+        let result = testing::capture_panic(|| {
+            assert_vfs_write_all!(vfs, &tmpdir, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_vfs_write_all!: is not a file\n  target: \"{}\"\n", &tmpdir.display())
+        );
+
+        let file = tmpdir.mash("foo");
+        assert_vfs_write_all!(vfs, &file, b"foobar 1");
+        assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 }

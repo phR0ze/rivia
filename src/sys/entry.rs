@@ -544,8 +544,8 @@ impl Iterator for EntryIter
 #[cfg(test)]
 mod tests
 {
-    use super::*;
-    use crate::prelude::*;
+    // use super::*;
+    // use crate::prelude::*;
 
     // #[test]
     // fn test_stdfs_entry_mode() {
