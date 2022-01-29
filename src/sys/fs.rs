@@ -50,17 +50,21 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// Returns an iterator over the given path
     ///
     /// * Handles path expansion and absolute path resolution
-    /// * Recursive path traversal
+    /// * Handles recursive path traversal
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Vfs.memfs();
-    /// let file = vfs.root().mash("file");
+    /// let vfs = Vfs::memfs();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
     /// assert_vfs_mkfile!(vfs, &file);
-    /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+    /// let mut iter = vfs.entries(vfs.root()).unwrap().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), vfs.root());
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir);
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
     /// assert!(iter.next().is_none());
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
@@ -74,7 +78,9 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.exists("/"), true);
+    /// assert_vfs_no_exists!(vfs, "foo");
+    /// assert_vfs_mkdir_p!(vfs, "foo");
+    /// assert_vfs_exists!(vfs, "foo");
     /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool;
 
@@ -88,9 +94,9 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.is_dir("foo"), false);
-    /// let tmpdir = vfs.mkdir_p("foo").unwrap();
-    /// assert_eq!(vfs.is_dir(&tmpdir), true);
+    /// assert_vfs_no_dir!(vfs, "foo");
+    /// assert_vfs_mkdir_p!(vfs, "foo");
+    /// assert_vfs_is_dir!(vfs, "foo");
     /// ```
     fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool;
 
@@ -104,25 +110,24 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.is_file("foo"), false);
-    /// let tmpdir = vfs.mkfile("foo").unwrap();
-    /// assert_eq!(vfs.is_file(&tmpdir), true);
+    /// assert_vfs_no_file!(vfs, "foo");
+    /// assert_vfs_mkfile!(vfs, "foo");
+    /// assert_vfs_is_file!(vfs, "foo");
     /// ```
     fn is_file<T: AsRef<Path>>(&self, path: T) -> bool;
 
     /// Returns true if the given path exists and is a symlink
     ///
     /// * Handles path expansion and absolute path resolution
-    /// * Checks the path itself and not what is potentially pointed to
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.is_symlink("foo"), false);
-    /// let tmpfile = vfs.symlink("foo", "bar").unwrap();
-    /// assert_eq!(vfs.is_symlink(&tmpfile), true);
+    /// assert_vfs_no_symlink!(vfs, "foo");
+    /// assert_vfs_symlink!(vfs, "foo", "bar");
+    /// assert_vfs_is_symlink!(vfs, "foo");
     /// ```
     fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool;
 
@@ -131,7 +136,6 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// * Handles path expansion and absolute path resolution
     ///
     /// # Errors
-    /// * io::Error if its unable to create the directory
     /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
     ///
     /// ### Examples
@@ -139,9 +143,9 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.exists("foo"), false);
-    /// assert_eq!(vfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
-    /// assert_eq!(vfs.exists("foo"), true);
+    /// assert_vfs_no_dir!(vfs, "foo");
+    /// assert_vfs_mkdir_p!(vfs, "foo");
+    /// assert_vfs_is_dir!(vfs, "foo");
     /// ```
     fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
@@ -160,9 +164,9 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.exists("file1"), false);
-    /// assert_eq!(vfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
-    /// assert_eq!(vfs.exists("file1"), true);
+    /// assert_vfs_no_file!(vfs, "foo");
+    /// assert_vfs_mkfile!(vfs, "foo");
+    /// assert_vfs_is_file!(vfs, "foo");
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
@@ -182,28 +186,27 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let memfs = Memfs::new();
-    /// let file = memfs.root().mash("file");
-    /// memfs.write_all(&file, b"foobar 1").unwrap();
-    /// assert_eq!(memfs.read_all(&file).unwrap(), "foobar 1".to_string());
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1");
     /// ```
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>;
 
     /// Returns the path the given link points to
     ///
     /// * Handles path expansion and absolute path resolution
-    /// * Checks the path itself and not what is potentially pointed to
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
-    /// let file1 = tmpdir.mash("file1");
-    /// let link1 = tmpdir.mash("link1");
-    /// assert_vfs_mkfile!(vfs, &file1);
-    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
-    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert_vfs_readlink!(vfs, &link, &file);
     /// ```
     fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
@@ -220,11 +223,11 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// let file = PathBuf::from("foo");
-    /// assert!(vfs.mkfile(&file).is_ok());
-    /// assert_eq!(vfs.exists(&file), true);
-    /// assert!(vfs.remove(&file).is_ok());
-    /// assert_eq!(vfs.exists(&file), false);
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_exists!(vfs, &file);
+    /// assert_vfs_remove!(vfs, &file);
+    /// assert_vfs_no_exists!(vfs, &file);
     /// ```
     fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
 
@@ -238,13 +241,14 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert!(vfs.mkdir_p("foo").is_ok());
-    /// assert_eq!(vfs.exists("foo"), true);
-    /// assert!(vfs.mkfile("foo/bar").is_ok());
-    /// assert_eq!(vfs.is_file("foo/bar"), true);
-    /// assert!(vfs.remove_all("foo").is_ok());
-    /// assert_eq!(vfs.exists("foo/ar"), false);
-    /// assert_eq!(vfs.exists("foo"), false);
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_remove_all!(vfs, &dir);
+    /// assert_vfs_no_exists!(vfs, &file);
+    /// assert_vfs_no_exists!(vfs, &dir);
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>;
 
@@ -253,6 +257,11 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let mut root = PathBuf::new();
+    /// root.push(Component::RootDir);
+    /// assert_eq!(vfs.root(), root);
     /// ```
     fn root(&self) -> PathBuf;
 
@@ -269,18 +278,19 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
-    /// vfs.mkdir_p("foo").unwrap();
-    /// vfs.set_cwd("foo").unwrap();
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// let dir = vfs.root().mash("dir");
+    /// assert_eq!(vfs.cwd().unwrap(), vfs.root());
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_eq!(&vfs.set_cwd(&dir).unwrap(), &dir);
+    /// assert_eq!(&vfs.cwd().unwrap(), &dir);
     /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     /// Creates a new symbolic link
     ///
     /// * Handles path expansion and absolute path resolution
-    /// * computes the target path `src` relative to the `dst` link name's absolute path
-    /// * returns the link path
+    /// * Computes the target path `src` relative to the `dst` link name's absolute path
+    /// * Returns the link path
     ///
     /// ### Arguments
     /// * `link` - the path of the link being created
@@ -290,20 +300,47 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
-    /// let file1 = tmpdir.mash("file1");
-    /// let link1 = tmpdir.mash("link1");
-    /// assert_vfs_mkfile!(vfs, &file1);
-    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
-    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert_vfs_readlink!(vfs, &link, &file);
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>;
 
-    /// Write all the given data to to the indicated file creating the file first if it doesn't
-    /// exist or truncating it first if it does.
+    /// Write the given data to to the target file
+    ///
+    /// * Create the file first if it doesn't exist or truncating it first if it does
+    /// * `path` - target file to create or overwrite
+    /// * `data` - data to write to the target file
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+    /// ```
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>;
 
     /// Up cast the trait type to the enum wrapper
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// ```
     fn upcast(self) -> Vfs;
 }
 
@@ -590,12 +627,12 @@ impl FileSystem for Vfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::memfs(), Some("vfs_method_readlink"));
-    /// let file1 = tmpdir.mash("file1");
-    /// let link1 = tmpdir.mash("link1");
-    /// assert_vfs_mkfile!(vfs, &file1);
-    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
-    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert_vfs_readlink!(vfs, &link, &file);
     /// ```
     fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
@@ -618,11 +655,11 @@ impl FileSystem for Vfs
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// let file = PathBuf::from("foo");
-    /// assert!(vfs.mkfile(&file).is_ok());
-    /// assert_eq!(vfs.exists(&file), true);
-    /// assert!(vfs.remove(&file).is_ok());
-    /// assert_eq!(vfs.exists(&file), false);
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_exists!(vfs, &file);
+    /// assert_vfs_remove!(vfs, &file);
+    /// assert_vfs_no_exists!(vfs, &file);
     /// ```
     fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
@@ -642,13 +679,14 @@ impl FileSystem for Vfs
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert!(vfs.mkdir_p("foo").is_ok());
-    /// assert_eq!(vfs.exists("foo"), true);
-    /// assert!(vfs.mkfile("foo/bar").is_ok());
-    /// assert_eq!(vfs.is_file("foo/bar"), true);
-    /// assert!(vfs.remove_all("foo").is_ok());
-    /// assert_eq!(vfs.exists("foo/ar"), false);
-    /// assert_eq!(vfs.exists("foo"), false);
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_remove_all!(vfs, &dir);
+    /// assert_vfs_no_exists!(vfs, &file);
+    /// assert_vfs_no_exists!(vfs, &dir);
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
@@ -663,6 +701,11 @@ impl FileSystem for Vfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let mut root = PathBuf::new();
+    /// root.push(Component::RootDir);
+    /// assert_eq!(vfs.root(), root);
     /// ```
     fn root(&self) -> PathBuf
     {
@@ -685,10 +728,11 @@ impl FileSystem for Vfs
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/"));
-    /// assert_eq!(vfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
-    /// assert_eq!(vfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
-    /// assert_eq!(vfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// let dir = vfs.root().mash("dir");
+    /// assert_eq!(vfs.cwd().unwrap(), vfs.root());
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_eq!(&vfs.set_cwd(&dir).unwrap(), &dir);
+    /// assert_eq!(&vfs.cwd().unwrap(), &dir);
     /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
@@ -700,24 +744,24 @@ impl FileSystem for Vfs
 
     /// Creates a new symbolic link
     ///
-    /// ### Arguments
-    /// * `link` - the path of the link being created
-    /// * `target` - the path that the link will point to
-    ///
     /// * Handles path expansion and absolute path resolution
     /// * Computes the target path `src` relative to the `dst` link name's absolute path
     /// * Returns the link path
+    ///
+    /// ### Arguments
+    /// * `link` - the path of the link being created
+    /// * `target` - the path that the link will point to
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::memfs(), Some("vfs_method_readlink"));
-    /// let file1 = tmpdir.mash("file1");
-    /// let link1 = tmpdir.mash("link1");
-    /// assert_vfs_mkfile!(vfs, &file1);
-    /// assert_eq!(vfs.symlink(&link1, &file1).unwrap(), link1);
-    /// assert_eq!(vfs.readlink(&link1).unwrap(), PathBuf::from("file1"));
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert_vfs_readlink!(vfs, &link, &file);
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
     {
@@ -727,8 +771,28 @@ impl FileSystem for Vfs
         }
     }
 
-    /// Write the given data to to the indicated file creating the file first if it doesn't exist
-    /// or truncating it first if it does.
+    /// Write the given data to to the target file
+    ///
+    /// * Create the file first if it doesn't exist or truncating it first if it does
+    /// * `path` - target file to create or overwrite
+    /// * `data` - data to write to the target file
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+    /// ```
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
     {
         match self {
@@ -738,6 +802,13 @@ impl FileSystem for Vfs
     }
 
     /// Up cast the trait type to the enum wrapper
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// ```
     fn upcast(self) -> Vfs
     {
         match self {

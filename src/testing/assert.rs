@@ -380,6 +380,42 @@ macro_rules! assert_vfs_read_all {
     };
 }
 
+/// Assert the reading of of a link target path
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Vfs::memfs();
+/// assert_vfs_mkfile!(vfs, "file");
+/// assert_vfs_symlink!(vfs, "link", "file");
+/// assert_vfs_readlink!(vfs, "link", vfs.root().mash("file"));
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_readlink {
+    ($vfs:expr, $path:expr, $data:expr) => {
+        let link = match $vfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_readlink!", "failed to get absolute path", $path),
+        };
+        let target = match $vfs.abs($data) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_readlink!", "failed to get absolute path", $data),
+        };
+        if !$vfs.is_symlink(&link) {
+            panic_msg!("assert_vfs_readlink!", "file doesn't exist or is not a symlink", &link);
+        }
+        match $vfs.readlink(&link) {
+            Ok(x) => {
+                if x != target {
+                    panic_msg!("assert_vfs_readlink!", "link target doesn't equal given path", &x);
+                }
+            },
+            _ => panic_msg!("assert_vfs_readlink!", "failed while reading link", &link),
+        };
+    };
+}
+
 /// Assert the removal of the target file or directory
 ///
 /// ### Assertion Failures
@@ -919,6 +955,53 @@ mod tests
         let file = tmpdir.mash("foo");
         assert_vfs_write_all!(vfs, &file, b"foobar 1");
         assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_assert_vfs_readlink()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = dir1.mash("file1");
+        let link1 = tmpdir.mash("link1");
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_readlink!(vfs, "", &file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_readlink!: failed to get absolute path\n  target: \"\"\n"
+        );
+        let result = testing::capture_panic(|| {
+            assert_vfs_readlink!(vfs, &link1, "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_readlink!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a symlink
+        let result = testing::capture_panic(|| {
+            assert_vfs_readlink!(vfs, &dir1, &file1);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!(
+                "\nassert_vfs_readlink!: file doesn't exist or is not a symlink\n  target: \"{}\"\n",
+                dir1.display()
+            )
+        );
+
+        // happy path
+        assert_vfs_no_symlink!(vfs, &link1);
+        assert_vfs_symlink!(vfs, &link1, &file1);
+        assert_vfs_is_symlink!(vfs, &link1);
+        assert_vfs_readlink!(vfs, &link1, &file1);
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

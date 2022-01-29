@@ -470,9 +470,11 @@ impl FileSystem for Memfs
     /// use rivia::prelude::*;
     ///
     /// let memfs = Memfs::new();
-    /// assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
-    /// assert_eq!(memfs.symlink("link1", "file1").unwrap(), PathBuf::from("/link1"));
-    /// assert_eq!(memfs.readlink("link1").unwrap(), PathBuf::from("file1"));
+    /// let file = memfs.root().mash("file");
+    /// let link = memfs.root().mash("link");
+    /// assert_eq!(&memfs.mkfile(&file).unwrap(), &file);
+    /// assert_eq!(&memfs.symlink(&link, &file).unwrap(), &link);
+    /// assert_eq!(&memfs.readlink(&link).unwrap(), &file);
     /// ```
     fn readlink<T: AsRef<Path>>(&self, link: T) -> RvResult<PathBuf>
     {
@@ -503,7 +505,7 @@ impl FileSystem for Memfs
     /// use rivia::prelude::*;
     ///
     /// let memfs = Memfs::new();
-    /// let file = PathBuf::from("foo");
+    /// let file = memfs.root().mash("file");
     /// assert!(memfs.mkfile(&file).is_ok());
     /// assert_eq!(memfs.exists(&file), true);
     /// assert!(memfs.remove(&file).is_ok());
@@ -551,13 +553,14 @@ impl FileSystem for Memfs
     /// use rivia::prelude::*;
     ///
     /// let memfs = Memfs::new();
-    /// assert!(memfs.mkdir_p("foo").is_ok());
-    /// assert_eq!(memfs.exists("foo"), true);
-    /// assert!(memfs.mkfile("foo/bar").is_ok());
-    /// assert_eq!(memfs.is_file("foo/bar"), true);
-    /// assert!(memfs.remove_all("foo").is_ok());
-    /// assert_eq!(memfs.exists("foo/ar"), false);
-    /// assert_eq!(memfs.exists("foo"), false);
+    /// let dir = memfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert!(memfs.mkdir_p(&dir).is_ok());
+    /// assert!(memfs.mkfile(&file).is_ok());
+    /// assert_eq!(memfs.is_file(&file), true);
+    /// assert!(memfs.remove_all(&dir).is_ok());
+    /// assert_eq!(memfs.exists(&dir), false);
+    /// assert_eq!(memfs.exists(&file), false);
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
@@ -574,6 +577,11 @@ impl FileSystem for Memfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let mut root = PathBuf::new();
+    /// root.push(Component::RootDir);
+    /// assert_eq!(memfs.root(), root);
     /// ```
     fn root(&self) -> PathBuf
     {
@@ -594,10 +602,11 @@ impl FileSystem for Memfs
     /// use rivia::prelude::*;
     ///
     /// let memfs = Memfs::new();
-    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
-    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
-    /// assert_eq!(memfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
-    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// let dir = memfs.root().mash("dir");
+    /// assert_eq!(memfs.cwd().unwrap(), memfs.root());
+    /// assert_eq!(&memfs.mkdir_p(&dir).unwrap(), &dir);
+    /// assert_eq!(&memfs.set_cwd(&dir).unwrap(), &dir);
+    /// assert_eq!(&memfs.cwd().unwrap(), &dir);
     /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
@@ -625,9 +634,11 @@ impl FileSystem for Memfs
     /// use rivia::prelude::*;
     ///
     /// let memfs = Memfs::new();
-    /// assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
-    /// assert_eq!(memfs.symlink("link1", "file1").unwrap(), PathBuf::from("/link1"));
-    /// assert_eq!(memfs.readlink("link1").unwrap(), PathBuf::from("file1"));
+    /// let file = memfs.root().mash("file");
+    /// let link = memfs.root().mash("link");
+    /// assert_eq!(&memfs.mkfile(&file).unwrap(), &file);
+    /// assert_eq!(&memfs.symlink(&link, &file).unwrap(), &link);
+    /// assert_eq!(&memfs.readlink(&link).unwrap(), &file);
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
     {
@@ -670,7 +681,12 @@ impl FileSystem for Memfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let memfs = Memfs::new();
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
     /// ```
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
     {
@@ -695,6 +711,8 @@ impl FileSystem for Memfs
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
     /// ```
     fn upcast(self) -> Vfs
     {
