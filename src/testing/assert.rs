@@ -1,10 +1,3 @@
-use std::path::PathBuf;
-
-use crate::{
-    function_fqn, panic_msg,
-    sys::{FileSystem, PathExt, Vfs},
-};
-
 /// Setup Vfs testing components
 ///
 /// This provides an abstraction over FileSystem implementations such that we can easily switch out
@@ -73,7 +66,7 @@ macro_rules! assert_vfs_setup {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_exists!(vfs, "/");
 /// ```
 #[macro_export]
@@ -95,7 +88,7 @@ macro_rules! assert_vfs_exists {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_exists!(vfs, "foo");
 /// ```
 #[macro_export]
@@ -117,7 +110,7 @@ macro_rules! assert_vfs_no_exists {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_dir!(vfs, "foo");
 /// assert_vfs_mkdir_p!(vfs, "foo");
 /// assert_vfs_is_dir!(vfs, "foo");
@@ -145,7 +138,7 @@ macro_rules! assert_vfs_is_dir {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_dir!(vfs, "foo");
 /// assert_vfs_mkdir_p!(vfs, "foo");
 /// assert_vfs_is_dir!(vfs, "foo");
@@ -173,7 +166,7 @@ macro_rules! assert_vfs_no_dir {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_file!(vfs, "foo");
 /// assert_vfs_mkfile!(vfs, "foo");
 /// assert_vfs_is_file!(vfs, "foo");
@@ -201,7 +194,7 @@ macro_rules! assert_vfs_is_file {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_file!(vfs, "foo");
 /// ```
 #[macro_export]
@@ -227,7 +220,7 @@ macro_rules! assert_vfs_no_file {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_symlink!(vfs, "foo");
 /// assert_vfs_symlink!(vfs, "foo", "bar");
 /// assert_vfs_is_symlink!(vfs, "foo");
@@ -255,7 +248,7 @@ macro_rules! assert_vfs_is_symlink {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_symlink!(vfs, "foo");
 /// ```
 #[macro_export]
@@ -281,7 +274,7 @@ macro_rules! assert_vfs_no_symlink {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_dir!(vfs, "foo");
 /// assert_vfs_mkdir_p!(vfs, "foo");
 /// assert_vfs_is_dir!(vfs, "foo");
@@ -318,7 +311,7 @@ macro_rules! assert_vfs_mkdir_p {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_file!(vfs, "foo");
 /// assert_vfs_mkfile!(vfs, "foo");
 /// assert_vfs_is_file!(vfs, "foo");
@@ -366,7 +359,7 @@ macro_rules! assert_vfs_mkfile {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_mkfile!(vfs, "foo");
 /// assert_vfs_remove!(vfs, "foo");
 /// assert_vfs_no_exists!(vfs, "foo");
@@ -408,7 +401,7 @@ macro_rules! assert_vfs_remove {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_mkdir_p!(vfs, "foo/bar");
 /// assert_vfs_remove_all!(vfs, "foo");
 /// assert_vfs_no_exists!(vfs, "foo/bar");
@@ -436,7 +429,7 @@ macro_rules! assert_vfs_remove_all {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_no_symlink!(vfs, "foo");
 /// assert_vfs_symlink!(vfs, "foo", "bar");
 /// assert_vfs_is_symlink!(vfs, "foo");

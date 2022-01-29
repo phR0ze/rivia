@@ -19,13 +19,11 @@ use crate::{
 pub(crate) type MemfsFiles = HashMap<PathBuf, MemfsFile>;
 pub(crate) type MemfsEntries = HashMap<PathBuf, MemfsEntry>;
 
-/// `Memfs` is a Vfs backend implementation that is purely memory based. `Memfs` is multi-thread
-/// safe providing internal locking when necessary.
+/// Provides a Vfs backend implementation that is purely memory based and fully multi-thread safe
 #[derive(Debug)]
 pub struct Memfs(RwLock<MemfsInner>);
 
-// Encapsulate the Memfs implementation to allow Memfs to transparently handle interior mutability
-// and be multi-thread safe.
+// Encapsulate the Memfs implementation for interior mutability and transparent multi-thread safety
 #[derive(Debug)]
 pub(crate) struct MemfsInner
 {
@@ -43,6 +41,7 @@ impl Memfs
         let mut root = PathBuf::new();
         root.push(Component::RootDir);
 
+        // Add the default root entry
         let mut files = HashMap::new();
         files.insert(root.clone(), MemfsEntry::opts(root.clone()).new());
 
@@ -54,9 +53,10 @@ impl Memfs
         }))
     }
 
-    /// Get a clone of the target entry. Handles converting path to absolute form.
-    /// # Errors
-    /// * PathError::DoesNotExist(PathBuf) when this entry doesn't exist
+    /// Get a clone of the target entry
+    ///
+    /// * Handles converting path to absolute form
+    /// * Returns a PathError::DoesNotExist(PathBuf) when this entry doesn't exist
     pub(crate) fn clone_entry<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntry>
     {
         let abs = self.abs(path.as_ref())?;
@@ -70,7 +70,7 @@ impl Memfs
 
     /// Create the given MemfsEntry if it doesn't already exist
     ///
-    /// Expects the entry's path to already be in absolute form
+    /// * Expects the entry's path to already be in absolute form
     pub(crate) fn add(&self, entry: MemfsEntry) -> RvResult<PathBuf>
     {
         let path = entry.path.clone();
@@ -203,10 +203,10 @@ impl FileSystem for Memfs
     /// use rivia::prelude::*;
     ///
     /// let memfs = Memfs::new();
-    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
-    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
-    /// assert_eq!(memfs.set_cwd("foo").unwrap(), PathBuf::from("/foo"))
-    /// assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(memfs.cwd().unwrap(), memfs.root());
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), memfs.root().mash("foo"));
+    /// assert_eq!(memfs.set_cwd("foo").unwrap(), memfs.root().mash("foo"));
+    /// assert_eq!(memfs.cwd().unwrap(), memfs.root().mash("foo"));
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>
     {
@@ -224,12 +224,14 @@ impl FileSystem for Memfs
     /// use rivia::prelude::*;
     ///
     /// let memfs = Memfs::new();
-    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
-    /// assert_eq!(memfs.mkfile("foo/file").unwrap(), PathBuf::from("/foo/file"));
-    /// let mut iter = memfs.entries("/").unwrap().into_iter();
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo"));
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/file"));
+    /// let dir = memfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_eq!(&memfs.mkdir_p(&dir).unwrap(), &dir);
+    /// assert_eq!(&memfs.mkfile(&file).unwrap(), &file);
+    /// let mut iter = memfs.entries(memfs.root()).unwrap().into_iter();
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), memfs.root());
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir);
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
     /// assert!(iter.next().is_none());
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
@@ -275,7 +277,7 @@ impl FileSystem for Memfs
     ///
     /// let mut memfs = Memfs::new();
     /// assert_eq!(memfs.exists("foo"), false);
-    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(memfs.mkdir_p("foo").unwrap(), memfs.root().mash("foo"));
     /// assert_eq!(memfs.exists("foo"), true);
     /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool

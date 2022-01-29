@@ -94,7 +94,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_chmod"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chmod");
     /// let file1 = tmpdir.mash("file1");
     /// assert_vfs_mkfile!(vfs, &file1);
     /// assert!(file1.chmod(0o644).is_ok());
@@ -150,7 +150,7 @@ impl Stdfs
     /// * io::Error, kind: NotFound when the given path doesn't exist
     ///
     /// ### Examples
-    /// ```
+    /// ```norun
     /// use rivia::prelude::*;
     ///
     /// Stdfs::set_cwd(Stdfs::cwd().unwrap().mash("tests"));
@@ -172,7 +172,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_entries"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_entries");
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
     /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
@@ -265,7 +265,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_is_dir"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_is_dir");
     /// assert_eq!(Stdfs::is_dir(&tmpdir), true);
     /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// ```
@@ -286,7 +286,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_is_file"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_is_file");
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
@@ -447,7 +447,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mkfile"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mkfile"));
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
     /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
@@ -486,7 +486,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mkdir_m"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mkdir_m");
     /// let dir1 = tmpdir.mash("dir1");
     /// assert!(Stdfs::mkdir_m(&dir1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&dir1).unwrap(), 0o40555);
@@ -522,7 +522,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mkdir_p"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mkdir_p");
     /// let dir1 = tmpdir.mash("dir1");
     /// assert_eq!(Stdfs::exists(&dir1), false);
     /// assert!(Stdfs::mkdir_p(&dir1).is_ok());
@@ -549,7 +549,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_mode"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mode");
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::mkfile_m(&file1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&file1).unwrap(), 0o100555);
@@ -568,7 +568,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_read"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_read");
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::write(&file1, "this is a test").is_ok());
     /// assert_eq!(Stdfs::read(&file1).unwrap(), "this is a test");
@@ -591,7 +591,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_readlink"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_readlink");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
@@ -612,7 +612,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_readlink_abs"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_readlink_abs");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
@@ -697,7 +697,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_remove"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_remove");
     /// assert!(Stdfs::remove(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
@@ -723,7 +723,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_remove_all"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_remove_all");
     /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
     /// assert_eq!(Stdfs::exists(&tmpdir), false);
     /// ```
@@ -821,7 +821,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_func_symlink"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_symlink");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
@@ -946,7 +946,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_entries"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_entries");
     /// let file1 = tmpdir.mash("file1");
     /// assert_vfs_mkfile!(vfs, &file1);
     /// let mut iter = vfs.entries(&file1).unwrap().into_iter();
@@ -967,7 +967,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_exists"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_exists");
     /// assert_vfs_exists!(vfs, &tmpdir);
     /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// assert_vfs_no_exists!(vfs, &tmpdir);
@@ -986,7 +986,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_is_dir"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_is_dir");
     /// assert_vfs_is_dir!(vfs, &tmpdir);
     /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// assert_vfs_no_dir!(vfs, &tmpdir);
@@ -1005,7 +1005,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_is_file"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_is_file");
     /// let file1 = tmpdir.mash("file1");
     /// assert_vfs_no_file!(vfs, &file1);
     /// assert_vfs_mkfile!(vfs, &file1);
@@ -1050,7 +1050,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_mkfile"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_mkfile");
     /// let file1 = tmpdir.mash("file1");
     /// assert_vfs_no_file!(vfs, &file1);
     /// assert_vfs_mkfile!(vfs, &file1);
@@ -1074,7 +1074,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_mkdir_p"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_mkdir_p");
     /// let dir1 = tmpdir.mash("dir1");
     /// assert_vfs_no_dir!(vfs, &dir1);
     /// assert_vfs_mkdir_p!(vfs, &dir1);
@@ -1100,7 +1100,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_readlink"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_readlink");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_vfs_mkfile!(vfs, &file1);
@@ -1126,7 +1126,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_remove"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_remove");
     /// assert_vfs_is_dir!(vfs, &tmpdir);
     /// assert_vfs_remove!(vfs, &tmpdir);
     /// assert_vfs_no_dir!(vfs, &tmpdir);
@@ -1145,7 +1145,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_remove_all"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_remove_all");
     /// assert_vfs_is_dir!(vfs, &tmpdir);
     /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// assert_vfs_no_dir!(vfs, &tmpdir);
@@ -1201,7 +1201,7 @@ impl FileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = testing::vfs_setup_p(Vfs::stdfs(), Some("stdfs_method_symlink"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_symlink");
     /// let file1 = tmpdir.mash("file1");
     /// let link1 = tmpdir.mash("link1");
     /// assert_vfs_mkfile!(vfs, &file1);
