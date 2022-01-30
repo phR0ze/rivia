@@ -180,6 +180,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// * Handles path expansion and absolute path resolution
     ///
     /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
     /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
     ///
     /// ### Examples
@@ -600,6 +601,7 @@ impl FileSystem for Vfs
     /// * Handles path expansion and absolute path resolution
     ///
     /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
     /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
     ///
     /// ### Examples

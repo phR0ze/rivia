@@ -435,6 +435,7 @@ impl FileSystem for Memfs
     /// * Handles path expansion and absolute path resolution
     ///
     /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
     /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
     ///
     /// ### Examples
@@ -450,6 +451,13 @@ impl FileSystem for Memfs
     {
         let path = self.abs(path)?;
         let guard = self.0.read().unwrap();
+
+        // Validate target is a file
+        if let Some(f) = guard.fs.get(&path) {
+            if !f.is_file() {
+                return Err(PathError::is_not_file(&path).into());
+            }
+        }
 
         if let Some(f) = guard.data.get(&path) {
             let mut f = f.clone();
@@ -782,72 +790,122 @@ mod tests
     fn test_memfs_cwd()
     {
         let memfs = Memfs::new();
-        assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/"));
+        assert_eq!(memfs.cwd().unwrap(), memfs.root());
         memfs.mkdir_p("foo").unwrap();
         memfs.set_cwd("foo").unwrap();
-        assert_eq!(memfs.cwd().unwrap(), PathBuf::from("/foo"));
+        assert_eq!(memfs.cwd().unwrap(), memfs.root().mash("foo"));
     }
 
     #[test]
     fn test_memfs_entries()
     {
         let memfs = Memfs::new();
-        assert_eq!(memfs.mkdir_p("foo/bar").unwrap(), PathBuf::from("/foo/bar"));
-        assert_eq!(memfs.mkfile("foo/bar/blah").unwrap(), PathBuf::from("/foo/bar/blah"));
+        let dir1 = memfs.root().mash("dir1");
+        let dir2 = dir1.mash("dir2");
+        let file = dir2.mash("file");
+        assert_eq!(&memfs.mkdir_p(&dir2).unwrap(), &dir2);
+        assert_eq!(&memfs.mkfile(&file).unwrap(), &file);
 
-        let mut iter = memfs.entries("/").unwrap().into_iter();
-        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/"));
-        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo"));
-        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/bar"));
-        assert_eq!(iter.next().unwrap().unwrap().path(), PathBuf::from("/foo/bar/blah"));
+        // abs error
+        assert_eq!(memfs.entries("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        let mut iter = memfs.entries(memfs.root()).unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), memfs.root());
+        assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &dir2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), &file);
         assert_eq!(iter.next().is_none(), true);
     }
 
     #[test]
-    fn test_memfs_mkfile()
+    fn test_memfs_exists()
     {
         let memfs = Memfs::new();
+        let dir1 = memfs.root().mash("dir1");
 
-        // Error: directory doesn't exist
-        let err = memfs.mkfile("dir1/file1").unwrap_err();
-        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::does_not_exist("/dir1"));
+        // abs fails
+        assert_eq!(memfs.exists(""), false);
 
-        // Error: target exists and is not a file
-        memfs.mkdir_p("dir1").unwrap();
-        let err = memfs.mkfile("dir1").unwrap_err();
-        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_file("/dir1"));
+        // Doesn't exist
+        assert_eq!(memfs.exists(&dir1), false);
 
-        // Make a file in the root
-        assert_eq!(memfs.exists("file1"), false);
-        assert_eq!(memfs.mkfile("file1").unwrap(), PathBuf::from("/file1"));
-        assert_eq!(memfs.exists("file1"), true);
+        // Exists
+        assert_eq!(&memfs.mkdir_p(&dir1).unwrap(), &dir1);
+        assert_eq!(memfs.exists(&dir1), true);
+    }
 
-        // Make a file in a directory
-        assert_eq!(memfs.exists("dir1/file2"), false);
-        assert_eq!(memfs.mkfile("dir1/file2").unwrap(), PathBuf::from("/dir1/file2"));
-        assert_eq!(memfs.exists("dir1/file2"), true);
+    #[test]
+    fn test_memfs_is_dir()
+    {
+        let memfs = Memfs::new();
+        let dir1 = memfs.root().mash("dir1");
 
-        // Error: parent exists and is not a directory
-        let err = memfs.mkfile("file1/file2").unwrap_err();
-        assert_eq!(err.downcast_ref::<PathError>().unwrap(), &PathError::is_not_dir("/file1"));
+        // abs fails
+        assert_eq!(memfs.is_dir(""), false);
+
+        // Doesn't exist
+        assert_eq!(memfs.is_dir(&dir1), false);
+
+        // Exists
+        assert_eq!(&memfs.mkdir_p(&dir1).unwrap(), &dir1);
+        assert_eq!(memfs.is_dir(&dir1), true);
+    }
+
+    #[test]
+    fn test_memfs_is_file()
+    {
+        let memfs = Memfs::new();
+        let file = memfs.root().mash("file");
+
+        // abs fails
+        assert_eq!(memfs.is_file(""), false);
+
+        // Doesn't exist
+        assert_eq!(memfs.is_file(&file), false);
+
+        // Exists
+        assert_eq!(&memfs.mkfile(&file).unwrap(), &file);
+        assert_eq!(memfs.is_file(&file), true);
+    }
+
+    #[test]
+    fn test_memfs_is_symlink()
+    {
+        let memfs = Memfs::new();
+        let file = memfs.root().mash("file");
+        let link = memfs.root().mash("link");
+
+        // abs fails
+        assert_eq!(memfs.is_symlink(""), false);
+
+        // Doesn't exist
+        assert_eq!(memfs.is_symlink(&file), false);
+
+        // Exists
+        assert_eq!(&memfs.symlink(&link, &file).unwrap(), &link);
+        assert_eq!(memfs.is_symlink(&link), true);
     }
 
     #[test]
     fn test_memfs_mkdir_p()
     {
         let memfs = Memfs::new();
+        let dir = memfs.root().mash("dir");
 
         // Check single top level
-        assert_eq!(memfs.exists("foo"), false);
-        memfs.mkdir_p("foo").unwrap();
-        assert_eq!(memfs.exists("foo"), true);
-        assert_eq!(memfs.exists("/foo"), true);
+        assert_eq!(memfs.exists(&dir), false);
+        assert_eq!(&memfs.mkdir_p(&dir).unwrap(), &dir);
+        assert_eq!(memfs.exists(&dir), true);
+        assert_eq!(memfs.exists("dir"), true); // check relative
 
         // Check nested
-        memfs.mkdir_p("/bar/blah/ugh").unwrap();
-        assert_eq!(memfs.exists("bar/blah/ugh"), true);
-        assert_eq!(memfs.exists("/bar/blah/ugh"), true);
-        assert_eq!(memfs.exists("/foo"), true);
+        let dir1 = memfs.root().mash("dir1");
+        let dir2 = dir1.mash("dir2");
+        let dir3 = dir2.mash("dir3");
+        assert_eq!(&memfs.mkdir_p(&dir3).unwrap(), &dir3);
+        assert_eq!(memfs.exists(&dir3), true);
+        assert_eq!(memfs.exists(&dir2), true);
+        assert_eq!(memfs.exists(&dir1), true);
     }
 
     #[test]
@@ -866,6 +924,86 @@ mod tests
             thread::sleep(Duration::from_millis(5));
         }
         thread.join().unwrap();
+    }
+
+    #[test]
+    fn test_memfs_mkfile()
+    {
+        let memfs = Memfs::new();
+        let dir1 = memfs.root().mash("dir1");
+        let file1 = dir1.mash("file1");
+
+        // abs error
+        assert_eq!(memfs.mkfile("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        // parent directory doesn't exist
+        assert_eq!(memfs.mkfile(&file1).unwrap_err().to_string(), PathError::does_not_exist(&dir1).to_string());
+
+        // Error: target exists and is not a file
+        assert_eq!(&memfs.mkdir_p(&dir1).unwrap(), &dir1);
+        assert_eq!(memfs.mkfile(&dir1).unwrap_err().to_string(), PathError::is_not_file(&dir1).to_string());
+
+        // Make a file in the root
+        assert_eq!(memfs.exists("file2"), false);
+        assert_eq!(memfs.mkfile("file2").unwrap(), memfs.root().mash("file2"));
+        assert_eq!(memfs.exists("file2"), true);
+
+        // Make a file in a directory
+        assert_eq!(memfs.exists(&file1), false);
+        assert_eq!(&memfs.mkfile(&file1).unwrap(), &file1);
+        assert_eq!(memfs.exists(&file1), true);
+
+        // Error: parent exists and is not a directory
+        let file2 = file1.mash("file2");
+        assert_eq!(memfs.mkfile(&file2).unwrap_err().to_string(), PathError::is_not_dir(&file1).to_string());
+    }
+
+    #[test]
+    fn test_memfs_read_all()
+    {
+        let memfs = Memfs::new();
+        let file = memfs.root().mash("file");
+
+        // Doesn't exist error
+        assert_eq!(memfs.read_all(&file).unwrap_err().to_string(), PathError::does_not_exist(&file).to_string());
+
+        // Isn't a file
+        let dir = memfs.root().mash("dir");
+        assert_eq!(&memfs.mkdir_p(&dir).unwrap(), &dir);
+        assert_eq!(memfs.read_all(&dir).unwrap_err().to_string(), PathError::is_not_file(&dir).to_string());
+
+        // Create the file with the given data
+        memfs.write_all(&file, b"foobar 1").unwrap();
+        assert_eq!(memfs.read_all(&file).unwrap(), "foobar 1".to_string());
+
+        // Read a second time
+        assert_eq!(memfs.read_all(&file).unwrap(), "foobar 1".to_string());
+    }
+
+    #[test]
+    fn test_memfs_remove()
+    {
+        let vfs = Vfs::memfs();
+        let dir1 = vfs.root().mash("dir1");
+        let file1 = dir1.mash("file1");
+        let file2 = vfs.root().mash("file2");
+
+        // abs error
+        assert_eq!(vfs.remove("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        // Single file
+        assert_vfs_mkfile!(vfs, &file2);
+        assert_vfs_is_file!(vfs, &file2);
+        assert_vfs_remove!(vfs, &file2);
+        assert_vfs_no_file!(vfs, &file2);
+
+        // Directory with files
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(vfs.remove(&dir1).unwrap_err().to_string(), PathError::dir_contains_files(&dir1).to_string());
+        assert_vfs_remove!(vfs, &file1);
+        assert_vfs_remove!(vfs, &dir1);
+        assert_vfs_no_exists!(vfs, &dir1);
     }
 
     #[test]
@@ -900,125 +1038,6 @@ mod tests
         }
     }
 
-    #[test]
-    fn test_memfs_read_all()
-    {
-        let memfs = Memfs::new();
-        let file = memfs.root().mash("file");
-
-        // Doesn't exist error
-        assert_eq!(memfs.read_all(&file).unwrap_err().to_string(), PathError::does_not_exist(&file).to_string());
-
-        // Create the file with the given data
-        memfs.write_all(&file, b"foobar 1").unwrap();
-        assert_eq!(memfs.read_all(&file).unwrap(), "foobar 1".to_string());
-
-        // Read a second time
-        assert_eq!(memfs.read_all(&file).unwrap(), "foobar 1".to_string());
-    }
-
-    // #[test]
-    // fn test_remove()
-    // {
-    //     // Add a file to a directory
-    //     let mut memfile1 = MemfsEntry::opts("/").new();
-    //     assert_eq!(memfile1.entries.len(), 0);
-    //     let memfile2 = MemfsEntry::opts("/foo").new();
-    //     memfile1.add_child(memfile2.clone())?;
-    //     assert_eq!(memfile1.entries.len(), 1);
-
-    //     // Remove a file from a directory
-    //     assert_eq!(memfile1.remove_child(&memfile2.path)?, Some(memfile2));
-    //     assert_eq!(memfile1.entries.len(), 0);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn test_remove_non_existing()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").new();
-    //     assert_eq!(memfile.remove_child("blah").unwrap(), None);
-    // }
-
-    // #[test]
-    // fn test_remove_from_file_fails()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").file().new();
-    //     assert_eq!(memfile.remove_child("bar").unwrap_err().to_string(), "Target path is not a
-    // directory: foo"); }
-
-    // #[test]
-    // fn test_add_already_exists_fails()
-    // {
-    //     let mut memfile1 = MemfsEntry::opts("/").new();
-    //     let memfile2 = MemfsEntry::opts("/foo").file().new();
-    //     memfile1.add_child(memfile2.clone()).unwrap();
-    //     assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path exists
-    // already: /foo"); }
-
-    // #[test]
-    // fn test_add_mismatch_path_fails()
-    // {
-    //     let mut memfile1 = MemfsEntry::opts("/").new();
-    //     let memfile2 = MemfsEntry::opts("foo").file().new();
-    //     assert_eq!(memfile1.add_child(memfile2).unwrap_err().to_string(), "Target path's
-    // directory doesn't match parent: /"); }
-
-    // #[test]
-    // fn test_add_to_link_fails()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").link().new();
-    //     assert_eq!(memfile.add_child(MemfsEntry::opts("").new()).unwrap_err().to_string(),
-    // "Target path filename not found: "); }
-
-    // #[test]
-    // fn test_add_to_file_fails()
-    // {
-    //     let mut memfile = MemfsEntry::opts("foo").file().new();
-    //     assert_eq!(memfile.add_child(MemfsEntry::opts("").new()).unwrap_err().to_string(),
-    // "Target path is not a directory: foo"); }
-
-    // #[test]
-    // fn test_ordering_and_equality()
-    // {
-    //     let entry1 = MemfsEntry::opts("1").new();
-    //     let entry2 = MemfsEntry::opts("2").new();
-    //     let entry3 = MemfsEntry::opts("3").new();
-
-    //     let mut entries = vec![&entry1, &entry3, &entry2];
-    //     entries.sort();
-
-    //     assert_eq!(entries[0], &entry1);
-    //     assert_ne!(entries[1], &entry3);
-    //     assert_eq!(entries[1], &entry2);
-    //     assert_eq!(entries[2], &entry3);
-    // }
-
-    // fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
-    // {
-    //     let path = self.abs(path)?;
-    //     let dir = path.dir()?;
-
-    //     // Validate the dir exists
-    //     if !self.exists(&dir) {
-    //         return Err(PathError::does_not_exist(&dir).into());
-    //     }
-
-    //     // Create the file if necessary
-    //     let mut guard = self.0.write().unwrap();
-    //     if !guard.data.contains_key(&path) {
-    //         guard.data.insert(path.clone(), MemfsFile::default());
-    //     }
-
-    //     // Write the data to a target file
-    //     if let Some(f) = guard.data.get_mut(&path) {
-    //         f.rewind()?;
-    //         f.write_all(data.as_ref())?;
-    //         f.flush()?;
-    //     }
-
-    //     Ok(())
-    // }
     #[test]
     fn test_write_all()
     {

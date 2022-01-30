@@ -95,6 +95,20 @@ pub fn clean<T: AsRef<Path>>(path: T) -> PathBuf
     path_buf
 }
 
+/// Returns the `Path` with the given string concatenated on without injecting
+/// path separators.
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
+/// ```
+pub fn concat<T: AsRef<Path>, U: AsRef<str>>(path: T, val: U) -> RvResult<PathBuf>
+{
+    Ok(PathBuf::from(format!("{}{}", path.as_ref().to_string()?, val.as_ref())))
+}
+
 /// Returns the given `path` without its final component if there is one.
 ///
 /// ### Examples
@@ -184,6 +198,22 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     Ok(path)
 }
 
+/// Returns the extension of the path or an error.
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
+/// ```
+pub fn ext<T: AsRef<Path>>(path: T) -> RvResult<String>
+{
+    match path.as_ref().extension() {
+        Some(val) => val.to_string(),
+        None => Err(PathError::extension_not_found(path).into()),
+    }
+}
+
 /// Returns the final component of the `Path` without an extension if there is one
 ///
 /// ### Examples
@@ -197,22 +227,23 @@ pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String>
     base(trim_ext(path)?)
 }
 
-// /// Returns true if the `Path` contains the given path or string.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia::prelude::*;
-// ///
-// /// let path = PathBuf::from("/foo/bar");
-// /// assert_eq!(path.has("foo"), true);
-// /// assert_eq!(path.has("/foo"), true);
-// /// ```
-// pub fn has<T: AsRef<Path>>(&self, path: T) -> bool {
-//     match (self.to_string(), path.as_ref().to_string()) {
-//         (Ok(base), Ok(path)) => base.contains(&path),
-//         _ => false,
-//     }
-// }
+/// Returns true if the `Path` contains the given path or string.
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let path = PathBuf::from("/foo/bar");
+/// assert_eq!(path.has("foo"), true);
+/// assert_eq!(path.has("/foo"), true);
+/// ```
+pub fn has<T: AsRef<Path>, U: AsRef<Path>>(path: T, val: U) -> bool
+{
+    match (path.as_ref().to_string(), val.as_ref().to_string()) {
+        (Ok(base), Ok(path)) => base.contains(&path),
+        _ => false,
+    }
+}
 
 /// Returns true if the `Path` as a String has the given prefix
 ///
@@ -281,21 +312,20 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool
     path.into() == PathBuf::new()
 }
 
-// /// Returns the last path component.
-// ///
-// /// ### Examples
-// /// ```
-// /// use rivia::prelude::*;
-// /// use std::path::Component;
-// ///
-// /// let first = Component::Normal(OsStr::new("bar"));
-// /// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
-// /// ```
-// pub fn last<T: AsRef<Path>>(path: T) -> RvResult<String>
-// {
-//     path.as_ref().components().last_result()?.to_string()?;
-//     Ok(())
-// }
+/// Returns the last path component.
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+/// use std::path::Component;
+///
+/// let first = Component::Normal(OsStr::new("bar"));
+/// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
+/// ```
+pub fn last<T: AsRef<Path>>(path: T) -> RvResult<String>
+{
+    path.as_ref().components().last_result()?.to_string()
+}
 
 /// Returns a new owned [`PathBuf`] mashed together with the given `path`
 ///
