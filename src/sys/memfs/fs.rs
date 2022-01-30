@@ -12,7 +12,7 @@ use super::{MemfsEntry, MemfsEntryIter, MemfsFile};
 use crate::{
     errors::*,
     exts::*,
-    sys::{self, Entries, Entry, EntryIter, FileSystem, PathExt, Vfs},
+    sys::{self, Entries, Entry, EntryIter, FileSystem, PathExt, ReadSeek, Vfs},
 };
 
 // Helper aliases
@@ -430,6 +430,45 @@ impl FileSystem for Memfs
         self.add(MemfsEntry::opts(self.abs(path)?).file().new())
     }
 
+    /// Open a Read + Seek handle to the indicated file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let file = memfs.root().mash("file");
+    /// memfs.write_all(&file, b"foobar 1").unwrap();
+    /// let mut file = memfs.open(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// ```
+    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
+    {
+        let path = self.abs(path)?;
+        let guard = self.0.read().unwrap();
+
+        // Validate target is a file
+        if let Some(f) = guard.fs.get(&path) {
+            if !f.is_file() {
+                return Err(PathError::is_not_file(&path).into());
+            }
+        }
+
+        // Return a file clone or error
+        match guard.data.get(&path) {
+            Some(file) => Ok(Box::new(file.clone())),
+            None => Err(PathError::does_not_exist(&path).into()),
+        }
+    }
+
     /// Read all data from the given file and return it as a String
     ///
     /// * Handles path expansion and absolute path resolution
@@ -449,23 +488,13 @@ impl FileSystem for Memfs
     /// ```
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {
-        let path = self.abs(path)?;
-        let guard = self.0.read().unwrap();
-
-        // Validate target is a file
-        if let Some(f) = guard.fs.get(&path) {
-            if !f.is_file() {
-                return Err(PathError::is_not_file(&path).into());
-            }
-        }
-
-        if let Some(f) = guard.data.get(&path) {
-            let mut f = f.clone();
-            let mut buf = String::new();
-            f.read_to_string(&mut buf)?;
-            Ok(buf)
-        } else {
-            return Err(PathError::does_not_exist(&path).into());
+        match self.open(path) {
+            Ok(mut file) => {
+                let mut buf = String::new();
+                file.read_to_string(&mut buf)?;
+                Ok(buf)
+            },
+            Err(e) => Err(e),
         }
     }
 

@@ -8,6 +8,14 @@ use crate::{
     sys::{Entries, Memfs, Stdfs},
 };
 
+/// Provides a combination of Read + Seek traits
+pub trait ReadSeek: std::io::Read+std::io::Seek
+{
+}
+
+// Blanket implementation for any type that implements Read + Seek
+impl<T> ReadSeek for T where T: std::io::Read+std::io::Seek {}
+
 /// FileSystem provides a set of functions that are implemented by various backend filesystem
 /// providers. For example [`Stdfs`] implements a pass through to the sRust std::fs library that
 /// operates against disk as per usual and [`Memfs`] is an in memory implementation providing the
@@ -170,10 +178,27 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
-    // fn read(&self, path: &Path) -> RvResult<()>;
-
-    /// Opens a file for writing, creating if it doesn't exist and truncating if it does
-    // fn write(&self, path: &Path) -> RvResult<Box<dyn Write>>;
+    /// Open a Read + Seek handle to the indicated file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// let mut file = memfs.open(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// ```
+    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>;
 
     /// Read all data from the given file and return it as a String
     ///
@@ -593,6 +618,34 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.mkfile(path),
             Vfs::Memfs(x) => x.mkfile(path),
+        }
+    }
+
+    /// Open a Read + Seek handle to the indicated file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// let mut file = memfs.open(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// ```
+    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.open(path),
+            Vfs::Memfs(x) => x.open(path),
         }
     }
 

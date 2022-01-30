@@ -15,7 +15,7 @@ use super::StdfsEntryIter;
 use crate::{
     errors::*,
     exts::*,
-    sys::{self, Entries, Entry, EntryIter, FileSystem, PathExt, StdfsEntry, Vfs},
+    sys::{self, Entries, Entry, EntryIter, FileSystem, PathExt, ReadSeek, StdfsEntry, Vfs},
 };
 
 /// `Stdfs` is a Vfs backend implementation that wraps the standard library `std::fs`
@@ -410,6 +410,44 @@ impl Stdfs
         let path = Stdfs::abs(path)?;
         let meta = fs::symlink_metadata(path)?;
         Ok(meta.permissions().mode())
+    }
+
+    /// Open a Read + Seek handle to the indicated file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_open");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// let mut file = Stdfs::open(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn open<T: AsRef<Path>>(path: T) -> RvResult<Box<dyn ReadSeek>>
+    {
+        let path = Stdfs::abs(path)?;
+
+        // Validate target exists and is a file
+        if Stdfs::exists(&path) {
+            if !Stdfs::is_file(&path) {
+                return Err(PathError::is_not_file(&path).into());
+            }
+        } else {
+            return Err(PathError::does_not_exist(&path).into());
+        }
+
+        // Return the file handle
+        Ok(Box::new(File::open(&path)?))
     }
 
     /// Returns the contents of the `path` as a `String`.
@@ -856,6 +894,32 @@ impl FileSystem for Stdfs
     fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::mkdir_p(path)
+    }
+
+    /// Open a Read + Seek handle to the indicated file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_open");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// let mut file = Stdfs::open(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
+    {
+        Stdfs::open(path)
     }
 
     /// Read all data from the given file and return it as a String

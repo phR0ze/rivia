@@ -80,7 +80,8 @@ pub mod prelude
         errors::*,
         exts::*,
         sys::{
-            self, EntriesIter, Entry, FileSystem, Memfs, MemfsEntry, PathExt, Stdfs, StdfsEntry, Vfs, VfsEntry,
+            self, EntriesIter, Entry, FileSystem, Memfs, MemfsEntry, PathExt, ReadSeek, Stdfs, StdfsEntry, Vfs,
+            VfsEntry,
         },
         testing,
     };
