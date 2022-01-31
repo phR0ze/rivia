@@ -91,7 +91,7 @@ impl Stdfs
     /// Set the given mode for the `Path`
     ///
     /// ### Examples
-    /// ```
+    /// ```ignore
     /// use rivia::prelude::*;
     ///
     /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chmod");
@@ -360,7 +360,7 @@ impl Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mkfile"));
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mkfile");
     /// let file1 = tmpdir.mash("file1");
     /// assert_eq!(Stdfs::is_file(&file1), false);
     /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
@@ -396,7 +396,7 @@ impl Stdfs
     /// Returns the permissions for a file
     ///
     /// ### Examples
-    /// ```
+    /// ```ignore
     /// use rivia::prelude::*;
     ///
     /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mode");

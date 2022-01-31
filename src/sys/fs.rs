@@ -193,7 +193,7 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// let vfs = Vfs::memfs();
     /// let file = vfs.root().mash("file");
     /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
-    /// let mut file = memfs.open(&file).unwrap();
+    /// let mut file = vfs.open(&file).unwrap();
     /// let mut buf = String::new();
     /// file.read_to_string(&mut buf);
     /// assert_eq!(buf, "foobar 1".to_string());
@@ -636,7 +636,7 @@ impl FileSystem for Vfs
     /// let vfs = Vfs::memfs();
     /// let file = vfs.root().mash("file");
     /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
-    /// let mut file = memfs.open(&file).unwrap();
+    /// let mut file = vfs.open(&file).unwrap();
     /// let mut buf = String::new();
     /// file.read_to_string(&mut buf);
     /// assert_eq!(buf, "foobar 1".to_string());

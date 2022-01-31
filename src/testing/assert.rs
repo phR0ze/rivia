@@ -20,7 +20,7 @@
 /// use rivia::prelude::*;
 ///
 /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs(), "unique_func_name");
-/// assert_vfs_remove_all!(vfs, tmpdir);
+/// assert_vfs_remove_all!(vfs, &tmpdir);
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_setup {
@@ -357,7 +357,7 @@ macro_rules! assert_vfs_mkfile {
 /// let vfs = Vfs::memfs();
 /// assert_vfs_no_file!(vfs, "foo");
 /// assert_vfs_write_all!(vfs, "foo", b"foobar 1");
-/// assert_vfs_read_all!(vfs, "foo", b"foobar 1");
+/// assert_vfs_read_all!(vfs, "foo", "foobar 1".to_string());
 /// ```
 #[macro_export]
 macro_rules! assert_vfs_read_all {
@@ -537,7 +537,7 @@ macro_rules! assert_vfs_symlink {
 ///
 /// let vfs = Vfs::memfs();
 /// assert_vfs_no_file!(vfs, "foo");
-/// assert_vfs_write_all!(vfs, "foo");
+/// assert_vfs_write_all!(vfs, "foo", b"foobar");
 /// assert_vfs_is_file!(vfs, "foo");
 /// ```
 #[macro_export]

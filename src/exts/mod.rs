@@ -131,10 +131,12 @@ macro_rules! cfgblock {
 /// ```
 /// use rivia::prelude::*;
 ///
-/// fn trying_func<T: AsRef<Path>>(path: T) -> Option<FnResult<PathBuf>> {
-///     Some(Ok(trying!(path.as_ref().abs())))
+/// fn trying_func<T: AsRef<Path>>(vfs: Vfs, path: T) -> Option<RvResult<PathBuf>> {
+///     Some(Ok(trying!(vfs.abs(path.as_ref()))))
 /// }
-/// assert_eq!(trying_func("").unwrap().unwrap_err().to_string(), "path empty");
+///
+/// let vfs = Vfs::memfs();
+/// assert_eq!(trying_func(vfs, "").unwrap().unwrap_err().to_string(), "path empty");
 /// ```
 #[macro_export]
 macro_rules! trying {

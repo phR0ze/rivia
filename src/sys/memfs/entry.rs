@@ -200,10 +200,11 @@ impl Entry for MemfsEntry
     ///   path and `alt` will report the actual file or directory the link points to.
     ///
     /// ### Examples
-    /// ```
+    /// ```ignore
     /// use rivia::prelude::*;
     ///
     /// let entry = MemfsEntry::opts("foo").new();
+    /// entry.path();
     /// ```
     fn path(&self) -> &Path
     {

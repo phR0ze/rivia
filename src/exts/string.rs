@@ -76,7 +76,6 @@ pub trait ToStringExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(OsStr::new("foo").to_string().unwrap(), "foo");
     /// assert_eq!(Path::new("/foo").to_string().unwrap(), "/foo");
     /// ```
     fn to_string(&self) -> RvResult<String>;

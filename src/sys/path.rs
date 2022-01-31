@@ -5,9 +5,6 @@ use crate::{errors::*, exts::*};
 
 /// Returns the final component of the given `path` if there is one
 ///
-/// ### Errors
-/// * PathError::FileNameNotFound(PathBuf) if there is an error return the filename
-///
 /// ### Examples
 /// ```
 /// use rivia::prelude::*;
@@ -16,8 +13,7 @@ use crate::{errors::*, exts::*};
 /// ```
 pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
 {
-    let path = path.as_ref();
-    path.file_name().ok_or_else(|| PathError::filename_not_found(path))?.to_string()
+    path.as_ref().components().last_result()?.to_string()
 }
 
 /// Return the shortest equivalent to the given `path` by purely lexical processing
@@ -43,7 +39,7 @@ pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert_eq!(sys::clean("./foo/./bar").unwrap(), PathBuf::from("foo/bar"));
+/// assert_eq!(sys::clean("./foo/./bar"), PathBuf::from("foo/bar"));
 /// ```
 pub fn clean<T: AsRef<Path>>(path: T) -> PathBuf
 {
@@ -102,7 +98,7 @@ pub fn clean<T: AsRef<Path>>(path: T) -> PathBuf
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
+/// assert_eq!(sys::concat("/foo/bar", ".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
 /// ```
 pub fn concat<T: AsRef<Path>, U: AsRef<str>>(path: T, val: U) -> RvResult<PathBuf>
 {
@@ -204,7 +200,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
+/// assert_eq!(sys::ext("foo.bar").unwrap(), "bar");
 /// ```
 pub fn ext<T: AsRef<Path>>(path: T) -> RvResult<String>
 {
@@ -212,6 +208,19 @@ pub fn ext<T: AsRef<Path>>(path: T) -> RvResult<String>
         Some(val) => val.to_string(),
         None => Err(PathError::extension_not_found(path).into()),
     }
+}
+
+/// Returns the first path component.
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// assert_eq!(sys::first("foo/bar").unwrap(), "foo".to_string());
+/// ```
+pub fn first<T: AsRef<Path>>(path: T) -> RvResult<String>
+{
+    path.as_ref().components().first_result()?.to_string()
 }
 
 /// Returns the final component of the `Path` without an extension if there is one
@@ -234,8 +243,8 @@ pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String>
 /// use rivia::prelude::*;
 ///
 /// let path = PathBuf::from("/foo/bar");
-/// assert_eq!(path.has("foo"), true);
-/// assert_eq!(path.has("/foo"), true);
+/// assert_eq!(sys::has(&path, "foo"), true);
+/// assert_eq!(sys::has(&path, "/foo"), true);
 /// ```
 pub fn has<T: AsRef<Path>, U: AsRef<Path>>(path: T, val: U) -> bool
 {
@@ -270,8 +279,8 @@ pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool
 /// use rivia::prelude::*;
 ///
 /// let path = PathBuf::from("/foo/bar");
-/// assert_eq!(sys::has_suffix("/bar"), true);
-/// assert_eq!(sys::has_suffix("foo"), false);
+/// assert_eq!(sys::has_suffix(&path, "/bar"), true);
+/// assert_eq!(sys::has_suffix(&path, "foo"), false);
 /// ```
 pub fn has_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> bool
 {
@@ -312,19 +321,17 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool
     path.into() == PathBuf::new()
 }
 
-/// Returns the last path component.
+/// Returns the last path component. Alias to `base`
 ///
 /// ### Examples
 /// ```
 /// use rivia::prelude::*;
-/// use std::path::Component;
 ///
-/// let first = Component::Normal(OsStr::new("bar"));
-/// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
+/// assert_eq!(sys::last("foo/bar").unwrap(), "bar".to_string());
 /// ```
 pub fn last<T: AsRef<Path>>(path: T) -> RvResult<String>
 {
-    path.as_ref().components().last_result()?.to_string()
+    base(path)
 }
 
 /// Returns a new owned [`PathBuf`] mashed together with the given `path`
@@ -360,7 +367,7 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+/// assert_eq!(sys::relative("foo/bar1", "foo/bar2").unwrap(), PathBuf::from("../bar1"));
 /// ```
 pub fn relative<T: AsRef<Path>, U: AsRef<Path>>(path: T, base: U) -> RvResult<PathBuf>
 {
@@ -444,7 +451,7 @@ pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert_eq!(sys::trim_last("/foo")), PathBuf::from("/"));
+/// assert_eq!(sys::trim_last("/foo"), PathBuf::from("/"));
 /// ```
 pub fn trim_last<T: AsRef<Path>>(path: T) -> PathBuf
 {
@@ -528,7 +535,7 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
+    /// assert_eq!(Path::new("/foo/bar").base().unwrap(), "bar".to_string());
     /// ```
     fn base(&self) -> RvResult<String>;
 
@@ -552,20 +559,20 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
+    /// assert_eq!(Path::new("./foo/./bar").clean(), PathBuf::from("foo/bar"));
     /// ```
     fn clean(&self) -> PathBuf;
 
-    // /// Returns the `Path` with the given string concatenated on without injecting
-    // /// path separators.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
-    // /// ```
-    // fn concat<T: AsRef<str>>(&self, val: T) -> RvResult<PathBuf>;
+    /// Returns the `Path` with the given string concatenated on without injecting
+    /// path separators.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
+    /// ```
+    fn concat<T: AsRef<str>>(&self, val: T) -> RvResult<PathBuf>;
 
     /// Returns the `Path` without its final component, if there is one.
     ///
@@ -573,20 +580,9 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
-    /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
+    /// assert_eq!(Path::new("/foo/bar").dir().unwrap(), PathBuf::from("/foo"));
     /// ```
     fn dir(&self) -> RvResult<PathBuf>;
-
-    // /// Returns true if the `Path` exists. Handles path expansion.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(Path::new("/etc").exists(), true);
-    // /// ```
-    // fn exists(&self) -> bool;
 
     /// Expand the path to include the home prefix if necessary
     ///
@@ -594,54 +590,43 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let home = user::home_dir().unwrap();
-    /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(Path::new("~/foo").expand().unwrap(), PathBuf::from(&home).mash("foo"));
     /// ```
     fn expand(&self) -> RvResult<PathBuf>;
 
-    // /// Returns the extension of the path or an error.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
-    // /// ```
-    // fn ext(&self) -> RvResult<String>;
+    /// Returns the extension of the path or an error.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
+    /// ```
+    fn ext(&self) -> RvResult<String>;
 
-    // /// Returns the first path component.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // /// use std::path::Component;
-    // ///
-    // /// let first = Component::Normal(OsStr::new("foo"));
-    // /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
-    // /// ```
-    // fn first(&self) -> RvResult<Component>;
+    /// Returns the first path component.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// use std::path::Component;
+    ///
+    /// assert_eq!(Path::new("foo/bar").first().unwrap(), "foo".to_string());
+    /// ```
+    fn first(&self) -> RvResult<String>;
 
-    // /// Returns the group ID of the owner of this file.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(Path::new("/etc").gid().unwrap(), 0);
-    // /// ```
-    // fn gid(&self) -> RvResult<u32>;
-
-    // /// Returns true if the `Path` contains the given path or string.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let path = PathBuf::from("/foo/bar");
-    // /// assert_eq!(path.has("foo"), true);
-    // /// assert_eq!(path.has("/foo"), true);
-    // /// ```
-    // fn has<T: AsRef<Path>>(&self, path: T) -> bool;
+    /// Returns true if the `Path` contains the given path or string.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has("foo"), true);
+    /// assert_eq!(path.has("/foo"), true);
+    /// ```
+    fn has<T: AsRef<Path>>(&self, path: T) -> bool;
 
     /// Returns true if the `Path` as a String has the given prefix
     ///
@@ -667,16 +652,6 @@ pub trait PathExt
     /// ```
     fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool;
 
-    // /// Returns true if the `Path` exists and is a directory. Handles path expansion.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(Path::new("/etc").is_dir(), true);
-    // /// ```
-    // fn is_dir(&self) -> bool;
-
     /// Returns true if the `Path` is empty.
     ///
     /// ### Examples
@@ -687,115 +662,15 @@ pub trait PathExt
     /// ```
     fn is_empty(&self) -> bool;
 
-    // /// Returns true if the `Path` exists and is an executable. Handles path expansion.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_is_exec");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// assert!(sys::mkfile_m(&file1, 0o644).is_ok());
-    // /// assert_eq!(file1.is_exec(), false);
-    // /// assert!(sys::chmod_b(&file1).unwrap().sym("a:a+x").exec().is_ok());
-    // /// assert_eq!(file1.mode().unwrap(), 0o100755);
-    // /// assert_eq!(file1.is_exec(), true);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn is_exec(&self) -> bool;
-
-    // /// Returns true if the `Path` exists and is a file. Handles path expansion
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
-    // /// ```
-    // fn is_file(&self) -> bool;
-
-    // /// Returns true if the `Path` exists and is readonly. Handles path expansion.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_is_readonly");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// assert!(sys::mkfile_m(&file1, 0o644).is_ok());
-    // /// assert_eq!(file1.is_readonly(), false);
-    // /// assert!(sys::chmod_b(&file1).unwrap().readonly().exec().is_ok());
-    // /// assert_eq!(file1.mode().unwrap(), 0o100444);
-    // /// assert_eq!(file1.is_readonly(), true);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn is_readonly(&self) -> bool;
-
-    // /// Returns true if the `Path` exists and is a symlink. Handles path expansion
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_is_symlink");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// let link1 = tmpdir.mash("link1");
-    // /// assert_mkfile!(&file1);
-    // /// assert!(sys::symlink(&file1, &link1).is_ok());
-    // /// assert_eq!(link1.is_symlink(), true);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn is_symlink(&self) -> bool;
-
-    // /// Returns true if the `Path` exists and is a symlinked directory. Handles path expansion
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_is_symlink_dir");
-    // /// let dir1 = tmpdir.mash("dir1");
-    // /// let link1 = tmpdir.mash("link1");
-    // /// assert_mkdir!(&dir1);
-    // /// assert!(sys::symlink(&dir1, &link1).is_ok());
-    // /// assert_eq!(link1.is_symlink_dir(), true);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn is_symlink_dir(&self) -> bool;
-
-    // /// Returns true if the given `Path` exists and is a symlinked file. Handles path
-    // /// expansion
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_is_symlink_file");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// let link1 = tmpdir.mash("link1");
-    // /// assert_mkfile!(&file1);
-    // /// assert!(sys::symlink(&file1, &link1).is_ok());
-    // /// assert_eq!(link1.is_symlink_file(), true);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn is_symlink_file(&self) -> bool;
-
-    // /// Returns the last path component.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // /// use std::path::Component;
-    // ///
-    // /// let first = Component::Normal(OsStr::new("bar"));
-    // /// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
-    // /// ```
-    // fn last(&self) -> RvResult<Component>;
+    /// Returns the last component of the path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("foo/bar").last().unwrap(), "bar".to_string());
+    /// ```
+    fn last(&self) -> RvResult<String>;
 
     /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
     /// Differs from the `mash` implementation as `mash` drops root prefix of the given `path` if
@@ -810,67 +685,15 @@ pub trait PathExt
     /// ```
     fn mash<T: AsRef<Path>>(&self, path: T) -> PathBuf;
 
-    // /// Returns the Mode of the `Path` if it exists else and error
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_mode");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// assert_mkfile!(&file1);
-    // /// assert!(file1.chmod(0o644).is_ok());
-    // /// assert_eq!(file1.mode().unwrap(), 0o100644);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn mode(&self) -> RvResult<u32>;
-
-    // /// Returns the final component of the `Path` without an extension if there is one
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
-    // /// ```
-    // fn name(&self) -> RvResult<String>;
-
-    // /// Returns the absolute path for the link target. Handles path expansion
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_readlink");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// let link1 = tmpdir.mash("link1");
-    // /// assert_mkfile!(&file1);
-    // /// assert!(sys::symlink(&file1, &link1).is_ok());
-    // /// assert_eq!(link1.readlink().unwrap(), PathBuf::from("file1"));
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn readlink(&self) -> RvResult<PathBuf>;
-
-    // /// Returns the absolute path for the given link target. Handles path expansion for
-    // /// the given link. Useful for determining the absolute path of source relative to the
-    // /// link rather than cwd.
-    // //
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_readlink_abs");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// let link1 = tmpdir.mash("link1");
-    // /// assert_mkfile!(&file1);
-    // /// assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-    // /// assert_eq!(Stdfs::readlink_abs(link1).unwrap(), file1);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn readlink_abs(&self) -> RvResult<PathBuf>;
+    /// Returns the final component of the `Path` without an extension if there is one
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar.foo").name().unwrap(), "bar");
+    /// ```
+    fn name(&self) -> RvResult<String>;
 
     /// Returns the `Path` relative to the given `base` path
     ///
@@ -888,38 +711,9 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+    /// assert_eq!(Path::new("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
     /// ```
     fn relative<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
-
-    // /// Set the given [`Mode`] on the `Path` and return the `Path`
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_setup_func!();
-    // /// let tmpdir = assert_setup!("pathext_trait_set_mode");
-    // /// let file1 = tmpdir.mash("file1");
-    // /// assert_mkfile!(&file1);
-    // /// assert!(file1.chmod(0o644).is_ok());
-    // /// assert_eq!(file1.mode().unwrap(), 0o100644);
-    // /// assert!(file1.set_mode(0o555).is_ok());
-    // /// assert_eq!(file1.mode().unwrap(), 0o100555);
-    // /// assert_remove_all!(&tmpdir);
-    // /// ```
-    // fn set_mode(&self, mode: u32) -> RvResult<PathBuf>;
-
-    // /// Returns the shared path prefix between `self` and `Path`. All paths will share root `/`
-    // /// so this case is being dropped to simplify detection of shared components.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("bar1").shared_prefix("bar2").unwrap(), Stdfs::cwd().unwrap());
-    // /// ```
-    // fn shared_prefix<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     /// Returns a new [`PathBuf`] with the file extension trimmed off.
     ///
@@ -937,7 +731,7 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
+    /// assert_eq!(Path::new("/foo").trim_first(), PathBuf::from("foo"));
     /// ```
     fn trim_first(&self) -> PathBuf;
 
@@ -947,7 +741,7 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
+    /// assert_eq!(Path::new("/foo").trim_last(), PathBuf::from("/"));
     /// ```
     fn trim_last(&self) -> PathBuf;
 
@@ -968,19 +762,19 @@ pub trait PathExt
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
+    /// assert_eq!(Path::new("ftp://foo").trim_protocol(), PathBuf::from("foo"));
     /// ```
     fn trim_protocol(&self) -> PathBuf;
 
-    // /// Returns a new [`PathBuf`] with the given `suffix` trimmed off else the original `path`.
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
-    // /// ```
-    // fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf;
+    /// Returns a new [`PathBuf`] with the given `suffix` trimmed off else the original `path`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
+    /// ```
+    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf;
 }
 
 /// Provides extension method ergonomics for all the system module helper functions for paths
@@ -993,7 +787,7 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
+    /// assert_eq!(Path::new("/foo/bar").base().unwrap(), "bar".to_string());
     /// ```
     fn base(&self) -> RvResult<String>
     {
@@ -1020,11 +814,25 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("./foo/./bar").clean().unwrap(), PathBuf::from("foo/bar"));
+    /// assert_eq!(Path::new("./foo/./bar").clean(), PathBuf::from("foo/bar"));
     /// ```
     fn clean(&self) -> PathBuf
     {
         clean(self)
+    }
+
+    /// Returns the `Path` with the given string concatenated on without injecting
+    /// path separators.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
+    /// ```
+    fn concat<T: AsRef<str>>(&self, val: T) -> RvResult<PathBuf>
+    {
+        concat(self, val)
     }
 
     /// Returns the `Path` without its final component, if there is one.
@@ -1033,8 +841,7 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
-    /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
+    /// assert_eq!(Path::new("/foo/bar").dir().unwrap(), PathBuf::from("/foo"));
     /// ```
     fn dir(&self) -> RvResult<PathBuf>
     {
@@ -1047,12 +854,37 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let home = user::home_dir().unwrap();
-    /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
+    /// let home = sys::home_dir().unwrap();
+    /// assert_eq!(Path::new("~/foo").expand().unwrap(), PathBuf::from(&home).mash("foo"));
     /// ```
     fn expand(&self) -> RvResult<PathBuf>
     {
         expand(self)
+    }
+
+    /// Returns the extension of the path or an error.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
+    /// ```
+    fn ext(&self) -> RvResult<String>
+    {
+        ext(self)
+    }
+    /// Returns the first path component.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("foo/bar").first().unwrap(), "foo".to_string());
+    /// ```
+    fn first(&self) -> RvResult<String>
+    {
+        first(self)
     }
 
     /// Returns true if the `Path` is empty.
@@ -1068,6 +900,20 @@ impl PathExt for Path
         is_empty(self)
     }
 
+    /// Returns true if the `Path` contains the given path or string.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has("foo"), true);
+    /// assert_eq!(path.has("/foo"), true);
+    /// ```
+    fn has<T: AsRef<Path>>(&self, val: T) -> bool
+    {
+        has(self, val)
+    }
     /// Returns true if the `Path` as a String has the given prefix
     ///
     /// ### Examples
@@ -1098,6 +944,19 @@ impl PathExt for Path
         has_suffix(self, suffix)
     }
 
+    /// Returns the last path component. Alias to `base`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("foo/bar").last().unwrap(), "bar".to_string());
+    /// ```
+    fn last(&self) -> RvResult<String>
+    {
+        last(self)
+    }
+
     /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
     /// Differs from the `join` implementation in that it drops root prefix of the given `path` if
     /// it exists and also drops any trailing '/' on the new resulting path. More closely aligns
@@ -1107,11 +966,25 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(sys::mash("/foo", "/bar"), PathBuf::from("/foo/bar"));
+    /// assert_eq!(Path::new("/foo").mash("bar"), PathBuf::from("/foo/bar"));
+    /// assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
     /// ```
     fn mash<T: AsRef<Path>>(&self, path: T) -> PathBuf
     {
         mash(self, path)
+    }
+
+    /// Returns the final component of the `Path` without an extension if there is one
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar.foo").name().unwrap(), "bar");
+    /// ```
+    fn name(&self) -> RvResult<String>
+    {
+        name(self)
     }
 
     /// Returns the `Path` relative to the given `base` path
@@ -1130,7 +1003,7 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+    /// assert_eq!(Path::new("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
     /// ```
     fn relative<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
@@ -1156,7 +1029,7 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
+    /// assert_eq!(Path::new("/foo").trim_first(), PathBuf::from("foo"));
     /// ```
     fn trim_first(&self) -> PathBuf
     {
@@ -1169,7 +1042,7 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
+    /// assert_eq!(Path::new("/foo").trim_last(), PathBuf::from("/"));
     /// ```
     fn trim_last(&self) -> PathBuf
     {
@@ -1182,7 +1055,7 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(sys::trim_prefix("/foo/bar", "/foo"), PathBuf::from("/bar"));
+    /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
     /// ```
     fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf
     {
@@ -1196,11 +1069,24 @@ impl PathExt for Path
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
+    /// assert_eq!(Path::new("ftp://foo").trim_protocol(), PathBuf::from("foo"));
     /// ```
     fn trim_protocol(&self) -> PathBuf
     {
         trim_protocol(self)
+    }
+
+    /// Returns a new [`PathBuf`] with the given `suffix` trimmed off else the original `path`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
+    /// ```
+    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf
+    {
+        trim_suffix(self, suffix)
     }
 }
 
@@ -1212,7 +1098,16 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_clean()
+    fn test_pathext_base()
+    {
+        assert_eq!(Path::new("").base().unwrap_err().to_string(), IterError::item_not_found().to_string());
+        assert_eq!(Path::new("bar").base().unwrap(), "bar".to_string());
+        assert_eq!(Path::new("/foo/bar").base().unwrap(), "bar".to_string());
+        assert_eq!(Path::new("/foo/bar.bin").base().unwrap(), "bar.bin".to_string());
+    }
+
+    #[test]
+    fn test_pathext_clean()
     {
         let tests = vec![
             // Root
@@ -1259,20 +1154,31 @@ mod tests
             ("~/foo", "~/foo"),
         ];
         for test in tests {
-            assert_eq!(sys::clean(test.1), PathBuf::from(test.0));
+            assert_eq!(Path::new(test.1).clean(), PathBuf::from(test.0));
         }
     }
 
     #[test]
-    fn test_expand() -> RvResult<()>
+    fn test_pathext_concat()
+    {
+        assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
+        assert_eq!(PathBuf::from("bar").concat(".rs").unwrap(), PathBuf::from("bar.rs"));
+    }
+
+    #[test]
+    fn test_pathext_dir()
+    {
+        assert_eq!(Path::new("/foo/").dir().unwrap(), PathBuf::from("/").as_path(),);
+        assert_eq!(Path::new("/foo/bar/").dir().unwrap(), PathBuf::from("/foo").as_path(),);
+        assert_eq!(Path::new("/foo/bar").dir().unwrap(), PathBuf::from("/foo").as_path());
+    }
+
+    #[test]
+    fn test_pathext_expand() -> RvResult<()>
     {
         let home = sys::home_dir()?;
 
         // Multiple home symbols should fail
-        assert_eq!(
-            sys::expand("~/~").unwrap_err().to_string(),
-            PathError::multiple_home_symbols("~/~").to_string()
-        );
         assert_eq!(
             Path::new("~/~").expand().unwrap_err().to_string(),
             PathError::multiple_home_symbols("~/~").to_string()
@@ -1280,76 +1186,86 @@ mod tests
 
         // Only home expansion at the begining of the path is allowed
         assert_eq!(
-            sys::expand("foo/~").unwrap_err().to_string(),
+            Path::new("foo/~").expand().unwrap_err().to_string(),
             PathError::invalid_expansion("foo/~").to_string()
         );
 
         // Tilda only
-        assert_eq!(sys::expand("~")?, PathBuf::from(&home));
+        assert_eq!(Path::new("~").expand()?, PathBuf::from(&home));
 
         // Standard prefix
-        assert_eq!(sys::expand("~/foo")?, PathBuf::from(&home).join("foo"));
+        assert_eq!(Path::new("~/foo").expand()?, PathBuf::from(&home).join("foo"));
 
         // Variable expansion
-        assert_eq!(sys::expand("${HOME}")?, PathBuf::from(&home));
-        assert_eq!(sys::expand("${HOME}/foo")?, PathBuf::from(&home).join("foo"));
-        assert_eq!(sys::expand("/foo/${HOME}")?, PathBuf::from("/foo").join(&home));
-        assert_eq!(sys::expand("/foo/${HOME}/bar")?, PathBuf::from("/foo").join(&home).join("bar"));
+        assert_eq!(Path::new("${HOME}").expand()?, PathBuf::from(&home));
+        assert_eq!(Path::new("${HOME}/foo").expand()?, PathBuf::from(&home).join("foo"));
+        assert_eq!(Path::new("/foo/${HOME}").expand()?, PathBuf::from("/foo").join(&home));
+        assert_eq!(Path::new("/foo/${HOME}/bar").expand()?, PathBuf::from("/foo").join(&home).join("bar"));
         assert_eq!(
-            sys::expand("/foo${HOME}/bar")?,
+            Path::new("/foo${HOME}/bar").expand()?,
             PathBuf::from("/foo".to_string() + &home.to_string()? + &"/bar".to_string())
         );
         assert_eq!(
-            sys::expand("/foo${HOME}${HOME}")?,
+            Path::new("/foo${HOME}${HOME}").expand()?,
             PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?)
         );
         assert_eq!(
-            sys::expand("/foo$HOME$HOME")?,
+            Path::new("/foo$HOME$HOME").expand()?,
             PathBuf::from("/foo".to_string() + &home.to_string()? + &home.to_string()?)
         );
         Ok(())
     }
 
     #[test]
-    fn test_relative()
+    fn test_pathext_ext()
     {
-        // share same directory
-        assert_eq!(PathBuf::from("bar1").relative("bar2").unwrap(), PathBuf::from("../bar1"));
-        assert_eq!(PathBuf::from("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
-        assert_eq!(PathBuf::from("~/foo/bar1").relative("~/foo/bar2").unwrap(), PathBuf::from("../bar1"));
-        assert_eq!(PathBuf::from("../foo/bar1").relative("../foo/bar2").unwrap(), PathBuf::from("../bar1"));
-
-        // share parent directory
-        assert_eq!(PathBuf::from("foo1/bar1").relative("foo2/bar2").unwrap(), PathBuf::from("../../foo1/bar1"));
-        assert_eq!(PathBuf::from("/foo1/bar1").relative("/foo2/bar2").unwrap(), PathBuf::from("../../foo1/bar1"));
-
-        // share grandparent directory
         assert_eq!(
-            PathBuf::from("blah1/foo1/bar1").relative("blah2/foo2/bar2").unwrap(),
-            PathBuf::from("../../../blah1/foo1/bar1")
+            Path::new("base").ext().unwrap_err().to_string(),
+            PathError::extension_not_found("base").to_string()
         );
-        assert_eq!(
-            PathBuf::from("/blah1/foo1/bar1").relative("/blah2/foo2/bar2").unwrap(),
-            PathBuf::from("../../../blah1/foo1/bar1")
-        );
-
-        // symlink is the opposite i.e. src.relative(dst)
-        assert_eq!(PathBuf::from("/dir1").relative("/dir1/dir2").unwrap(), PathBuf::from(".."));
+        assert_eq!(Path::new("base.bin").ext().unwrap(), "bin".to_string());
+        assert_eq!(Path::new("/foo/bar/base.blah").ext().unwrap(), "blah".to_string());
     }
 
     #[test]
-    fn test_dirname()
+    fn test_pathext_first()
     {
-        assert_eq!(sys::dir("/foo/").unwrap(), PathBuf::from("/").as_path(),);
-        assert_eq!(sys::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
+        assert_eq!(Path::new("").first().unwrap_err().to_string(), IterError::item_not_found().to_string());
+        assert_eq!(Path::new("foo").first().unwrap(), "foo".to_string());
+        assert_eq!(Path::new("/foo").first().unwrap(), "/".to_string());
     }
 
     #[test]
-    fn test_has_prefix()
+    fn test_pathext_has()
     {
-        let path = PathBuf::from("/foo/bar");
-        assert_eq!(sys::has_prefix(&path, "/foo"), true);
-        assert_eq!(sys::has_prefix(&path, "foo"), false);
+        assert_eq!(Path::new("").has(""), true);
+        assert_eq!(Path::new("/foo").has("fo"), true);
+        assert_eq!(Path::new("/foo/bar").has("bar"), true);
+        assert_eq!(Path::new("/foo/bar").has("bar/"), false);
+    }
+
+    #[test]
+    fn test_pathext_has_prefix()
+    {
+        assert_eq!(Path::new("").has_prefix(""), true);
+        assert_eq!(Path::new("/foo").has_prefix("/fo"), true);
+        assert_eq!(Path::new("/foo/bar").has_prefix("bar/"), false);
+    }
+
+    #[test]
+    fn test_pathext_has_suffix()
+    {
+        assert_eq!(Path::new("").has_suffix(""), true);
+        assert_eq!(Path::new("/foo").has_suffix("/fo"), false);
+        assert_eq!(Path::new("/foo/bar").has_suffix("bar"), true);
+    }
+
+    #[test]
+    fn test_pathext_last()
+    {
+        assert_eq!(Path::new("").last().unwrap_err().to_string(), IterError::item_not_found().to_string());
+        assert_eq!(Path::new("foo").last().unwrap(), "foo".to_string());
+        assert_eq!(Path::new("/foo").last().unwrap(), "foo".to_string());
     }
 
     #[test]
@@ -1362,75 +1278,143 @@ mod tests
     }
 
     #[test]
-    fn test_sys_is_empty()
+    fn test_pathext_is_empty()
     {
-        assert_eq!(sys::is_empty(""), true);
-        assert_eq!(sys::is_empty(Path::new("")), true);
-        assert_eq!(sys::is_empty("/"), false);
+        assert_eq!(Path::new("/").is_empty(), false);
+        assert_eq!(Path::new("").is_empty(), true);
+        assert_eq!(PathBuf::from("").is_empty(), true);
     }
 
     #[test]
-    fn test_sys_mash()
+    fn test_pathext_mash()
     {
         // mashing nothing should yield no change
-        assert_eq!(sys::mash("", ""), PathBuf::from(""));
-        assert_eq!(sys::mash("/foo", ""), PathBuf::from("/foo"));
+        assert_eq!(Path::new("").mash(""), PathBuf::from(""));
+        assert_eq!(Path::new("/foo").mash(""), PathBuf::from("/foo"));
 
         // strips off root on path
-        assert_eq!(sys::mash("/foo", "/bar"), PathBuf::from("/foo/bar"));
+        assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
 
         // strips off trailing slashes
-        assert_eq!(sys::mash("/foo", "bar/"), PathBuf::from("/foo/bar"));
+        assert_eq!(Path::new("/foo").mash("bar/"), PathBuf::from("/foo/bar"));
     }
 
     #[test]
-    fn test_sys_trim_first()
+    fn test_pathext_name()
     {
-        assert_eq!(sys::trim_first("/"), PathBuf::new(),);
-        assert_eq!(sys::trim_first("/foo"), PathBuf::from("foo"));
+        assert_eq!(Path::new("").name().unwrap_err().to_string(), IterError::item_not_found().to_string());
+        assert_eq!(Path::new("bar").name().unwrap(), "bar".to_string());
+        assert_eq!(Path::new("/foo/bar").name().unwrap(), "bar".to_string());
+        assert_eq!(Path::new("/foo/bar.bin").name().unwrap(), "bar".to_string());
     }
 
     #[test]
-    fn test_sys_trim_prefix()
+    fn test_pathext_relative()
+    {
+        // share same directory
+        assert_eq!(Path::new("bar1").relative("bar2").unwrap(), PathBuf::from("../bar1"));
+        assert_eq!(Path::new("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
+        assert_eq!(Path::new("~/foo/bar1").relative("~/foo/bar2").unwrap(), PathBuf::from("../bar1"));
+        assert_eq!(Path::new("../foo/bar1").relative("../foo/bar2").unwrap(), PathBuf::from("../bar1"));
+
+        // share parent directory
+        assert_eq!(Path::new("foo1/bar1").relative("foo2/bar2").unwrap(), PathBuf::from("../../foo1/bar1"));
+        assert_eq!(Path::new("/foo1/bar1").relative("/foo2/bar2").unwrap(), PathBuf::from("../../foo1/bar1"));
+
+        // share grandparent directory
+        assert_eq!(
+            Path::new("blah1/foo1/bar1").relative("blah2/foo2/bar2").unwrap(),
+            PathBuf::from("../../../blah1/foo1/bar1")
+        );
+        assert_eq!(
+            Path::new("/blah1/foo1/bar1").relative("/blah2/foo2/bar2").unwrap(),
+            PathBuf::from("../../../blah1/foo1/bar1")
+        );
+
+        // symlink is the opposite i.e. src.relative(dst)
+        assert_eq!(Path::new("/dir1").relative("/dir1/dir2").unwrap(), PathBuf::from(".."));
+    }
+
+    #[test]
+    fn test_pathext_trim_ext()
+    {
+        assert_eq!(Path::new("/").trim_ext().unwrap(), PathBuf::from("/"));
+        assert_eq!(Path::new("/foo").trim_ext().unwrap(), PathBuf::from("/foo"));
+        assert_eq!(Path::new("/foo.bar").trim_ext().unwrap(), PathBuf::from("/foo"));
+        assert_eq!(Path::new("/foo.bar.bar").trim_ext().unwrap(), PathBuf::from("/foo.bar"));
+    }
+
+    #[test]
+    fn test_pathext_trim_first()
+    {
+        assert_eq!(Path::new("/").trim_first(), PathBuf::from(""),);
+        assert_eq!(Path::new("foo/bar").trim_first(), PathBuf::from("bar"),);
+        assert_eq!(Path::new("/foo/bar").trim_first(), PathBuf::from("foo/bar"),);
+    }
+
+    #[test]
+    fn test_pathext_trim_last()
+    {
+        assert_eq!(Path::new("/").trim_last(), PathBuf::from(""),);
+        assert_eq!(Path::new("foo/bar").trim_last(), PathBuf::from("foo"),);
+        assert_eq!(Path::new("/foo/bar").trim_last(), PathBuf::from("/foo"),);
+    }
+
+    #[test]
+    fn test_pathext_trim_prefix()
     {
         // drop root
-        assert_eq!(sys::trim_prefix("/", "/"), PathBuf::new());
+        assert_eq!(Path::new("/").trim_prefix("/"), PathBuf::new());
 
         // drop start
-        assert_eq!(sys::trim_prefix("/foo/bar", "/foo"), PathBuf::from("/bar"));
+        assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
 
         // no change
-        assert_eq!(sys::trim_prefix("/", ""), PathBuf::from("/"));
-        assert_eq!(sys::trim_prefix("/foo", "blah"), PathBuf::from("/foo"));
+        assert_eq!(Path::new("/").trim_prefix(""), PathBuf::from("/"));
+        assert_eq!(Path::new("/foo").trim_prefix("blah"), PathBuf::from("/foo"));
     }
 
     #[test]
-    fn test_sys_trim_protocol()
+    fn test_pathext_trim_protocol()
     {
         // no change
-        assert_eq!(sys::trim_protocol("/foo"), PathBuf::from("/foo"));
+        assert_eq!(Path::new("/foo").trim_protocol(), PathBuf::from("/foo"));
 
         // file://
-        assert_eq!(sys::trim_protocol("file:///foo"), PathBuf::from("/foo"));
+        assert_eq!(Path::new("file:///foo").trim_protocol(), PathBuf::from("/foo"));
 
         // ftp://
-        assert_eq!(sys::trim_protocol("ftp://foo"), PathBuf::from("foo"));
+        assert_eq!(Path::new("ftp://foo").trim_protocol(), PathBuf::from("foo"));
 
         // http://
-        assert_eq!(sys::trim_protocol("http://foo"), PathBuf::from("foo"));
+        assert_eq!(Path::new("http://foo").trim_protocol(), PathBuf::from("foo"));
 
         // https://
-        assert_eq!(sys::trim_protocol("https://foo"), PathBuf::from("foo"));
+        assert_eq!(Path::new("https://foo").trim_protocol(), PathBuf::from("foo"));
 
         // Check case is being considered
-        assert_eq!(sys::trim_protocol("HTTPS://Foo"), PathBuf::from("Foo"));
-        assert_eq!(sys::trim_protocol("Https://Foo"), PathBuf::from("Foo"));
-        assert_eq!(sys::trim_protocol("HttpS://FoO"), PathBuf::from("FoO"));
+        assert_eq!(Path::new("HTTPS://Foo").trim_protocol(), PathBuf::from("Foo"));
+        assert_eq!(Path::new("Https://Foo").trim_protocol(), PathBuf::from("Foo"));
+        assert_eq!(Path::new("HttpS://FoO").trim_protocol(), PathBuf::from("FoO"));
 
         // Check non protocol matches are ignored
-        assert_eq!(sys::trim_protocol("foo"), PathBuf::from("foo"));
-        assert_eq!(sys::trim_protocol("foo/bar"), PathBuf::from("foo/bar"));
-        assert_eq!(sys::trim_protocol("foo//bar"), PathBuf::from("foo//bar"));
-        assert_eq!(sys::trim_protocol("ntp:://foo"), PathBuf::from("ntp:://foo"));
+        assert_eq!(Path::new("foo").trim_protocol(), PathBuf::from("foo"));
+        assert_eq!(Path::new("foo/bar").trim_protocol(), PathBuf::from("foo/bar"));
+        assert_eq!(Path::new("foo//bar").trim_protocol(), PathBuf::from("foo//bar"));
+        assert_eq!(Path::new("ntp:://foo").trim_protocol(), PathBuf::from("ntp:://foo"));
+    }
+
+    #[test]
+    fn test_pathext_trim_suffix()
+    {
+        // drop root
+        assert_eq!(Path::new("/").trim_suffix("/"), PathBuf::new());
+
+        // drop start
+        assert_eq!(Path::new("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
+
+        // no change
+        assert_eq!(Path::new("/").trim_suffix(""), PathBuf::from("/"));
+        assert_eq!(Path::new("/foo").trim_suffix("blah"), PathBuf::from("/foo"));
     }
 }

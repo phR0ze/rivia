@@ -37,7 +37,7 @@ pub(crate) const DEFAULT_MAX_DESCRIPTORS: u16 = 50;
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let vfs = Memfs::new().upcast();
+/// let vfs = Vfs::memfs();
 /// assert_vfs_mkdir_p!(vfs, "dir1");
 /// assert_vfs_mkfile!(vfs, "file1");
 /// assert_vfs_mkdir_p!(vfs, "dir2");
@@ -78,7 +78,7 @@ impl Entries
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new().upcast();
+    /// let vfs = Vfs::memfs();
     /// assert_vfs_mkdir_p!(vfs, "zdir");
     /// assert_vfs_mkfile!(vfs, "file");
     /// let mut iter = vfs.entries(vfs.root()).unwrap().dirs().into_iter();
@@ -101,7 +101,7 @@ impl Entries
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new().upcast();
+    /// let vfs = Vfs::memfs();
     /// assert_vfs_mkdir_p!(vfs, "dir");
     /// assert_vfs_mkfile!(vfs, "file");
     /// let mut iter = vfs.entries(vfs.root()).unwrap().files().into_iter();
@@ -124,7 +124,7 @@ impl Entries
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new().upcast();
+    /// let vfs = Vfs::memfs();
     /// let dir = vfs.root().mash("dir");
     /// let file = dir.mash("file");
     /// let link = vfs.root().mash("link");
@@ -155,7 +155,7 @@ impl Entries
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new().upcast();
+    /// let vfs = Vfs::memfs();
     /// let file = vfs.root().mash("file");
     /// assert_vfs_mkfile!(vfs, &file);
     /// let mut iter = vfs.entries(vfs.root()).unwrap().min_depth(1).into_iter();
@@ -184,7 +184,7 @@ impl Entries
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new().upcast();
+    /// let vfs = Vfs::memfs();
     /// let dir = vfs.root().mash("dir");
     /// let file = dir.mash("file");
     /// assert_vfs_mkdir_p!(vfs, &dir);
@@ -345,22 +345,24 @@ impl IntoIterator for Entries
 
 /// Iterator for traversing VFS filesystems.
 ///
-/// Use the VFS builder functions to construct an instance e.g. sys::entries or Stdfs::entries.
+/// Use the VFS builder functions to construct an instance e.g. vfs.entries or Stdfs::entries.
 ///
 /// ### Examples
 /// ```
 /// use rivia::prelude::*;
 ///
-/// let tmpdir = sys::abs("tests/temp/entries_doc_entriesiter").unwrap();
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
-/// let file1 = tmpdir.mash("file1");
-/// assert_eq!(sys::mkfile(&file1).unwrap(), file1);
-/// let mut iter = sys::entries(&tmpdir).unwrap().into_iter();
-/// assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-/// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+/// let vfs = Vfs::memfs();
+/// assert_vfs_mkdir_p!(vfs, "dir1");
+/// assert_vfs_mkfile!(vfs, "file1");
+/// assert_vfs_mkdir_p!(vfs, "dir2");
+/// assert_vfs_mkfile!(vfs, "dir2/file2");
+/// let mut iter = vfs.entries("/").unwrap().dirs_first().sort_by_name().into_iter();
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir1"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir2"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir2/file2"));
+/// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file1"));
 /// assert!(iter.next().is_none());
-/// assert!(sys::remove_all(tmpdir).is_ok());
 /// ```
 pub struct EntriesIter
 {
@@ -454,15 +456,16 @@ impl EntriesIter
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new().upcast();
-    /// assert_vfs_mkdir_p!(vfs, "dir1");
-    /// assert_vfs_mkfile!(vfs, "file1");
-    /// assert_vfs_mkdir_p!(vfs, "dir2");
-    /// assert_vfs_mkfile!(vfs, "dir2/file2");
-    /// let mut iter = vfs.entries("/").unwrap().into_iter().filter_p(|x| x.path().has_suffix("1"));
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/"));
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/dir1"));
-    /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file1"));
+    /// let vfs = Vfs::memfs();
+    /// let dir1 = vfs.root().mash("dir1");
+    /// let file1 = vfs.root().mash("file1");
+    /// let dir2 = vfs.root().mash("dir2");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// let mut iter = vfs.entries(vfs.root()).unwrap().sort_by_name().into_iter().filter_p(|x| x.path().has_suffix("1"));
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
+    /// assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
     /// assert!(iter.next().is_none());
     /// ```
     pub fn filter_p(mut self, predicate: impl FnMut(&VfsEntry) -> bool+'static) -> Self
