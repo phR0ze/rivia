@@ -178,8 +178,9 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
-    /// Open a Read + Seek handle to the indicated file
+    /// Attempts to open a file in readonly mode
     ///
+    /// * Provides a handle to a Read + Seek implementation
     /// * Handles path expansion and absolute path resolution
     ///
     /// ### Errors
@@ -621,8 +622,9 @@ impl FileSystem for Vfs
         }
     }
 
-    /// Open a Read + Seek handle to the indicated file
+    /// Attempts to open a file in readonly mode
     ///
+    /// * Provides a handle to a Read + Seek implementation
     /// * Handles path expansion and absolute path resolution
     ///
     /// ### Errors

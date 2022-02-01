@@ -412,8 +412,9 @@ impl Stdfs
         Ok(meta.permissions().mode())
     }
 
-    /// Open a Read + Seek handle to the indicated file
+    /// Attempts to open a file in readonly mode
     ///
+    /// * Provides a handle to a Read + Seek implementation
     /// * Handles path expansion and absolute path resolution
     ///
     /// ### Errors

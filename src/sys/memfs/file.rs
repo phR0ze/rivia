@@ -1,4 +1,10 @@
-use std::{cmp, io};
+use std::{
+    cmp, io,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
+
+use super::MemfsInner;
 
 /// `MemfsFile` is an implementation of memory based file in the memory filesytem.
 ///
@@ -9,8 +15,10 @@ use std::{cmp, io};
 #[derive(Debug, Default)]
 pub(crate) struct MemfsFile
 {
-    pub(crate) pos: u64,      // position in the memory file
-    pub(crate) data: Vec<u8>, // datastore for the memory file
+    pub(crate) pos: u64,                            // position in the memory file
+    pub(crate) data: Vec<u8>,                       // datastore for the memory file
+    pub(crate) path: Option<PathBuf>,               // optional path to write to
+    pub(crate) fs: Option<Arc<RwLock<MemfsInner>>>, // optional sharable filesystem for writes
 }
 
 impl MemfsFile
@@ -19,6 +27,30 @@ impl MemfsFile
     pub(crate) fn len(&self) -> u64
     {
         self.data.len() as u64 - self.pos
+    }
+
+    /// Attempt to write the data to the data store
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist(PathBuf) when the target entry or file don't exist
+    pub(crate) fn sync(&mut self) -> io::Result<()>
+    {
+        if let Some(ref fs) = self.fs {
+            if let Some(ref path) = self.path {
+                let mut guard = fs.write().unwrap();
+                if guard.fs.contains_key(path) {
+                    if let Some(f) = guard.data.get_mut(path) {
+                        f.data = self.data.clone();
+                    }
+                } else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        format!("Target doesn't exist: {}", path.display()),
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -29,6 +61,11 @@ impl Clone for MemfsFile
         Self {
             pos: self.pos,
             data: self.data.clone(),
+            path: self.path.clone(),
+            fs: match self.fs {
+                Some(ref fs) => Some(fs.clone()),
+                None => None,
+            },
         }
     }
 }
@@ -76,9 +113,19 @@ impl io::Write for MemfsFile
         self.data.write(buf)
     }
 
-    fn flush(&mut self) -> std::io::Result<()>
+    fn flush(&mut self) -> io::Result<()>
     {
-        self.data.flush()
+        self.sync()
+    }
+}
+
+// Use custom drop implementation to write data to the shared filesystem
+impl Drop for MemfsFile
+{
+    fn drop(&mut self)
+    {
+        let _result = self.sync();
+        self.data.clear();
     }
 }
 

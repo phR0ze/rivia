@@ -21,7 +21,7 @@ pub(crate) type MemfsEntries = HashMap<PathBuf, MemfsEntry>;
 
 /// Provides a Vfs backend implementation that is purely memory based and fully multi-thread safe
 #[derive(Debug)]
-pub struct Memfs(RwLock<MemfsInner>);
+pub struct Memfs(Arc<RwLock<MemfsInner>>);
 
 // Encapsulate the Memfs implementation for interior mutability and transparent multi-thread safety
 #[derive(Debug)]
@@ -45,12 +45,12 @@ impl Memfs
         let mut files = HashMap::new();
         files.insert(root.clone(), MemfsEntry::opts(root.clone()).new());
 
-        Self(RwLock::new(MemfsInner {
+        Self(Arc::new(RwLock::new(MemfsInner {
             cwd: root.clone(),
             root,
             fs: files,
             data: HashMap::new(),
-        }))
+        })))
     }
 
     /// Get a clone of the target entry
@@ -68,9 +68,37 @@ impl Memfs
         }
     }
 
+    /// Get a clone of the target file
+    ///
+    /// * Handles converting path to absolute form
+    /// * Returns a PathError::DoesNotExist(PathBuf) when this file doesn't exist
+    pub(crate) fn clone_file<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsFile>
+    {
+        let path = self.abs(path.as_ref())?;
+        let guard = self.0.read().unwrap();
+
+        // Validate target is a file
+        if let Some(f) = guard.fs.get(&path) {
+            if !f.is_file() {
+                return Err(PathError::is_not_file(&path).into());
+            }
+        }
+
+        // Clone the file if it exists
+        match guard.data.get(&path) {
+            Some(entry) => Ok(entry.clone()),
+            None => Err(PathError::does_not_exist(&path).into()),
+        }
+    }
+
     /// Create the given MemfsEntry if it doesn't already exist
     ///
     /// * Expects the entry's path to already be in absolute form
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
     pub(crate) fn add(&self, entry: MemfsEntry) -> RvResult<PathBuf>
     {
         let path = entry.path.clone();
@@ -109,6 +137,41 @@ impl Memfs
         }
 
         Ok(path)
+    }
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let file = memfs.root().mash("file");
+    /// memfs.write_all(&file, b"foobar 1").unwrap();
+    /// let mut file = memfs.open(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// ```
+    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        // Make all the pre-flight validation checks and ensure the file exists.
+        let path = self.abs(path)?;
+        self.add(MemfsEntry::opts(&path).file().new())?;
+
+        // Create an empty file to write to
+        Ok(Box::new(MemfsFile {
+            pos: 0,
+            data: vec![],
+            path: Some(path),
+            fs: Some(self.0.clone()),
+        }))
     }
 }
 
@@ -430,8 +493,9 @@ impl FileSystem for Memfs
         self.add(MemfsEntry::opts(self.abs(path)?).file().new())
     }
 
-    /// Open a Read + Seek handle to the indicated file
+    /// Attempts to open a file in readonly mode
     ///
+    /// * Provides a handle to a Read + Seek implementation
     /// * Handles path expansion and absolute path resolution
     ///
     /// ### Errors
@@ -452,21 +516,7 @@ impl FileSystem for Memfs
     /// ```
     fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
     {
-        let path = self.abs(path)?;
-        let guard = self.0.read().unwrap();
-
-        // Validate target is a file
-        if let Some(f) = guard.fs.get(&path) {
-            if !f.is_file() {
-                return Err(PathError::is_not_file(&path).into());
-            }
-        }
-
-        // Return a file clone or error
-        match guard.data.get(&path) {
-            Some(file) => Ok(Box::new(file.clone())),
-            None => Err(PathError::does_not_exist(&path).into()),
-        }
+        Ok(Box::new(self.clone_file(&path)?))
     }
 
     /// Read all data from the given file and return it as a String
@@ -727,19 +777,8 @@ impl FileSystem for Memfs
     /// ```
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
     {
-        let path = self.abs(path)?;
-
-        // Add the file if it doesn't exist
-        self.add(MemfsEntry::opts(&path).file().new())?;
-
-        // Write the data to a target file
-        let mut guard = self.0.write().unwrap();
-        if let Some(f) = guard.data.get_mut(&path) {
-            f.rewind()?;
-            f.write_all(data.as_ref())?;
-            f.flush()?;
-        }
-
+        let mut f = self.create(path)?;
+        f.write_all(data.as_ref())?;
         Ok(())
     }
 
@@ -823,6 +862,20 @@ mod tests
         memfs.mkdir_p("foo").unwrap();
         memfs.set_cwd("foo").unwrap();
         assert_eq!(memfs.cwd().unwrap(), memfs.root().mash("foo"));
+    }
+
+    #[test]
+    fn test_memfs_create()
+    {
+        let memfs = Memfs::new();
+        let file = memfs.root().mash("file");
+        let mut f = memfs.create(&file).unwrap();
+        f.write_all(b"foobar").unwrap();
+        f.flush().unwrap();
+        assert_eq!(memfs.read_all(&file).unwrap(), "foobar".to_string());
+        f.write_all(b"123").unwrap();
+        f.flush().unwrap();
+        assert_eq!(memfs.read_all(&file).unwrap(), "foobar123".to_string());
     }
 
     #[test]
