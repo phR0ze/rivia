@@ -1217,6 +1217,26 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_create()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        let result = vfs.create("").unwrap();
+        assert_eq!(result.to_string(), "".to_string());
+
+        // Doesn't exist
+        assert_eq!(vfs.exists(&file), false);
+
+        let mut f = vfs.create(&file).unwrap();
+        f.write_all(b"foobar").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_exists()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
