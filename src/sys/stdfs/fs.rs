@@ -101,12 +101,38 @@ impl Stdfs
     /// assert_eq!(file1.mode().unwrap(), 0o100644);
     /// assert!(file1.chmod(0o555).is_ok());
     /// assert_eq!(file1.mode().unwrap(), 0o100555);
-    /// //assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<()>
     {
         fs::set_permissions(path.as_ref(), fs::Permissions::from_mode(mode))?;
         Ok(())
+    }
+
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_create");
+    /// let file = tmpdir.mash("file");
+    /// let mut f = Stdfs::create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn create<T: AsRef<Path>>(path: T) -> RvResult<Box<dyn Write>>
+    {
+        Ok(Box::new(File::create(Stdfs::abs(path)?)?))
     }
 
     /// Returns the current working directory
@@ -165,7 +191,7 @@ impl Stdfs
     /// let mut iter = Stdfs::entries(&file1).unwrap().into_iter();
     /// assert_eq!(iter.next().unwrap().unwrap().path(), file1);
     /// assert!(iter.next().is_none());
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn entries<T: AsRef<Path>>(path: T) -> RvResult<Entries>
     {
@@ -227,7 +253,7 @@ impl Stdfs
     ///
     /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_is_dir");
     /// assert_eq!(Stdfs::is_dir(&tmpdir), true);
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn is_dir<T: AsRef<Path>>(path: T) -> bool
     {
@@ -251,7 +277,7 @@ impl Stdfs
     /// assert_eq!(Stdfs::is_file(&file1), false);
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
     /// assert_eq!(Stdfs::is_file(&file1), true);
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn is_file<T: AsRef<Path>>(path: T) -> bool
     {
@@ -293,7 +319,7 @@ impl Stdfs
     /// let dir1 = tmpdir.mash("dir1");
     /// assert!(Stdfs::mkdir_m(&dir1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&dir1).unwrap(), 0o40555);
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn mkdir_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf>
     {
@@ -330,7 +356,7 @@ impl Stdfs
     /// assert_eq!(Stdfs::exists(&dir1), false);
     /// assert!(Stdfs::mkdir_p(&dir1).is_ok());
     /// assert_eq!(Stdfs::exists(&dir1), true);
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn mkdir_p<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     {
@@ -365,7 +391,7 @@ impl Stdfs
     /// assert_eq!(Stdfs::is_file(&file1), false);
     /// assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
     /// assert_eq!(Stdfs::is_file(&file1), true);
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn mkfile<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     {
@@ -403,7 +429,7 @@ impl Stdfs
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::mkfile_m(&file1, 0o555).is_ok());
     /// assert_eq!(Stdfs::mode(&file1).unwrap(), 0o100555);
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn mode<T: AsRef<Path>>(path: T) -> RvResult<u32>
     {
@@ -467,7 +493,7 @@ impl Stdfs
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::write_all(&file1, "this is a test").is_ok());
     /// assert_eq!(Stdfs::read_all(&file1).unwrap(), "this is a test");
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn read_all<T: AsRef<Path>>(path: T) -> RvResult<String>
     {
@@ -502,7 +528,7 @@ impl Stdfs
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
     /// assert_eq!(&Stdfs::symlink(&link1, &file1).unwrap(), &link1);
     /// assert_eq!(Stdfs::readlink(&link1).unwrap(), PathBuf::from("file1"));
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn readlink<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
     {
@@ -523,7 +549,7 @@ impl Stdfs
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
     /// assert_eq!(&Stdfs::symlink(&link1, &file1).unwrap(), &link1);
     /// assert_eq!(Stdfs::readlink_abs(&link1).unwrap(), file1);
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn readlink_abs<T: AsRef<Path>>(link: T) -> RvResult<PathBuf>
     {
@@ -623,7 +649,7 @@ impl Stdfs
     /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
     /// assert_eq!(&Stdfs::symlink(&link1, &file1).unwrap(), &link1);
     /// assert_eq!(Stdfs::readlink(&link1).unwrap(), PathBuf::from("file1"));
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> RvResult<PathBuf>
     {
@@ -731,6 +757,32 @@ impl FileSystem for Stdfs
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         Stdfs::abs(path)
+    }
+
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_create");
+    /// let file = tmpdir.mash("file");
+    /// let mut f = vfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        Stdfs::create(path)
     }
 
     /// Returns the current working directory
@@ -939,7 +991,7 @@ impl FileSystem for Stdfs
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::write_all(&file1, "this is a test").is_ok());
     /// assert_eq!(Stdfs::read_all(&file1).unwrap(), "this is a test");
-    /// assert!(Stdfs::remove_all(&tmpdir).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
     {

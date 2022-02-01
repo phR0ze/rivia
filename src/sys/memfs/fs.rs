@@ -138,41 +138,6 @@ impl Memfs
 
         Ok(path)
     }
-    /// Opens a file in write-only mode
-    ///
-    /// * Creates a file if it does not exist or truncates it if it does
-    ///
-    /// ### Errors
-    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
-    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
-    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let memfs = Memfs::new();
-    /// let file = memfs.root().mash("file");
-    /// memfs.write_all(&file, b"foobar 1").unwrap();
-    /// let mut file = memfs.open(&file).unwrap();
-    /// let mut buf = String::new();
-    /// file.read_to_string(&mut buf);
-    /// assert_eq!(buf, "foobar 1".to_string());
-    /// ```
-    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
-    {
-        // Make all the pre-flight validation checks and ensure the file exists.
-        let path = self.abs(path)?;
-        self.add(MemfsEntry::opts(&path).file().new())?;
-
-        // Create an empty file to write to
-        Ok(Box::new(MemfsFile {
-            pos: 0,
-            data: vec![],
-            path: Some(path),
-            fs: Some(self.0.clone()),
-        }))
-    }
 }
 
 impl fmt::Display for Memfs
@@ -257,6 +222,41 @@ impl FileSystem for Memfs
         }
 
         Ok(path_buf)
+    }
+
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let file = memfs.root().mash("file");
+    /// let mut f = memfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// assert_eq!(memfs.read_all(&file).unwrap(), "foobar".to_string());
+    /// ```
+    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        // Make all the pre-flight validation checks and ensure the file exists.
+        let path = self.abs(path)?;
+        self.add(MemfsEntry::opts(&path).file().new())?;
+
+        // Create an empty file to write to
+        Ok(Box::new(MemfsFile {
+            pos: 0,
+            data: vec![],
+            path: Some(path),
+            fs: Some(self.0.clone()),
+        }))
     }
 
     /// Returns the current working directory

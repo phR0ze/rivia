@@ -1,5 +1,6 @@
 use std::{
     fmt::Debug,
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -40,6 +41,28 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// assert_eq!(vfs.abs("~").unwrap(), PathBuf::from(&home));
     /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
+
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let mut f = vfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+    /// ```
+    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>;
 
     /// Returns the current working directory
     ///
@@ -434,6 +457,34 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.abs(path),
             Vfs::Memfs(x) => x.abs(path),
+        }
+    }
+
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let mut f = vfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+    /// ```
+    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.create(path),
+            Vfs::Memfs(x) => x.create(path),
         }
     }
 
