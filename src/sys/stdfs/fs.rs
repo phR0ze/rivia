@@ -1223,16 +1223,22 @@ mod tests
         let file = tmpdir.mash("file");
 
         // abs fails
-        let result = vfs.create("").unwrap();
-        assert_eq!(result.to_string(), "".to_string());
+        if let Err(e) = vfs.create("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
 
-        // Doesn't exist
-        assert_eq!(vfs.exists(&file), false);
-
+        // Create a new file and check the data wrote to it
         let mut f = vfs.create(&file).unwrap();
         f.write_all(b"foobar").unwrap();
         f.flush().unwrap();
         assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+
+        // Overwrite the file
+        let mut f = vfs.create(&file).unwrap();
+        f.write_all(b"this is a test").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "this is a test".to_string());
+
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
 

@@ -867,15 +867,28 @@ mod tests
     #[test]
     fn test_memfs_create()
     {
-        let memfs = Memfs::new();
-        let file = memfs.root().mash("file");
-        let mut f = memfs.create(&file).unwrap();
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.create("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Create a new file and check the data wrote to it
+        let mut f = vfs.create(&file).unwrap();
         f.write_all(b"foobar").unwrap();
         f.flush().unwrap();
-        assert_eq!(memfs.read_all(&file).unwrap(), "foobar".to_string());
+        assert_vfs_read_all!(vfs, &file, "foobar".to_string());
         f.write_all(b"123").unwrap();
         f.flush().unwrap();
-        assert_eq!(memfs.read_all(&file).unwrap(), "foobar123".to_string());
+        assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
+
+        // Overwrite the file
+        let mut f = vfs.create(&file).unwrap();
+        f.write_all(b"this is a test").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "this is a test".to_string());
     }
 
     #[test]
