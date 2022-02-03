@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fmt,
-    io::{Read, Seek, Write},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Component, Path, PathBuf},
     sync::{Arc, RwLock},
 };
@@ -224,6 +224,49 @@ impl FileSystem for Memfs
         Ok(path_buf)
     }
 
+    /// Opens a file in append mode
+    ///
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let memfs = Memfs::new();
+    /// let file = memfs.root().mash("file");
+    /// let mut f = memfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// let mut f = memfs.append(&file).unwrap();
+    /// f.write_all(b"123").unwrap();
+    /// f.flush().unwrap();
+    /// assert_eq!(memfs.read_all(&file).unwrap(), "foobar123".to_string());
+    /// ```
+    fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        // Make all the pre-flight validation checks and ensure the file exists.
+        let path = self.abs(path)?;
+        self.add(MemfsEntry::opts(&path).file().new())?;
+
+        let guard = self.0.read().unwrap();
+        if let Some(file) = guard.data.get(&path) {
+            // Clone the file to append to
+            let mut clone = file.clone();
+            clone.path = Some(path.clone());
+            clone.fs = Some(self.0.clone());
+
+            // Seek to the end for appending
+            clone.seek(SeekFrom::End(0))?;
+            Ok(Box::new(clone))
+        } else {
+            return Err(PathError::does_not_exist(path).into());
+        }
+    }
     /// Opens a file in write-only mode
     ///
     /// * Creates a file if it does not exist or truncates it if it does
@@ -852,6 +895,33 @@ mod tests
 
         // absolute path doesn't exist
         assert_eq!(memfs.abs("").unwrap_err().to_string(), PathError::Empty.to_string());
+    }
+
+    #[test]
+    fn test_memfs_append()
+    {
+        let vfs = Memfs::new();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file and check the data wrote to it
+        let mut f = vfs.append(&file).unwrap();
+        f.write_all(b"foobar").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+        f.write_all(b"123").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
+
+        // Append to the file in another trasaction
+        let mut f = vfs.append(&file).unwrap();
+        f.write_all(b" this is a test").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "foobar123 this is a test".to_string());
     }
 
     #[test]

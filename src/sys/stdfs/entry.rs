@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     errors::*,
-    sys::{self, Entry, PathExt, Stdfs, VfsEntry},
+    sys::{Entry, PathExt, Stdfs, VfsEntry},
     trying,
 };
 

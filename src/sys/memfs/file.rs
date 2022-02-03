@@ -124,8 +124,13 @@ impl Drop for MemfsFile
 {
     fn drop(&mut self)
     {
+        // Sync data to storage
         let _result = self.sync();
+
+        // Clear out references
         self.data.clear();
+        self.path = None;
+        self.fs = None;
     }
 }
 

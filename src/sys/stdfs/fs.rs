@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, File},
+    fs::{self, File, OpenOptions},
     io::Write,
     os::unix::{self, fs::PermissionsExt},
     path::{Component, Path, PathBuf},
@@ -86,6 +86,38 @@ impl Stdfs
         }
 
         Ok(path_buf)
+    }
+
+    /// Opens a file in append mode
+    ///
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_append");
+    /// let file = tmpdir.mash("file");
+    /// let mut f = Stdfs::create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// let mut f = Stdfs::append(&file).unwrap();
+    /// f.write_all(b"123").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn append<T: AsRef<Path>>(path: T) -> RvResult<Box<dyn Write>>
+    {
+        // Ensure the file exists as the std functions don't do that
+        Stdfs::mkfile(&path)?;
+
+        Ok(Box::new(OpenOptions::new().write(true).append(true).open(Stdfs::abs(path)?)?))
     }
 
     /// Set the given mode for the `Path`
@@ -759,6 +791,35 @@ impl FileSystem for Stdfs
         Stdfs::abs(path)
     }
 
+    /// Opens a file in append mode
+    ///
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_append");
+    /// let file = tmpdir.mash("file");
+    /// let mut f = vfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// let mut f = vfs.append(&file).unwrap();
+    /// f.write_all(b"123").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        Stdfs::append(path)
+    }
+
     /// Opens a file in write-only mode
     ///
     /// * Creates a file if it does not exist or truncates it if it does
@@ -1214,6 +1275,35 @@ mod tests
 
         // absolute path doesn't exist
         assert_eq!(Stdfs::abs("").unwrap_err().to_string(), PathError::Empty.to_string());
+    }
+
+    #[test]
+    fn test_stdfs_append()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file and check the data wrote to it
+        let mut f = vfs.append(&file).unwrap();
+        f.write_all(b"foobar").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "foobar".to_string());
+        f.write_all(b"123").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
+
+        // Append to the file in another trasaction
+        let mut f = vfs.append(&file).unwrap();
+        f.write_all(b" this is a test").unwrap();
+        f.flush().unwrap();
+        assert_vfs_read_all!(vfs, &file, "foobar123 this is a test".to_string());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]

@@ -42,6 +42,31 @@ pub trait FileSystem: Debug+Send+Sync+'static
     /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
+    /// Opens a file in append mode
+    ///
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let mut f = vfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// let mut f = vfs.append(&file).unwrap();
+    /// f.write_all(b"123").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
+    /// ```
+    fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>;
+
     /// Opens a file in write-only mode
     ///
     /// * Creates a file if it does not exist or truncates it if it does
@@ -457,6 +482,37 @@ impl FileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.abs(path),
             Vfs::Memfs(x) => x.abs(path),
+        }
+    }
+
+    /// Opens a file in append mode
+    ///
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let mut f = vfs.create(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// let mut f = vfs.append(&file).unwrap();
+    /// f.write_all(b"123").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
+    /// ```
+    fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.append(path),
+            Vfs::Memfs(x) => x.append(path),
         }
     }
 

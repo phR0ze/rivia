@@ -25,7 +25,6 @@ fn main()
 fn vfs_test(vfs: &Vfs) -> RvResult<()>
 {
     let dir1 = vfs.mkdir_p(testing::TEST_TEMP_DIR)?;
-    let file1 = vfs.mkfile(dir1.mash("file1"))?;
 
     for entry in vfs.entries(dir1)?.into_iter() {
         println!("{}", entry?.path().display());
