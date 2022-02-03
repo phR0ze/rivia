@@ -162,8 +162,8 @@ mod tests
         {
             function_fqn!()
         }
-        assert_eq!(function_fqn!(), "rivia::exts::tests::test_function_fqn_macro");
-        assert_eq!(indirect_fqn(), "rivia::exts::tests::test_function_fqn_macro::indirect_fqn");
+        assert_eq!(function_fqn!(), "rivia::core::tests::test_function_fqn_macro");
+        assert_eq!(indirect_fqn(), "rivia::core::tests::test_function_fqn_macro::indirect_fqn");
     }
 
     #[test]

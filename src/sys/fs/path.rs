@@ -1,7 +1,7 @@
 // WARNING: Only those functions that are filesystem agnostic should be included here.
 use std::path::{self, Component, Path, PathBuf};
 
-use crate::{errors::*, exts::*};
+use crate::{core::*, errors::*};
 
 /// Returns the final component of the given `path` if there is one
 ///
@@ -525,7 +525,7 @@ pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBu
     }
 }
 
-/// Provides additional pathing extension functions for [`Path`] and [`PathBuf`]
+/// Defines additional pathing extension functions for [`Path`] and [`PathBuf`]
 pub trait PathExt
 {
     /// Simply a wrapper for `file_name` to return the final component of the `Path`, if there is

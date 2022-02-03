@@ -1,7 +1,7 @@
 mod entry;
 mod file;
-mod fs;
+mod vfs;
 
 pub use entry::*;
-pub use file::*;
-pub use fs::*;
+use file::*;
+pub use vfs::*;

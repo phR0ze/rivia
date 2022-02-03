@@ -11,7 +11,7 @@ use crate::{
     trying,
 };
 
-/// # StdfsEntry provides a virtual filesystem backend implementation for a Stdfs Entry.
+/// Provides a Vfs backend [`Entry`] implementation for Stdfs
 ///
 /// ## Features
 /// * Caching of filesystem properties for cheap access

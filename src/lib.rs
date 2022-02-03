@@ -1,16 +1,17 @@
-//! Provides essential macros and extensions to fill in gaps in Rust ergonomics and reduce the
-//! amount of boiler plate code required for common tasks. The intent is to provide this while
-//! keeping dependencies to a minimum.
+//! Provides a unified, simplified systems api including essential macros and extensions to fill in
+//! gaps in Rust ergonomics and reduce the amount of boiler plate code required for common tasks.
+//! The intent is to provide this while keeping dependencies to a minimum.
 //!
-//! ## Provides
+//! ## Virtual FileSystem (VFS)
 //!
-//! ### Virtual FileSystem (VFS)
+//! ### Switching out VFS backends
 //! Using the power of Rust enums we can create a simple virtual file system with multiple backend
 //! implementations that can easily be switched out at compile time for testing purposes with
-//! almost zero additional overhead. By passing in a vfs reference to functions needing to
-//! manipulate the filesystem you can easily change the backing implementation. For those wishing
-//! for a truely seamless experience see the `rivia-vfs` crate for a global singleton that can be
-//! dynamically updated at runtime thus avoiding passing a vfs reference around.
+//! almost zero additional overhead by simply passing in a vfs reference to functions needing to
+//! manipulate the filesystem. For those wishing for a truely seamless experience see the
+//! `rivia-vfs` crate for a global singleton that can be dynamically updated at runtime thus
+//! avoiding passing a vfs reference around.
+//!
 //! ```
 //! use rivia::prelude::*;
 //!
@@ -48,7 +49,7 @@
 #[macro_use]
 pub mod testing;
 #[macro_use]
-pub mod exts;
+pub mod core;
 
 pub mod errors;
 pub mod sys;
@@ -77,11 +78,11 @@ pub mod prelude
     };
     // Export internal types
     pub use crate::{
+        core::*,
         errors::*,
-        exts::*,
         sys::{
-            self, EntriesIter, Entry, FileSystem, Memfs, MemfsEntry, PathExt, ReadSeek, Stdfs, StdfsEntry, Vfs,
-            VfsEntry,
+            self, EntriesIter, Entry, Memfs, MemfsEntry, PathExt, ReadSeek, Stdfs, StdfsEntry, Vfs, VfsEntry,
+            VirtualFileSystem,
         },
         testing,
     };

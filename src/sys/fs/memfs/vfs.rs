@@ -10,16 +10,16 @@ use itertools::Itertools;
 
 use super::{MemfsEntry, MemfsEntryIter, MemfsFile};
 use crate::{
+    core::*,
     errors::*,
-    exts::*,
-    sys::{self, Entries, Entry, EntryIter, FileSystem, PathExt, ReadSeek, Vfs},
+    sys::{self, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VirtualFileSystem},
 };
 
 // Helper aliases
 pub(crate) type MemfsFiles = HashMap<PathBuf, MemfsFile>;
 pub(crate) type MemfsEntries = HashMap<PathBuf, MemfsEntry>;
 
-/// Provides a Vfs backend implementation that is purely memory based and fully multi-thread safe
+/// Provides a purely memory based, multi-thread safe [`VirtualFileSystem`] backend implementation
 #[derive(Debug)]
 pub struct Memfs(Arc<RwLock<MemfsInner>>);
 
@@ -163,7 +163,7 @@ impl fmt::Display for Memfs
     }
 }
 
-impl FileSystem for Memfs
+impl VirtualFileSystem for Memfs
 {
     /// Return the path in an absolute clean form
     ///

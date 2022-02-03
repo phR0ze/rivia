@@ -10,7 +10,8 @@ use crate::{
     sys::{MemfsEntry, StdfsEntry},
 };
 
-/// Entry provides a trait for a virtual filesystem item
+/// Defines a virtual file system entry that can be used generically across all Vfs provider
+/// backends
 ///
 /// * [`StdfsEntry`] and [`MemfsEntry`] provide the fundamental implementations
 ///
@@ -170,7 +171,7 @@ pub trait Entry: Debug+Send+Sync+'static
     fn upcast(self) -> VfsEntry;
 }
 
-/// Entry enum wrapper provides easy access to the underlying entry type
+/// Provides an ergonomic encapsulation of the underlying Vfs [`Entry`] backend implementations
 #[derive(Debug)]
 pub enum VfsEntry
 {

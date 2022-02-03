@@ -72,7 +72,7 @@ impl MemfsEntryOpts
     }
 }
 
-/// MemfsEntry is an implementation of a single entry in a virtual filesystem.
+/// Provides a Vfs backend [`Entry`] implementation for Memfs
 ///
 /// ### Example
 /// ```

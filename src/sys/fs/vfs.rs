@@ -9,7 +9,7 @@ use crate::{
     sys::{Entries, Memfs, Stdfs},
 };
 
-/// Provides a combination of Read + Seek traits
+/// Defines a combination of the Read + Seek traits
 pub trait ReadSeek: std::io::Read+std::io::Seek
 {
 }
@@ -17,11 +17,8 @@ pub trait ReadSeek: std::io::Read+std::io::Seek
 // Blanket implementation for any type that implements Read + Seek
 impl<T> ReadSeek for T where T: std::io::Read+std::io::Seek {}
 
-/// FileSystem provides a set of functions that are implemented by various backend filesystem
-/// providers. For example [`Stdfs`] implements a pass through to the sRust std::fs library that
-/// operates against disk as per usual and [`Memfs`] is an in memory implementation providing the
-/// same functionality only purely in memory.
-pub trait FileSystem: Debug+Send+Sync+'static
+/// Defines a virtual file system that can be implemented by various backed providers
+pub trait VirtualFileSystem: Debug+Send+Sync+'static
 {
     /// Return the path in an absolute clean form
     ///
@@ -419,7 +416,8 @@ pub trait FileSystem: Debug+Send+Sync+'static
     fn upcast(self) -> Vfs;
 }
 
-/// Vfs enum wrapper provides easy access to the underlying filesystem type
+/// Provides an ergonomic encapsulation of the underlying [`VirtualFileSystem`] backend
+/// implementations
 #[derive(Debug)]
 pub enum Vfs
 {
@@ -458,7 +456,7 @@ impl Vfs
     }
 }
 
-impl FileSystem for Vfs
+impl VirtualFileSystem for Vfs
 {
     /// Return the path in an absolute clean form
     ///

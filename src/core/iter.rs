@@ -278,8 +278,8 @@ mod tests
     use std::ffi::OsStr;
     use std::path::{Component, PathBuf};
 
+    use crate::core::*;
     use crate::errors::*;
-    use crate::exts::*;
 
     #[test]
     fn test_slice()

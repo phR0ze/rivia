@@ -8,7 +8,7 @@ use crate::{
 
 pub(crate) const DEFAULT_MAX_DESCRIPTORS: u16 = 50;
 
-/// Provides a builder pattern for constructing iterators for travsersing VFS filesystems
+/// Provides a builder pattern for constructing iterators for travsersing a virtual file system
 ///
 /// * Support for Rivia VFS
 /// * Recursive directory traversal with depth control
@@ -343,7 +343,7 @@ impl IntoIterator for Entries
     }
 }
 
-/// Iterator for traversing VFS filesystems.
+/// Actual underlying iterator for traversing a virtual file system
 ///
 /// Use the VFS builder functions to construct an instance e.g. vfs.entries or Stdfs::entries.
 ///

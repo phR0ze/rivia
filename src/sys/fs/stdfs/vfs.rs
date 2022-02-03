@@ -11,15 +11,14 @@ use nix::sys::{
     time::TimeSpec,
 };
 
-use super::StdfsEntryIter;
+use super::{StdfsEntry, StdfsEntryIter};
 use crate::{
+    core::*,
     errors::*,
-    exts::*,
-    sys::{self, Entries, Entry, EntryIter, FileSystem, PathExt, ReadSeek, StdfsEntry, Vfs},
+    sys::{self, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VirtualFileSystem},
 };
 
-/// `Stdfs` is a Vfs backend implementation that wraps the standard library `std::fs`
-/// functions for use with Vfs.
+/// Provides a wrapper around the `std::fs` module as a [`VirtualFileSystem`] backend implementation
 #[derive(Debug)]
 pub struct Stdfs;
 impl Stdfs
@@ -767,7 +766,7 @@ impl Stdfs
     }
 }
 
-impl FileSystem for Stdfs
+impl VirtualFileSystem for Stdfs
 {
     /// Return the path in an absolute clean form
     ///
