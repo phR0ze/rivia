@@ -35,8 +35,15 @@ use crate::{
 /// calls out the permission to subtracet, add or assign. Finally the pattern can be repeated by
 /// separating repetitions with a comma.
 ///
-/// ```no_run
+/// ```
 /// use rivia::prelude::*;
+///
+/// let vfs = Memfs::new();
+/// let file = vfs.root().mash("file");
+/// assert_vfs_mkfile!(vfs, &file);
+/// assert_eq!(vfs.is_exec(&file), false);
+/// assert!(vfs.chmod_b(&file).unwrap().sym("f:a+x").exec().is_ok());
+/// assert_eq!(vfs.is_exec(&file), true);
 /// ```
 pub struct Chmod
 {
@@ -67,6 +74,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
     /// ```
     pub fn all(mut self, mode: u32) -> Self
     {
@@ -84,6 +100,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().recurse().dirs(0o755).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
     /// ```
     pub fn dirs(mut self, mode: u32) -> Self
     {
@@ -100,6 +125,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().recurse().files(0o600).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
     pub fn files(mut self, mode: u32) -> Self
     {
@@ -114,6 +148,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert!(vfs.chmod_b(&link).unwrap().follow().files(0o600).exec().is_ok());
+    /// assert_eq!(vfs.mode(&link).unwrap(), 0o120777);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
     pub fn follow(mut self) -> Self
     {
@@ -126,6 +169,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().readonly().exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100444);
     /// ```
     pub fn readonly(mut self) -> Self
     {
@@ -140,6 +192,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
     /// ```
     pub fn recurse(mut self) -> Self
     {
@@ -154,6 +215,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().no_recurse().all(0o777).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
     /// ```
     pub fn no_recurse(mut self) -> Self
     {
@@ -166,6 +236,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().secure().exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40700);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
     pub fn secure(mut self) -> Self
     {
@@ -189,6 +268,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().sym("a:go-rwx").exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40700);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
     pub fn sym(mut self, symbolic: &str) -> Self
     {
@@ -202,6 +290,15 @@ impl Chmod
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.chmod_b(&dir).unwrap().sym("a:go-rwx").exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40700);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
     pub fn exec(&self) -> RvResult<()>
     {
@@ -569,8 +666,8 @@ mod tests
     #[test]
     fn test_vfs_chmod_symbolic()
     {
-        let memfs_dir = |m: u32| -> VfsEntry { MemfsEntry::opts(PathBuf::new()).mode(m).new().upcast() };
-        let memfs_file = |m: u32| -> VfsEntry { MemfsEntry::opts(PathBuf::new()).file().mode(m).new().upcast() };
+        let memfs_dir = |m: u32| -> VfsEntry { MemfsEntry::opts(PathBuf::new())._mode(m).new().upcast() };
+        let memfs_file = |m: u32| -> VfsEntry { MemfsEntry::opts(PathBuf::new()).file()._mode(m).new().upcast() };
         test_chmod_symbolic(Box::new(memfs_dir), Box::new(memfs_file));
 
         let stdfs_dir = |m: u32| -> VfsEntry {

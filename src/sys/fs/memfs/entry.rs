@@ -69,7 +69,7 @@ impl MemfsEntryOpts
     }
 
     // no safty checks only useful for testing
-    pub(crate) fn mode(mut self, mode: u32) -> Self
+    pub(crate) fn _mode(mut self, mode: u32) -> Self
     {
         self.mode = mode;
         self
