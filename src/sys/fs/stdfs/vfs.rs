@@ -15,7 +15,7 @@ use super::{StdfsEntry, StdfsEntryIter};
 use crate::{
     core::*,
     errors::*,
-    sys::{self, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VirtualFileSystem},
+    sys::{self, Chmod, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VirtualFileSystem},
 };
 
 /// Provides a wrapper around the `std::fs` module as a [`VirtualFileSystem`] backend implementation
@@ -89,6 +89,7 @@ impl Stdfs
 
     /// Opens a file in append mode
     ///
+    /// * Handles path expansion and absolute path resolution
     /// * Creates a file if it does not exist or appends to it if it does
     ///
     /// ### Errors
@@ -119,24 +120,122 @@ impl Stdfs
         Ok(Box::new(OpenOptions::new().write(true).append(true).open(Stdfs::abs(path)?)?))
     }
 
-    /// Set the given mode for the `Path`
+    /// Change all file/dir permissions recursivly to `mode`
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Doesn't follow links by default, use the builder `chomd_b` for this option
+    ///
+    /// ### Errors
+    /// * PathError::Empty when the given path is empty
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use rivia::prelude::*;
     ///
     /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chmod");
-    /// let file1 = tmpdir.mash("file1");
-    /// assert_vfs_mkfile!(vfs, &file1);
-    /// assert!(file1.chmod(0o644).is_ok());
-    /// assert_eq!(file1.mode().unwrap(), 0o100644);
-    /// assert!(file1.chmod(0o555).is_ok());
-    /// assert_eq!(file1.mode().unwrap(), 0o100555);
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(Stdfs::mode(&file).unwrap(), 0o100644);
+    /// assert!(Stdfs::chmod(&file, 0o555).is_ok());
+    /// assert_eq!(Stdfs::mode(&file).unwrap(), 0o100555);
     /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<()>
     {
-        fs::set_permissions(path.as_ref(), fs::Permissions::from_mode(mode))?;
+        Stdfs::chmod_b(path)?.all(mode).exec()
+    }
+
+    /// Returns a new [`Chmod`] builder for advanced chmod options
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Errors
+    /// * PathError::Empty when the given path is empty
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chmod_b");
+    /// let dir = tmpdir.mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(Stdfs::mode(&dir).unwrap(), 0o40755);
+    /// assert_eq!(Stdfs::mode(&file).unwrap(), 0o100644);
+    /// assert!(Stdfs::chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
+    /// assert_eq!(Stdfs::mode(&dir).unwrap(), 0o40777);
+    /// assert_eq!(Stdfs::mode(&file).unwrap(), 0o100777);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn chmod_b<T: AsRef<Path>>(path: T) -> RvResult<Chmod>
+    {
+        Ok(Chmod {
+            mode: Mode {
+                path: Stdfs::abs(path)?,
+                dirs: 0,
+                files: 0,
+                follow: false,
+                recursive: true,
+                sym: "".to_string(),
+            },
+            exec: Box::new(Stdfs::_chmod),
+        })
+    }
+
+    // Execute chmod with the given [`Mode`] options
+    fn _chmod(mode: Mode) -> RvResult<()>
+    {
+        // Using `contents_first` to yield directories last so that revoking permissions happen to
+        // directories as the last thing when completing the traversal, else we'll lock
+        // ourselves out.
+        let mut entries = Stdfs::entries(&mode.path)?.contents_first();
+
+        // Set the `max_depth` based on recursion
+        entries = entries.max_depth(match mode.recursive {
+            true => std::usize::MAX,
+            false => 0,
+        });
+
+        // Set `follow` as directed
+        if mode.follow {
+            entries = entries.follow();
+        }
+
+        // Using `dirs_first` and `pre_op` options here to grant addative permissions as a
+        // pre-traversal operation to allow for the possible addition of permissions that would allow
+        // directory traversal that otherwise wouldn't be allowed.
+        let m = mode.clone();
+        entries = entries.dirs_first().pre_op(move |x| {
+            let m1 = sys::mode(x, m.dirs, &m.sym)?;
+            if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
+                fs::set_permissions(x.path(), fs::Permissions::from_mode(m1))?;
+            }
+            Ok(())
+        });
+
+        // Set permissions on the way out for everything specified
+        for entry in entries {
+            let src = entry?;
+
+            // Compute mode based on octal and symbolic values
+            let m2 = if src.is_dir() {
+                sys::mode(&src, mode.dirs, &mode.sym)?
+            } else if src.is_file() {
+                sys::mode(&src, mode.files, &mode.sym)?
+            } else {
+                0
+            };
+
+            // Apply permission to entry if set
+            if (!src.is_symlink() || mode.follow) && m2 != src.mode() && m2 != 0 {
+                fs::set_permissions(src.path(), fs::Permissions::from_mode(m2))?;
+            }
+        }
+
         Ok(())
     }
 
@@ -273,6 +372,33 @@ impl Stdfs
         }
     }
 
+    /// Returns true if the given path exists and is readonly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_is_exec");
+    /// let file = tmpdir.mash("file");
+    /// assert!(Stdfs::mkfile_m(&file, 0o644).is_ok());
+    /// assert_eq!(Stdfs::is_exec(&file), false);
+    /// assert!(Stdfs::chmod(&file, 0o777).is_ok());
+    /// assert_eq!(Stdfs::is_exec(&file), true);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn is_exec<T: AsRef<Path>>(path: T) -> bool
+    {
+        match Stdfs::abs(path) {
+            Ok(x) => match fs::metadata(x) {
+                Ok(y) => y.permissions().mode() & 0o111 != 0,
+                Err(_) => false,
+            },
+            Err(_) => false,
+        }
+    }
+
     /// Returns true if the given path exists and is a directory
     ///
     /// * Handles path expansion and absolute path resolution
@@ -318,6 +444,34 @@ impl Stdfs
         }
     }
 
+    /// Returns true if the given path exists and is readonly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Example
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_is_readonly");
+    /// let file = tmpdir.mash("file1");
+    /// assert!(Stdfs::mkfile_m(&file, 0o644).is_ok());
+    /// assert_eq!(Stdfs::is_readonly(&file), false);
+    /// assert!(Stdfs::chmod_b(&file).unwrap().readonly().exec().is_ok());
+    /// assert_eq!(Stdfs::mode(&file).unwrap(), 0o100444);
+    /// assert_eq!(Stdfs::is_readonly(&file), true);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn is_readonly<T: AsRef<Path>>(path: T) -> bool
+    {
+        match Stdfs::abs(path) {
+            Ok(x) => match fs::metadata(x) {
+                Ok(y) => y.permissions().readonly(),
+                Err(_) => false,
+            },
+            Err(_) => false,
+        }
+    }
+
     /// Returns true if the given path exists and is a symlink
     ///
     /// * Handles path expansion and absolute path resolution
@@ -340,7 +494,7 @@ impl Stdfs
         }
     }
 
-    /// Wraps `mkdir` allowing for setting the directory's mode.
+    /// Creates the given directory and any parent directories needed with the given mode
     ///
     /// ### Examples
     /// ```
@@ -450,10 +604,29 @@ impl Stdfs
         Ok(path)
     }
 
+    /// Wraps `mkfile` allowing for setting the file's mode
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mkfile_m");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert!(Stdfs::mkfile_m(&file1, 0o555).is_ok());
+    /// assert_eq!(Stdfs::mode(&file1).unwrap(), 0o100555);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn mkfile_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf>
+    {
+        let path = Stdfs::mkfile(path)?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(mode))?;
+        Ok(path)
+    }
+
     /// Returns the permissions for a file
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use rivia::prelude::*;
     ///
     /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_mode");
@@ -716,9 +889,8 @@ impl Stdfs
 
     /// Write the given data to to the target file
     ///
+    /// * Handles path expansion and absolute path resolution
     /// * Create the file first if it doesn't exist or truncating it first if it does
-    /// * `path` - target file to create or overwrite
-    /// * `data` - data to write to the target file
     ///
     /// ### Errors
     /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
@@ -792,6 +964,7 @@ impl VirtualFileSystem for Stdfs
 
     /// Opens a file in append mode
     ///
+    /// * Handles path expansion and absolute path resolution
     /// * Creates a file if it does not exist or appends to it if it does
     ///
     /// ### Errors
@@ -817,6 +990,62 @@ impl VirtualFileSystem for Stdfs
     fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
     {
         Stdfs::append(path)
+    }
+
+    /// Change all file/dir permissions recursivly to `mode`
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Doesn't follow links by default, use the builder `chomd_b` for this option
+    ///
+    /// ### Errors
+    /// * PathError::Empty when the given path is empty
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_chmod");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+    /// assert!(vfs.chmod(&file, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn chmod<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<()>
+    {
+        Stdfs::chmod(path, mode)
+    }
+
+    /// Returns a new [`Chmod`] builder for advanced chmod options
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Errors
+    /// * PathError::Empty when the given path is empty
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_chmod_b");
+    /// let dir = tmpdir.mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+    /// assert!(vfs.chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod>
+    {
+        Stdfs::chmod_b(path)
     }
 
     /// Opens a file in write-only mode
@@ -900,6 +1129,27 @@ impl VirtualFileSystem for Stdfs
         Stdfs::exists(path)
     }
 
+    /// Returns true if the given path exists and is readonly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_is_exec");
+    /// let file = tmpdir.mash("file");
+    /// assert!(Stdfs::mkfile_m(&file, 0o644).is_ok());
+    /// assert_eq!(Stdfs::is_exec(&file), false);
+    /// assert!(Stdfs::chmod(&file, 0o777).is_ok());
+    /// assert_eq!(Stdfs::is_exec(&file), true);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn is_exec<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::is_exec(path)
+    }
+
     /// Returns true if the given path exists and is a directory
     ///
     /// * Handles path expansion and absolute path resolution
@@ -940,6 +1190,28 @@ impl VirtualFileSystem for Stdfs
         Stdfs::is_file(path)
     }
 
+    /// Returns true if the given path exists and is readonly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Example
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_is_readonly");
+    /// let file = tmpdir.mash("file1");
+    /// assert!(Stdfs::mkfile_m(&file, 0o644).is_ok());
+    /// assert_eq!(Stdfs::is_readonly(&file), false);
+    /// assert!(Stdfs::chmod_b(&file).unwrap().readonly().exec().is_ok());
+    /// assert_eq!(Stdfs::mode(&file).unwrap(), 0o100444);
+    /// assert_eq!(Stdfs::is_readonly(&file), true);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn is_readonly<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        Stdfs::is_readonly(path)
+    }
+
     /// Returns true if the given path exists and is a symlink
     ///
     /// * Handles path expansion and absolute path resolution
@@ -957,6 +1229,47 @@ impl VirtualFileSystem for Stdfs
     fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool
     {
         Stdfs::is_symlink(path)
+    }
+
+    /// Creates the given directory and any parent directories needed with the given mode
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_mkdir_m");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// assert!(vfs.mkdir_m(&dir1, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&dir1).unwrap(), 0o40555);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn mkdir_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
+    {
+        Stdfs::mkdir_m(path, mode)
+    }
+
+    /// Creates the given directory and any parent directories needed
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// # Errors
+    /// * io::Error if its unable to create the directory
+    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_mkdir_p");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// assert_vfs_no_dir!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_is_dir!(vfs, &dir1);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        Stdfs::mkdir_p(path)
     }
 
     /// Create an empty file similar to the linux touch command
@@ -985,28 +1298,38 @@ impl VirtualFileSystem for Stdfs
         Stdfs::mkfile(path)
     }
 
-    /// Creates the given directory and any parent directories needed
-    ///
-    /// * Handles path expansion and absolute path resolution
-    ///
-    /// # Errors
-    /// * io::Error if its unable to create the directory
-    /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
+    /// Wraps `mkfile` allowing for setting the file's mode
     ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_mkdir_p");
-    /// let dir1 = tmpdir.mash("dir1");
-    /// assert_vfs_no_dir!(vfs, &dir1);
-    /// assert_vfs_mkdir_p!(vfs, &dir1);
-    /// assert_vfs_is_dir!(vfs, &dir1);
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_mkfile_m");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert!(vfs.mkfile_m(&file1, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&file1).unwrap(), 0o100555);
     /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
-    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    fn mkfile_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
     {
-        Stdfs::mkdir_p(path)
+        Stdfs::mkfile_m(path, mode)
+    }
+
+    /// Returns the permissions for a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_mode");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert!(Stdfs::mkfile_m(&file1, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&file1).unwrap(), 0o100555);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn mode<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        Stdfs::mode(path)
     }
 
     /// Open a Read + Seek handle to the indicated file
@@ -1183,9 +1506,8 @@ impl VirtualFileSystem for Stdfs
 
     /// Write the given data to to the target file
     ///
+    /// * Handles path expansion and absolute path resolution
     /// * Create the file first if it doesn't exist or truncating it first if it does
-    /// * `path` - target file to create or overwrite
-    /// * `data` - data to write to the target file
     ///
     /// ### Errors
     /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory

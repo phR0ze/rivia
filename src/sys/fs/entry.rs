@@ -106,6 +106,17 @@ pub trait Entry: Debug+Send+Sync+'static
     /// ```
     fn following(&self) -> bool;
 
+    /// Returns true if this path is executable
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn is_exec(&self) -> bool
+    {
+        self.mode() & 0o111 != 0
+    }
+
     /// Regular directories and symlinks that point to directories will report true.
     ///
     /// ### Examples
@@ -121,6 +132,17 @@ pub trait Entry: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     /// ```
     fn is_file(&self) -> bool;
+
+    /// Returns true if this path is readonly
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn is_readonly(&self) -> bool
+    {
+        self.mode() & 0o222 == 0
+    }
 
     /// Links will report true
     ///
@@ -343,6 +365,20 @@ impl Entry for VfsEntry
         }
     }
 
+    /// Returns true if this path is readonly
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    /// ```
+    fn is_readonly(&self) -> bool
+    {
+        match self {
+            VfsEntry::Stdfs(x) => x.is_readonly(),
+            VfsEntry::Memfs(x) => x.is_readonly(),
+        }
+    }
+
     /// Links will report true
     ///
     /// ### Examples
@@ -545,35 +581,21 @@ impl Iterator for EntryIter
 #[cfg(test)]
 mod tests
 {
-    // use super::*;
     // use crate::prelude::*;
-
-    // #[test]
-    // fn test_stdfs_entry_mode() {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = Stdfs::mash(&tmpdir, "file1");
-
-    //     assert!(Stdfs::mkfile_m(&file1, 0o644).is_ok());
-    //     assert_eq!(Stdfs::entry(&file1).unwrap().mode(), 0o100644);
-    //     assert!(Stdfs::chmod(&file1, 0o555).is_ok());
-    //     assert_eq!(Stdfs::entry(&file1).unwrap().mode(), 0o100555);
-
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
 
     // #[test]
     // fn test_stdfs_entry_dirs_first_files_first()
     // {
-    //     let tmpdir = assert_stdfs_setup!();
+    //     let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
     //     let dir1 = sys::mash(&tmpdir, "dir1");
     //     let dir2 = sys::mash(&tmpdir, "dir2");
     //     let file1 = sys::mash(&tmpdir, "file1");
     //     let file2 = sys::mash(&tmpdir, "file2");
 
-    //     assert_stdfs_mkdir_p!(&dir1);
-    //     assert_stdfs_mkdir_p!(&dir2);
-    //     assert_stdfs_touch!(&file1);
-    //     assert_stdfs_touch!(&file2);
+    //     assert_vfs_mkdir_p!(vfs, &dir1);
+    //     assert_vfs_mkdir_p!(vfs, &dir2);
+    //     assert_vfs_mkfile!(vfs, &file1);
+    //     assert_vfs_mkfile!(vfs, &file2);
 
     //     // dirs first
     //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
@@ -595,7 +617,7 @@ mod tests
     //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
     //     assert!(iter.next().is_none());
 
-    //     assert_stdfs_remove_all!(&tmpdir);
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
     // }
 
     // #[test]

@@ -39,15 +39,15 @@ use crate::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct StdfsEntry
 {
-    path: PathBuf, // abs path
-    alt: PathBuf,  // abs path link is pointing to
-    rel: PathBuf,  // relative path link is pointing to
-    dir: bool,     // is this entry a dir
-    file: bool,    // is this entry a file
-    link: bool,    // is this entry a link
-    mode: u32,     // permission mode of the entry
-    follow: bool,  // tracks if the path and alt have been switched
-    cached: bool,  // tracsk if properties have been cached
+    pub(crate) path: PathBuf, // abs path
+    pub(crate) alt: PathBuf,  // abs path link is pointing to
+    pub(crate) rel: PathBuf,  // relative path link is pointing to
+    pub(crate) dir: bool,     // is this entry a dir
+    pub(crate) file: bool,    // is this entry a file
+    pub(crate) link: bool,    // is this entry a link
+    pub(crate) mode: u32,     // permission mode of the entry
+    pub(crate) follow: bool,  // tracks if the path and alt have been switched
+    pub(crate) cached: bool,  // tracsk if properties have been cached
 }
 
 impl Default for StdfsEntry

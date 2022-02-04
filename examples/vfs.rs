@@ -2,33 +2,17 @@ use rivia::prelude::*;
 
 fn main()
 {
-    // Write data to a file and read it back using Stdfs and Memfs via a single vfs replacemnent
-
-    // 1. Setup file to write to
-
-    // 2. Create a new stdfs instance that we can change to memfs later
-    // let vfs = Vfs::stdfs();
-
-    // // 3. Make the file writing out the data
-    // vfs.write_all(&file1, b"hello").unwrap();
-
-    // // 4. Read back the file contents
-    // let data = vfs.read_all(&file1).unwrap();
-
-    // println!("Data: {}", data);
-    // Stdfs::remove(file1).unwrap();
-
-    let vfs = Vfs::memfs();
-    vfs_test(&vfs).unwrap();
+    // Write data to a file and read it back using Stdfs and Memfs
+    vfs_read_write_all(assert_vfs_setup!(Vfs::memfs(), "vfs_memfs_read_write_example")).unwrap();
+    vfs_read_write_all(assert_vfs_setup!(Vfs::stdfs(), "vfs_stdfs_read_write_example")).unwrap();
 }
 
-fn vfs_test(vfs: &Vfs) -> RvResult<()>
+fn vfs_read_write_all((vfs, tmpdir): (Vfs, PathBuf)) -> RvResult<()>
 {
-    let dir1 = vfs.mkdir_p(testing::TEST_TEMP_DIR)?;
+    let file1 = tmpdir.mash("file1");
+    vfs.write_all(&file1, b"this is a test")?;
+    assert_eq!(vfs.read_all(&file1)?, "this is a test".to_string());
 
-    for entry in vfs.entries(dir1)?.into_iter() {
-        println!("{}", entry?.path().display());
-    }
-
+    assert_vfs_remove_all!(vfs, &tmpdir);
     Ok(())
 }

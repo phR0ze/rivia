@@ -47,6 +47,7 @@ impl MemfsEntryOpts
     {
         self.dir = true;
         self.file = false;
+        self.mode = 0o40755;
         self
     }
 
@@ -54,20 +55,36 @@ impl MemfsEntryOpts
     {
         self.file = true;
         self.dir = false;
+        self.mode = 0o100644;
         self
     }
 
     pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> RvResult<Self>
     {
         self.link = true;
+        self.mode = 0o120777;
         self.alt = path.into();
         self.rel = self.alt.relative(self.path.dir()?)?;
         Ok(self)
     }
 
+    // no safty checks only useful for testing
     pub(crate) fn mode(mut self, mode: u32) -> Self
     {
         self.mode = mode;
+        self
+    }
+
+    // provides some safty checks
+    pub(crate) fn set_mode(mut self, mode: u32) -> Self
+    {
+        if self.file {
+            self.mode = mode | 0o100000;
+        } else if self.dir {
+            self.mode = mode | 0o40000;
+        } else if self.link {
+            self.mode = mode | 0o120000;
+        }
         self
     }
 }
@@ -107,18 +124,16 @@ impl MemfsEntry
             dir: true, // directory by default
             file: false,
             link: false,
-            mode: 0,
+            mode: 0o40755, // directory default mode
         }
     }
 
-    // Add an entry to this directory
-    //
-    // * `entry` - the entry to add to this directory
-    //
-    // ### Errors
-    // * PathError::IsNotDir(PathBuf) when this entry is not a directory.
-    // * PathError::ExistsAlready(PathBuf) when the given entry already exists.
-    // entry's path
+    /// Add an entry to this directory
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
+    /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
+    /// entry's path
     pub(crate) fn add<T: Into<String>>(&mut self, entry: T) -> RvResult<()>
     {
         let name = entry.into();
@@ -143,33 +158,6 @@ impl MemfsEntry
         Ok(())
     }
 
-    // Remove an entry from this directory. Returns true on success or false if there was no file to
-    // remove.
-    //
-    // # Arguments
-    // * `entry` - the entry to remove from this directory
-    //
-    // # Errors
-    // * PathError::IsNotDir(PathBuf) when this entry is not a directory.
-    // * PathError::ExistsAlready(PathBuf) when the given entry already exists.
-    // entry's path
-    pub(crate) fn remove<T: Into<String>>(&mut self, entry: T) -> RvResult<()>
-    {
-        let name = entry.into();
-
-        // Ensure this is a valid directory
-        if !self.dir {
-            return Err(PathError::is_not_dir(&self.path).into());
-        }
-
-        // Remove the entry
-        if let Some(ref mut files) = self.files {
-            files.remove(&name);
-        }
-
-        Ok(())
-    }
-
     /// Switch the `path` and `alt` values if `is_link` reports true.
     ///
     /// ### Examples
@@ -187,6 +175,40 @@ impl MemfsEntry
             }
         }
         self
+    }
+    /// Remove an entry from this directory
+    ///
+    /// * Returns true on success or false if there was no file to remove
+    ///
+    /// # Errors
+    /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
+    /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
+    /// entry's path
+    pub(crate) fn remove<T: Into<String>>(&mut self, entry: T) -> RvResult<()>
+    {
+        let name = entry.into();
+
+        // Ensure this is a valid directory
+        if !self.dir {
+            return Err(PathError::is_not_dir(&self.path).into());
+        }
+
+        // Remove the entry
+        if let Some(ref mut files) = self.files {
+            files.remove(&name);
+        }
+
+        Ok(())
+    }
+
+    /// Set the given mode taking into account physical file querks
+    pub(crate) fn set_mode(&mut self, mode: u32)
+    {
+        if self.file {
+            self.mode = mode | 0o100000;
+        } else if self.dir {
+            self.mode = mode | 0o40000;
+        }
     }
 }
 

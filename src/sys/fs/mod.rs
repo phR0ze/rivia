@@ -1,3 +1,4 @@
+mod chmod;
 mod entries;
 mod entry;
 mod memfs;
@@ -5,6 +6,7 @@ mod path;
 mod stdfs;
 mod vfs;
 
+pub use chmod::*;
 pub use entries::*;
 pub use entry::*;
 pub use memfs::*;

@@ -12,7 +12,7 @@ use super::{MemfsEntry, MemfsEntryIter, MemfsFile};
 use crate::{
     core::*,
     errors::*,
-    sys::{self, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VirtualFileSystem},
+    sys::{self, Chmod, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VirtualFileSystem},
 };
 
 // Helper aliases
@@ -138,6 +138,65 @@ impl Memfs
 
         Ok(path)
     }
+
+    // Execute chmod with the given [`Mode`] options
+    fn _chmod(&self, mode: Mode) -> RvResult<()>
+    {
+        // Using `contents_first` to yield directories last so that revoking permissions happen to
+        // directories as the last thing when completing the traversal, else we'll lock
+        // ourselves out.
+        let mut entries = self.entries(&mode.path)?.contents_first();
+
+        // Set the `max_depth` based on recursion
+        entries = entries.max_depth(match mode.recursive {
+            true => std::usize::MAX,
+            false => 0,
+        });
+
+        // Set `follow` as directed
+        if mode.follow {
+            entries = entries.follow();
+        }
+
+        // Using `dirs_first` and `pre_op` options here to grant addative permissions as a
+        // pre-traversal operation to allow for the possible addition of permissions that would allow
+        // directory traversal that otherwise wouldn't be allowed.
+        let m = mode.clone();
+        let vfs = Memfs(self.0.clone());
+        entries = entries.dirs_first().pre_op(move |x| {
+            let m1 = sys::mode(x, m.dirs, &m.sym)?;
+            if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
+                let mut guard = vfs.0.write().unwrap();
+                if let Some(entry) = guard.fs.get_mut(x.path()) {
+                    entry.set_mode(m1);
+                }
+            }
+            Ok(())
+        });
+
+        // Set permissions on the way out for everything specified
+        for entry in entries {
+            let src = entry?;
+
+            // Compute mode based on octal and symbolic values
+            let m2 = if src.is_dir() {
+                sys::mode(&src, mode.dirs, &mode.sym)?
+            } else if src.is_file() {
+                sys::mode(&src, mode.files, &mode.sym)?
+            } else {
+                0
+            };
+
+            // Apply permission to entry if set
+            if (!src.is_symlink() || mode.follow) && m2 != src.mode() && m2 != 0 {
+                let mut guard = self.0.write().unwrap();
+                if let Some(entry) = guard.fs.get_mut(src.path()) {
+                    entry.set_mode(m2);
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl fmt::Display for Memfs
@@ -226,6 +285,7 @@ impl VirtualFileSystem for Memfs
 
     /// Opens a file in append mode
     ///
+    /// * Handles path expansion and absolute path resolution
     /// * Creates a file if it does not exist or appends to it if it does
     ///
     /// ### Errors
@@ -267,6 +327,78 @@ impl VirtualFileSystem for Memfs
             return Err(PathError::does_not_exist(path).into());
         }
     }
+
+    /// Change all file/dir permissions recursivly to `mode`
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Doesn't follow links by default, use the builder `chomd_b` for this option
+    ///
+    /// ### Errors
+    /// * PathError::Empty when the given path is empty
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+    /// assert!(vfs.chmod(&file, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    /// ```
+    fn chmod<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<()>
+    {
+        self.chmod_b(path)?.all(mode).exec()
+    }
+
+    /// Returns a new [`Chmod`] builder for advanced chmod options
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Errors
+    /// * PathError::Empty when the given path is empty
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+    /// assert!(vfs.chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
+    /// ```
+    fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod>
+    {
+        let path = self.abs(path)?;
+
+        // Construct the chmod closure callback
+        let vfs = Memfs(self.0.clone());
+        let exec_func = move |mode: Mode| -> RvResult<()> { vfs._chmod(mode) };
+
+        // Return the new Chmod builder
+        Ok(Chmod {
+            mode: Mode {
+                path,
+                dirs: 0,
+                files: 0,
+                follow: false,
+                recursive: true,
+                sym: "".to_string(),
+            },
+            exec: Box::new(exec_func),
+        })
+    }
+
     /// Opens a file in write-only mode
     ///
     /// * Creates a file if it does not exist or truncates it if it does
@@ -394,6 +526,32 @@ impl VirtualFileSystem for Memfs
         guard.fs.contains_key(&abs)
     }
 
+    /// Returns true if the given path exists and is readonly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert!(vfs.mkfile_m(&file, 0o644).is_ok());
+    /// assert_eq!(vfs.is_exec(&file), false);
+    /// assert!(vfs.chmod(&file, 0o777).is_ok());
+    /// assert_eq!(vfs.is_exec(&file), true);
+    /// ```
+    fn is_exec<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        let abs = unwrap_or_false!(self.abs(path));
+        let guard = self.0.read().unwrap();
+
+        match guard.fs.get(&abs) {
+            Some(entry) => entry.is_exec(),
+            None => false,
+        }
+    }
+
     /// Returns true if the given path exists and is a directory
     ///
     /// * Handles path expansion and absolute path resolution
@@ -444,6 +602,33 @@ impl VirtualFileSystem for Memfs
         }
     }
 
+    /// Returns true if the given path exists and is readonly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert!(vfs.mkfile_m(&file, 0o644).is_ok());
+    /// assert_eq!(vfs.is_readonly(&file), false);
+    /// assert!(vfs.chmod_b(&file).unwrap().readonly().exec().is_ok());
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100444);
+    /// assert_eq!(vfs.is_readonly(&file), true);
+    /// ```
+    fn is_readonly<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        let abs = unwrap_or_false!(self.abs(path));
+        let guard = self.0.read().unwrap();
+
+        match guard.fs.get(&abs) {
+            Some(entry) => entry.is_readonly(),
+            None => false,
+        }
+    }
+
     /// Returns true if the given path exists and is a symlink
     ///
     /// * Handles path expansion and absolute path resolution
@@ -467,6 +652,44 @@ impl VirtualFileSystem for Memfs
             Some(entry) => entry.is_symlink(),
             None => false,
         }
+    }
+
+    /// Creates the given directory and any parent directories needed with the given mode
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// assert!(vfs.mkdir_m(&dir, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40555);
+    /// ```
+    fn mkdir_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
+    {
+        let abs = self.abs(path)?;
+        let mut guard = self.0.write().unwrap();
+
+        // Check each component along the way
+        let mut path = PathBuf::new();
+        for component in abs.components() {
+            path.push(component);
+            if let Some(entry) = guard.fs.get(&path) {
+                // No component should be anything other than a directory
+                if !entry.is_dir() {
+                    return Err(PathError::is_not_dir(&path).into());
+                }
+            } else {
+                // Add new entry using the given mode
+                guard.fs.insert(path.clone(), MemfsEntry::opts(&path).set_mode(mode).new());
+
+                // Update the parent directory
+                if let Some(entry) = guard.fs.get_mut(&path.dir()?) {
+                    entry.add(component.to_string()?)?;
+                }
+            }
+        }
+        Ok(abs)
     }
 
     /// Creates the given directory and any parent directories needed
@@ -534,6 +757,54 @@ impl VirtualFileSystem for Memfs
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         self.add(MemfsEntry::opts(self.abs(path)?).file().new())
+    }
+
+    /// Wraps `mkfile` allowing for setting the file's mode.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert!(vfs.mkfile_m(&file, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    /// ```
+    fn mkfile_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
+    {
+        let path = self.mkfile(path)?;
+        self.chmod(&path, mode)?;
+        Ok(path)
+    }
+
+    /// Returns the permissions for a file, directory or link
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::Empty when the given path is empty
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+    /// assert!(vfs.chmod(&file, 0o555).is_ok());
+    /// assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    /// ```
+    fn mode<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        let path = self.abs(path)?;
+        let guard = self.0.read().unwrap();
+
+        match guard.fs.get(&path) {
+            Some(entry) => Ok(entry.mode()),
+            None => Err(PathError::does_not_exist(&path).into()),
+        }
     }
 
     /// Attempts to open a file in readonly mode
@@ -786,7 +1057,7 @@ impl VirtualFileSystem for Memfs
             let guard = self.0.read().unwrap();
             if let Some(ref x) = guard.fs.get(&target) {
                 if x.is_dir() {
-                    entry_opts = entry_opts.dir();
+                    entry_opts = entry_opts.dir().link_to(&target)?;
                 }
             }
         }
@@ -798,9 +1069,8 @@ impl VirtualFileSystem for Memfs
 
     /// Write the given data to to the target file
     ///
+    /// * Handles path expansion and absolute path resolution
     /// * Create the file first if it doesn't exist or truncating it first if it does
-    /// * `path` - target file to create or overwrite
-    /// * `data` - data to write to the target file
     ///
     /// ### Errors
     /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
