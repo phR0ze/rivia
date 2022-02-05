@@ -899,6 +899,39 @@ impl VirtualFileSystem for Memfs
         Ok(Box::new(self.clone_file(&path)?))
     }
 
+    /// Returns all paths for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = tmpdir.mash("dir2");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_iter_eq(vfs.paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
+    /// ```
+    fn paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        if !self.is_dir(&path) {
+            return Err(PathError::is_not_dir(&path).into());
+        }
+        for entry in self.entries(path)?.min_depth(1).max_depth(1).sort_by_name() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+        Ok(paths)
+    }
+
     /// Read all data from the given file and return it as a String
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1493,6 +1526,24 @@ mod tests
         // Error: parent exists and is not a directory
         let file2 = file1.mash("file2");
         assert_eq!(memfs.mkfile(&file2).unwrap_err().to_string(), PathError::is_not_dir(&file1).to_string());
+    }
+
+    #[test]
+    fn test_memfs_paths()
+    {
+        let vfs = Memfs::new();
+        let tmpdir = vfs.root().mash("tmpdir");
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = tmpdir.mash("dir2");
+        let file1 = tmpdir.mash("file1");
+
+        // abs error
+        assert_eq!(vfs.paths("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
+
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_iter_eq(vfs.paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
     }
 
     #[test]

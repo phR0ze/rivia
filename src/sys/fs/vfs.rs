@@ -421,6 +421,28 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>;
 
+    /// Returns all paths for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = tmpdir.mash("dir2");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_iter_eq(vfs.paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
+    /// ```
+    fn paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>;
+
     /// Read all data from the given file and return it as a String
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1159,7 +1181,35 @@ impl VirtualFileSystem for Vfs
         }
     }
 
-    /// Read all data from the given file and return it as a String
+    /// Returns all paths for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = tmpdir.mash("dir2");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_iter_eq(vfs.paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
+    /// ```
+    fn paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.paths(path),
+            Vfs::Memfs(x) => x.paths(path),
+        }
+    }
+
+    /// Re/// Read all data from the given file and return it as a String
     ///
     /// * Handles path expansion and absolute path resolution
     ///
