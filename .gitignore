@@ -6,3 +6,4 @@ vfs/tests/temp/
 bin/
 vfs/bin/
 Cargo.lock
+tarpaulin-report.html

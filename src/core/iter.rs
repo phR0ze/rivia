@@ -20,22 +20,18 @@ where
     let mut x = x.into_iter();
     let mut y = y.into_iter();
     loop {
-        match (x.next(), y.next()) {
-            // Match done
-            (None, None) => return,
-
-            // Match items
-            (a, b) => {
-                let equal = match (&a, &b) {
-                    // Compare the two items
-                    (&Some(ref a), &Some(ref b)) => a == b,
-
-                    // Different lengths
-                    _ => false,
-                };
-                assert!(equal, "Iterators not equal {:?} != {:?}", a, b);
-            },
+        let (a, b) = (x.next(), y.next());
+        if a.is_none() && b.is_none() {
+            return;
         }
+        let equal = match (&a, &b) {
+            // Compare the two items
+            (&Some(ref a), &Some(ref b)) => a == b,
+
+            // Different lengths
+            _ => false,
+        };
+        assert!(equal, "Iterators not equal {:?} != {:?}", a, b);
     }
 }
 
@@ -353,6 +349,7 @@ mod tests
     fn test_eq()
     {
         assert_iter_eq(vec![1, 2], vec![1, 2]);
+        assert!(std::panic::catch_unwind(|| assert_iter_eq(vec![1, 2], vec![1])).is_err());
         assert!(std::panic::catch_unwind(|| assert_iter_eq(vec![1, 2], vec![1, 3])).is_err());
         assert_iter_eq(PathBuf::from("foo/bar").components(), PathBuf::from("foo/bar").components());
         assert!(std::panic::catch_unwind(|| assert_iter_eq(

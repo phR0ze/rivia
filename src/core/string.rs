@@ -139,6 +139,7 @@ mod tests
     #[test]
     fn test_str_trim_suffix()
     {
+        assert_eq!("foo".trim_suffix("boo"), "foo"); // no change
         assert_eq!("foo".trim_suffix("oo"), "f");
         assert_eq!("ƒoo".trim_suffix("o"), "ƒo"); // fancy f!
     }
@@ -146,6 +147,7 @@ mod tests
     #[test]
     fn test_string_trim_suffix()
     {
+        assert_eq!("foo".to_string().trim_suffix("boo"), "foo"); // no change
         assert_eq!("foo".to_string().trim_suffix("oo"), "f");
         assert_eq!("ƒoo".to_string().trim_suffix("o"), "ƒo"); // fancy f!
     }

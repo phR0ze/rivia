@@ -80,6 +80,17 @@ mod tests
     use crate::prelude::*;
 
     #[test]
+    fn test_peekable_debug()
+    {
+        let mut iter = vec![1, 2].into_iter().peekable();
+        let iter = iter.take_while_p(|&x| x < 1);
+        assert_eq!(
+            format!("{:?}", iter),
+            "PeekingTakeWhile { iter: Peekable { iter: IntoIter([1, 2]), peeked: None } }"
+        );
+    }
+
+    #[test]
     fn test_take_while_p_should_keep_first_false()
     {
         // take_while_p keeps the first false
