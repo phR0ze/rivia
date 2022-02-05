@@ -462,7 +462,7 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>;
 
-    /// Returns the path the given link points to
+    /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
     ///
@@ -1234,7 +1234,7 @@ impl VirtualFileSystem for Vfs
         }
     }
 
-    /// Returns the path the given link points to
+    /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
     ///

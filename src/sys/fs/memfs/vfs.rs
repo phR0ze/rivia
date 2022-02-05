@@ -961,7 +961,7 @@ impl VirtualFileSystem for Memfs
         }
     }
 
-    /// Returns the path the given link points to
+    /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
     ///
@@ -974,7 +974,7 @@ impl VirtualFileSystem for Memfs
     /// let link = memfs.root().mash("link");
     /// assert_eq!(&memfs.mkfile(&file).unwrap(), &file);
     /// assert_eq!(&memfs.symlink(&link, &file).unwrap(), &link);
-    /// assert_eq!(&memfs.readlink(&link).unwrap(), &file);
+    /// assert_eq!(memfs.readlink(&link).unwrap(), PathBuf::from("file"));
     /// ```
     fn readlink<T: AsRef<Path>>(&self, link: T) -> RvResult<PathBuf>
     {
@@ -986,7 +986,7 @@ impl VirtualFileSystem for Memfs
             if !entry.is_symlink() {
                 return Err(PathError::is_not_symlink(path).into());
             }
-            return Ok(entry.alt().to_owned());
+            return Ok(entry.rel().to_owned());
         } else {
             return Err(PathError::does_not_exist(path).into());
         }
@@ -1138,7 +1138,7 @@ impl VirtualFileSystem for Memfs
     /// let link = memfs.root().mash("link");
     /// assert_eq!(&memfs.mkfile(&file).unwrap(), &file);
     /// assert_eq!(&memfs.symlink(&link, &file).unwrap(), &link);
-    /// assert_eq!(&memfs.readlink(&link).unwrap(), &file);
+    /// assert_eq!(memfs.readlink(&link).unwrap(), PathBuf::from("file"));
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
     {
@@ -1294,6 +1294,44 @@ mod tests
     }
 
     #[test]
+    fn test_memfs_chmod()
+    {
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.chmod("", 0) {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+        assert!(vfs.chmod(&file, 0o555).is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    }
+
+    #[test]
+    fn test_memfs_chmod_b()
+    {
+        let vfs = Vfs::memfs();
+        let dir = vfs.root().mash("dir");
+        let file = dir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.chmod_b("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        assert_vfs_mkdir_p!(vfs, &dir);
+        assert_vfs_mkfile!(vfs, &file);
+        assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+        assert!(vfs.chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
+        assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
+    }
+
+    #[test]
     fn test_memfs_cwd()
     {
         let memfs = Memfs::new();
@@ -1405,6 +1443,21 @@ mod tests
     }
 
     #[test]
+    fn test_memfs_is_exec()
+    {
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        assert_eq!(vfs.is_exec(""), false);
+
+        assert!(vfs.mkfile_m(&file, 0o644).is_ok());
+        assert_eq!(vfs.is_exec(&file), false);
+        assert!(vfs.chmod(&file, 0o777).is_ok());
+        assert_eq!(vfs.is_exec(&file), true);
+    }
+
+    #[test]
     fn test_memfs_is_dir()
     {
         let memfs = Memfs::new();
@@ -1439,6 +1492,22 @@ mod tests
     }
 
     #[test]
+    fn test_memfs_is_readonly()
+    {
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        assert_eq!(vfs.is_readonly(""), false);
+
+        assert!(vfs.mkfile_m(&file, 0o644).is_ok());
+        assert_eq!(vfs.is_readonly(&file), false);
+        assert!(vfs.chmod_b(&file).unwrap().readonly().exec().is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100444);
+        assert_eq!(vfs.is_readonly(&file), true);
+    }
+
+    #[test]
     fn test_memfs_is_symlink()
     {
         let memfs = Memfs::new();
@@ -1454,6 +1523,19 @@ mod tests
         // Exists
         assert_eq!(&memfs.symlink(&link, &file).unwrap(), &link);
         assert_eq!(memfs.is_symlink(&link), true);
+    }
+
+    #[test]
+    fn test_memfs_mkdir_m()
+    {
+        let vfs = Vfs::memfs();
+        let dir = vfs.root().mash("dir");
+
+        // abs error
+        assert_eq!(vfs.mkdir_m("", 0).unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert!(vfs.mkdir_m(&dir, 0o555).is_ok());
+        assert_eq!(vfs.mode(&dir).unwrap(), 0o40555);
     }
 
     #[test]
@@ -1529,6 +1611,52 @@ mod tests
     }
 
     #[test]
+    fn test_memfs_mkfile_m()
+    {
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+
+        // abs error
+        assert_eq!(vfs.mkfile_m("", 0).unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert!(vfs.mkfile_m(&file, 0o555).is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    }
+
+    #[test]
+    fn test_memfs_mode()
+    {
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+
+        // abs error
+        assert_eq!(vfs.mode("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+        assert!(vfs.chmod(&file, 0o555).is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    }
+
+    #[test]
+    fn test_memfs_open()
+    {
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.open("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        assert_vfs_write_all!(vfs, &file, b"foobar 1");
+        let mut file = vfs.open(&file).unwrap();
+        let mut buf = String::new();
+        file.read_to_string(&mut buf).unwrap();
+        assert_eq!(buf, "foobar 1".to_string());
+    }
+
+    #[test]
     fn test_memfs_paths()
     {
         let vfs = Memfs::new();
@@ -1569,6 +1697,21 @@ mod tests
     }
 
     #[test]
+    fn test_memfs_readlink()
+    {
+        let vfs = Vfs::memfs();
+        let file = vfs.root().mash("file");
+        let link = vfs.root().mash("link");
+
+        // Doesn't exist error
+        assert_eq!(vfs.readlink("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert_vfs_symlink!(vfs, &link, &file);
+        assert_vfs_readlink!(vfs, &link, &file);
+    }
+
+    #[test]
     fn test_memfs_remove()
     {
         let vfs = Vfs::memfs();
@@ -1592,6 +1735,21 @@ mod tests
         assert_vfs_remove!(vfs, &file1);
         assert_vfs_remove!(vfs, &dir1);
         assert_vfs_no_exists!(vfs, &dir1);
+    }
+
+    #[test]
+    fn test_memfs_remove_all()
+    {
+        let vfs = Vfs::memfs();
+        let dir = vfs.root().mash("dir");
+        let file = dir.mash("file");
+
+        assert_vfs_mkdir_p!(vfs, &dir);
+        assert_vfs_mkfile!(vfs, &file);
+        assert_vfs_is_file!(vfs, &file);
+        assert_vfs_remove_all!(vfs, &dir);
+        assert_vfs_no_exists!(vfs, &file);
+        assert_vfs_no_exists!(vfs, &dir);
     }
 
     #[test]

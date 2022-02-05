@@ -407,7 +407,7 @@ macro_rules! assert_vfs_readlink {
         }
         match $vfs.readlink(&link) {
             Ok(x) => {
-                if x != target {
+                if !target.has_suffix(&x) {
                     panic_msg!("assert_vfs_readlink!", "link target doesn't equal given path", &x);
                 }
             },

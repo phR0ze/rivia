@@ -795,7 +795,7 @@ impl Stdfs
         }
     }
 
-    /// Returns the path the given link points to
+    /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
     ///
@@ -1555,7 +1555,7 @@ impl VirtualFileSystem for Stdfs
         Stdfs::read_all(path)
     }
 
-    /// Returns the path the given link points to
+    /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
     ///
@@ -1828,6 +1828,48 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_chmod()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.chmod("", 0) {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+        assert!(vfs.chmod(&file, 0o555).is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_chmod_b()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir = tmpdir.mash("dir");
+        let file = dir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.chmod_b("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        assert_vfs_mkdir_p!(vfs, &dir);
+        assert_vfs_mkfile!(vfs, &file);
+        assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+        assert!(vfs.chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
+        assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_dirs()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -1842,6 +1884,23 @@ mod tests
         assert_vfs_mkdir_p!(vfs, &dir2);
         assert_vfs_mkfile!(vfs, &file1);
         assert_iter_eq(Stdfs::dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_entries()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file1 = tmpdir.mash("file1");
+
+        // abs error
+        assert_eq!(vfs.entries("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_eq!(&vfs.mkfile(&file1).unwrap(), &file1);
+        let mut iter = vfs.entries(&file1).unwrap().into_iter();
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert!(iter.next().is_none());
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
@@ -1885,6 +1944,23 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_is_exec()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        assert_eq!(vfs.is_exec(""), false);
+
+        assert!(vfs.mkfile_m(&file, 0o644).is_ok());
+        assert_eq!(vfs.is_exec(&file), false);
+        assert!(vfs.chmod(&file, 0o777).is_ok());
+        assert_eq!(vfs.is_exec(&file), true);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_is_dir()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -1923,6 +1999,24 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_is_readonly()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        assert_eq!(vfs.is_readonly(""), false);
+
+        assert!(vfs.mkfile_m(&file, 0o644).is_ok());
+        assert_eq!(vfs.is_readonly(&file), false);
+        assert!(vfs.chmod_b(&file).unwrap().readonly().exec().is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100444);
+        assert_eq!(vfs.is_readonly(&file), true);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_is_symlink()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -1939,6 +2033,21 @@ mod tests
         assert_vfs_mkfile!(vfs, &file);
         assert_vfs_symlink!(vfs, &link, &file);
         assert_vfs_is_symlink!(vfs, &link);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_mkdir_m()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir = tmpdir.mash("dir");
+
+        // abs error
+        assert_eq!(vfs.mkdir_m("", 0).unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert!(vfs.mkdir_m(&dir, 0o555).is_ok());
+        assert_eq!(vfs.mode(&dir).unwrap(), 0o40555);
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
@@ -2003,6 +2112,58 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_mkfile_m()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs error
+        assert_eq!(vfs.mkfile_m("", 0).unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert!(vfs.mkfile_m(&file, 0o555).is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_mode()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs error
+        assert_eq!(vfs.mode("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
+        assert!(vfs.chmod(&file, 0o555).is_ok());
+        assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_open()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.open("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        assert_vfs_write_all!(vfs, &file, b"foobar 1");
+        let mut file = vfs.open(&file).unwrap();
+        let mut buf = String::new();
+        file.read_to_string(&mut buf).unwrap();
+        assert_eq!(buf, "foobar 1".to_string());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_paths()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -2041,6 +2202,23 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_readlink()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+        let link = tmpdir.mash("link");
+
+        // Doesn't exist error
+        assert_eq!(vfs.readlink("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert_vfs_symlink!(vfs, &link, &file);
+        assert_vfs_readlink!(vfs, &link, &file);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_remove()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -2069,7 +2247,24 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_symlink()
+    fn test_stdfs_remove_all()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir = tmpdir.mash("dir");
+        let file = dir.mash("file");
+
+        assert_vfs_mkdir_p!(vfs, &dir);
+        assert_vfs_mkfile!(vfs, &file);
+        assert_vfs_is_file!(vfs, &file);
+        assert_vfs_remove_all!(vfs, &dir);
+        assert_vfs_no_exists!(vfs, &file);
+        assert_vfs_no_exists!(vfs, &dir);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_symlink()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
         let dir1 = tmpdir.mash("dir1");
@@ -2083,7 +2278,7 @@ mod tests
     }
 
     #[test]
-    fn test_write_all()
+    fn test_stdfs_write_all()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
         let dir = tmpdir.mash("dir");
