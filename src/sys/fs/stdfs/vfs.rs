@@ -284,26 +284,37 @@ impl Stdfs
         Ok(path)
     }
 
-    /// Set the current working directory
+    /// Returns all directories for the given path, sorted by name
     ///
     /// * Handles path expansion and absolute path resolution
-    /// * Relative path will use the current working directory
-    ///
-    /// ### Errors
-    /// * io::Error, kind: NotFound when the given path doesn't exist
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use rivia::prelude::*;
     ///
-    /// Stdfs::set_cwd(Stdfs::cwd().unwrap().mash("tests"));
-    /// assert_eq!(Stdfs::cwd().unwrap().base().unwrap(), "tests".to_string());
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_dirs");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = tmpdir.mash("dir2");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_iter_eq(Stdfs::dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
-    pub fn set_cwd<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    pub fn dirs<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
     {
-        let path = Stdfs::abs(path)?;
-        std::env::set_current_dir(&path)?;
-        Ok(path)
+        let mut paths: Vec<PathBuf> = vec![];
+        if !Stdfs::is_dir(&path) {
+            return Err(PathError::is_not_dir(&path).into());
+        }
+        for entry in Stdfs::entries(path)?.min_depth(1).max_depth(1).sort_by_name().dirs() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+        Ok(paths)
     }
 
     /// Returns an iterator over the given path
@@ -352,6 +363,39 @@ impl Stdfs
             sort: None,
             iter_from: Box::new(iter_func),
         })
+    }
+
+    /// Returns all files for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_files");
+    /// let dir = tmpdir.mash("dir");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_iter_eq(Stdfs::files(&tmpdir).unwrap(), vec![file1, file2]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn files<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        if !Stdfs::is_dir(&path) {
+            return Err(PathError::is_not_dir(&path).into());
+        }
+        for entry in Stdfs::entries(path)?.min_depth(1).max_depth(1).sort_by_name().files() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+        Ok(paths)
     }
 
     /// Returns true if the `path` exists
@@ -833,6 +877,28 @@ impl Stdfs
         root
     }
 
+    /// Set the current working directory
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Relative path will use the current working directory
+    ///
+    /// ### Errors
+    /// * io::Error, kind: NotFound when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use rivia::prelude::*;
+    ///
+    /// Stdfs::set_cwd(Stdfs::cwd().unwrap().mash("tests"));
+    /// assert_eq!(Stdfs::cwd().unwrap().base().unwrap(), "tests".to_string());
+    /// ```
+    pub fn set_cwd<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
+    {
+        let path = Stdfs::abs(path)?;
+        std::env::set_current_dir(&path)?;
+        Ok(path)
+    }
+
     /// Creates a new symbolic link
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1089,6 +1155,31 @@ impl VirtualFileSystem for Stdfs
         Stdfs::cwd()
     }
 
+    /// Returns all directories for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_dirs");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = tmpdir.mash("dir2");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_iter_eq(vfs.dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn dirs<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        Stdfs::dirs(path)
+    }
+
     /// Returns an iterator over the given path
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1127,6 +1218,31 @@ impl VirtualFileSystem for Stdfs
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
         Stdfs::exists(path)
+    }
+
+    /// Returns all files for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_files");
+    /// let dir = tmpdir.mash("dir");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_iter_eq(vfs.files(&tmpdir).unwrap(), vec![file1, file2]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        Stdfs::files(path)
     }
 
     /// Returns true if the given path exists and is readonly
@@ -1654,6 +1770,25 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_dirs()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = tmpdir.mash("dir2");
+        let file1 = tmpdir.mash("file1");
+
+        // abs error
+        assert_eq!(Stdfs::dirs("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
+
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_iter_eq(Stdfs::dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_exists()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -1668,6 +1803,25 @@ mod tests
         assert_vfs_no_exists!(vfs, &file);
         assert_vfs_mkfile!(vfs, &file);
         assert_vfs_exists!(vfs, &file);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_files()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+
+        // abs error
+        assert_eq!(Stdfs::files("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
+
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+        assert_iter_eq(Stdfs::files(&tmpdir).unwrap(), vec![file1, file2]);
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

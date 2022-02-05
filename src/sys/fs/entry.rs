@@ -581,10 +581,10 @@ impl Iterator for EntryIter
 #[cfg(test)]
 mod tests
 {
-    // use crate::prelude::*;
+    use crate::prelude::*;
 
     // #[test]
-    // fn test_stdfs_entry_dirs_first_files_first()
+    // fn test_vfs_dirs_first_files_first()
     // {
     //     let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
     //     let dir1 = sys::mash(&tmpdir, "dir1");

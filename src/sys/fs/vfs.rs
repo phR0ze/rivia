@@ -149,6 +149,28 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>;
 
+    /// Returns all directories for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = tmpdir.mash("dir2");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_iter_eq(vfs.dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// ```
+    fn dirs<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>;
+
     /// Returns an iterator over the given path
     ///
     /// * Handles path expansion and absolute path resolution
@@ -185,6 +207,28 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert_vfs_exists!(vfs, "foo");
     /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool;
+
+    /// Returns all files for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_iter_eq(vfs.files(&tmpdir).unwrap(), vec![file1, file2]);
+    /// ```
+    fn files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>;
 
     /// Returns true if the given path exists and is readonly
     ///
@@ -753,6 +797,34 @@ impl VirtualFileSystem for Vfs
         }
     }
 
+    /// Returns all directories for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = tmpdir.mash("dir2");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_iter_eq(vfs.dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// ```
+    fn dirs<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.dirs(path),
+            Vfs::Memfs(x) => x.dirs(path),
+        }
+    }
+
     /// Returns an iterator over the given path
     ///
     /// * Handles path expansion and absolute path resolution
@@ -799,6 +871,34 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.exists(path),
             Vfs::Memfs(x) => x.exists(path),
+        }
+    }
+
+    /// Returns all files for the given path, sorted by name
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned as abs paths
+    /// * Doesn't include the path itself only its children nor is this recursive
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_iter_eq(vfs.files(&tmpdir).unwrap(), vec![file1, file2]);
+    /// ```
+    fn files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.files(path),
+            Vfs::Memfs(x) => x.files(path),
         }
     }
 
