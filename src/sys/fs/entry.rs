@@ -1,14 +1,10 @@
 use std::{
-    cmp::Ordering,
     ffi::OsStr,
     fmt::Debug,
     path::{Path, PathBuf},
 };
 
-use crate::{
-    errors::*,
-    sys::{MemfsEntry, StdfsEntry},
-};
+use crate::sys::{MemfsEntry, StdfsEntry};
 
 /// Defines a virtual file system entry that can be used generically across all Vfs provider
 /// backends
@@ -422,160 +418,6 @@ impl Entry for VfsEntry
     }
 }
 
-/// Provides iteration over a single directory in a VFS filesystem.
-///
-/// ### Cached
-/// Optionally all entries can be read into memory from the underlying VFS and yielded from there
-/// by invoking the `cache` method. In this way the number of open file descriptors can be
-/// controlled at the cost of memory consumption.
-pub(crate) struct EntryIter
-{
-    pub(crate) path: PathBuf,
-    pub(crate) cached: bool,
-    pub(crate) following: bool,
-    pub(crate) iter: Box<dyn Iterator<Item=RvResult<VfsEntry>>>,
-}
-
-impl EntryIter
-{
-    /// Return a reference to the internal path being iterated over
-    pub fn path(&self) -> &Path
-    {
-        &self.path
-    }
-
-    /// Reads the remaining portion of the VFS backend iterator into memory then creates a new
-    /// EntryIter that will iterate over the new cached entries.
-    pub fn cache(&mut self)
-    {
-        if !self.cached {
-            self.cached = true;
-            self.iter = Box::new(self.collect::<Vec<_>>().into_iter());
-        }
-    }
-
-    /// Return the current cached state
-    pub fn cached(&self) -> bool
-    {
-        self.cached
-    }
-
-    /// Sort directories first than files according to the given sort function
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn dirs_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
-        self.cached = true;
-        let (mut dirs, mut files) = self._split();
-        self._sort(&mut dirs, &cmp);
-        self._sort(&mut files, cmp);
-        self.iter = Box::new(dirs.into_iter().chain(files.into_iter()));
-    }
-
-    /// Sort files first than directories according to the given sort function
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn files_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
-        self.cached = true;
-        let (mut dirs, mut files) = self._split();
-        self._sort(&mut dirs, &cmp);
-        self._sort(&mut files, cmp);
-        self.iter = Box::new(files.into_iter().chain(dirs.into_iter()));
-    }
-
-    /// When `true` iterating results will have their `path` and `alt` values switched if
-    /// their `is_symlink` reports true.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn follow(mut self, follow: bool) -> Self
-    {
-        self.following = follow;
-        self
-    }
-
-    /// Return the current following state
-    pub fn following(&self) -> bool
-    {
-        self.following
-    }
-
-    /// Sort the entries according to the given sort function
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub fn sort(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
-        self.cached = true;
-        let mut entries = self.collect::<Vec<_>>();
-        self._sort(&mut entries, cmp);
-        self.iter = Box::new(entries.into_iter());
-    }
-
-    /// Sort the given entries with the given sorter function
-    fn _sort(&mut self, entries: &mut Vec<RvResult<VfsEntry>>, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
-        entries.sort_by(|x, y| match (x, y) {
-            (&Ok(ref x), &Ok(ref y)) => cmp(x, y),
-            (&Err(_), &Err(_)) => Ordering::Equal,
-            (&Ok(_), &Err(_)) => Ordering::Greater,
-            (&Err(_), &Ok(_)) => Ordering::Less,
-        });
-    }
-
-    /// Split the files and directories out
-    fn _split(&mut self) -> (Vec<RvResult<VfsEntry>>, Vec<RvResult<VfsEntry>>)
-    {
-        let mut dirs: Vec<RvResult<VfsEntry>> = vec![];
-        let mut files: Vec<RvResult<VfsEntry>> = vec![];
-        for x in self.collect::<Vec<_>>() {
-            if let Ok(entry) = x {
-                if entry.is_dir() {
-                    dirs.push(Ok(entry));
-                } else {
-                    files.push(Ok(entry));
-                }
-            } else {
-                // push errors on the dirs iterator to trigger errors at the client level
-                dirs.push(x);
-            }
-        }
-        (dirs, files)
-    }
-}
-
-impl Iterator for EntryIter
-{
-    type Item = RvResult<VfsEntry>;
-
-    fn next(&mut self) -> Option<RvResult<VfsEntry>>
-    {
-        match self.iter.next() {
-            Some(x) => Some(match x {
-                Ok(y) => Ok(if self.following {
-                    // Switch path and alt if is_link
-                    y.follow(self.following)
-                } else {
-                    y
-                }),
-                Err(e) => Err(e),
-            }),
-            None => None,
-        }
-    }
-}
-
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
@@ -605,197 +447,78 @@ mod tests
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
-    // #[test]
-    // fn test_vfs_dirs_first_files_first()
-    // {
-    //     let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
-    //     let dir1 = sys::mash(&tmpdir, "dir1");
-    //     let dir2 = sys::mash(&tmpdir, "dir2");
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let file2 = sys::mash(&tmpdir, "file2");
+    #[test]
+    fn test_vfs_entry_is_dir()
+    {
+        test_entry_is_dir(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_is_dir(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_is_dir((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = tmpdir.mash("file1");
 
-    //     assert_vfs_mkdir_p!(vfs, &dir1);
-    //     assert_vfs_mkdir_p!(vfs, &dir2);
-    //     assert_vfs_mkfile!(vfs, &file1);
-    //     assert_vfs_mkfile!(vfs, &file2);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(vfs.entry(&file1).unwrap().is_dir(), false);
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_eq!(vfs.entry(&dir1).unwrap().is_dir(), true);
 
-    //     // dirs first
-    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-    //     iter.dirs_first(|x, y| x.file_name().cmp(&y.file_name()));
-    //     assert_eq!(iter.cached(), true);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert!(iter.next().is_none());
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
-    //     // files first
-    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-    //     iter.files_first(|x, y| x.file_name().cmp(&y.file_name()));
-    //     assert_eq!(iter.cached(), true);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-    //     assert!(iter.next().is_none());
+    #[test]
+    fn test_vfs_entry_is_file()
+    {
+        test_entry_is_file(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_is_file(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_is_file((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = tmpdir.mash("file1");
 
-    //     assert_vfs_remove_all!(vfs, &tmpdir);
-    // }
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_eq!(vfs.entry(&dir1).unwrap().is_file(), false);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(vfs.entry(&file1).unwrap().is_file(), true);
 
-    // #[test]
-    // fn test_stdfs_entry_sort()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let file2 = sys::mash(&tmpdir, "file2");
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
-    //     assert_stdfs_touch!(&file1);
-    //     assert_stdfs_touch!(&file2);
+    #[test]
+    fn test_vfs_entry_is_readonly()
+    {
+        test_entry_is_readonly(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_is_readonly(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_is_readonly((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let file1 = tmpdir.mash("file1");
 
-    //     // custom sort for files
-    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-    //     iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
-    //     assert_eq!(iter.cached(), true);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert!(iter.next().is_none());
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(vfs.entry(&file1).unwrap().is_readonly(), false);
 
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
-    // #[test]
-    // fn test_stdfs_entry_iter()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let file2 = sys::mash(&tmpdir, "file2");
+    #[test]
+    fn test_vfs_entry_is_symlink()
+    {
+        test_entry_is_symlink(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_is_symlink(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_is_symlink((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let link1 = tmpdir.mash("link1");
 
-    //     assert_stdfs_touch!(&file1);
-    //     assert_stdfs_touch!(&file2);
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_eq!(vfs.entry(&dir1).unwrap().is_symlink(), false);
+        assert_vfs_symlink!(vfs, &link1, &dir1);
+        assert_eq!(vfs.entry(&link1).unwrap().is_symlink(), true);
 
-    //     // open file descriptors
-    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-    //     assert_eq!(iter.cached, false);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert!(iter.next().is_none());
-
-    //     // caching in memory
-    //     let mut iter = StdfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-    //     iter.cache();
-    //     assert_eq!(iter.cached(), true);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-    //     assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-    //     assert!(iter.next().is_none());
-
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
-
-    // #[test]
-    // fn test_stdfs_entry_is_dir()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let dir1 = sys::mash(&tmpdir, "dir1");
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let link1 = sys::mash(&tmpdir, "link1");
-    //     let link2 = sys::mash(&tmpdir, "dir2");
-
-    //     // regular directory
-    //     assert_stdfs_mkdir_p!(&dir1);
-    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_dir(), true);
-
-    //     // Current dir
-    //     assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_dir(), true);
-
-    //     // file is not a directory
-    //     assert_stdfs_touch!(&file1);
-    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_dir(), false);
-
-    //     // file link is not a directory
-    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_dir(), false);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
-
-    //     // dir link is a directory
-    //     assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_dir(), true);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
-
-    //     // invalid directory
-    //     assert_eq!(StdfsEntry::from(&PathBuf::from("/foobar")).unwrap_err().to_string(), "No such
-    // file or directory (os error 2)");
-
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
-
-    // #[test]
-    // fn test_stdfs_entry_is_file()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let dir1 = sys::mash(&tmpdir, "dir1");
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let link1 = sys::mash(&tmpdir, "link1");
-    //     let link2 = sys::mash(&tmpdir, "dir2");
-
-    //     // regular directory is not a file
-    //     assert_stdfs_mkdir_p!(&dir1);
-    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_file(), false);
-
-    //     // Current dir is not a file
-    //     assert_eq!(StdfsEntry::from(&PathBuf::from(".")).unwrap().is_file(), false);
-
-    //     // regular file is true
-    //     assert_stdfs_touch!(&file1);
-    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_file(), true);
-
-    //     // file link is not a regular file ist a symlink_file
-    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_file(), true);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
-
-    //     // dir link is not a directory
-    //     assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_file(), false);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
-
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
-
-    // #[test]
-    // fn test_stdfs_entry_is_symlink()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let dir1 = sys::mash(&tmpdir, "dir1");
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let link1 = sys::mash(&tmpdir, "link1");
-    //     let link2 = sys::mash(&tmpdir, "link2");
-
-    //     // invalid
-    //     assert!(StdfsEntry::from(&PathBuf::from("")).is_err());
-
-    //     // non-existing file or dir is not a symlink
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap_err().to_string(), "No such file or directory
-    // (os error 2)");     assert_eq!(StdfsEntry::from(&dir1).unwrap_err().to_string(), "No such
-    // file or directory (os error 2)");
-
-    //     // regular file is not a symlink
-    //     assert!(Stdfs::touch(&file1).is_ok());
-    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink(), false);
-
-    //     // symlink file is a symlink
-    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink(), true);
-
-    //     // regular dir is not a symlink
-    //     assert_stdfs_mkdir_p!(&dir1);
-    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_symlink(), false);
-
-    //     // symlink dir is a symlink
-    //     assert_eq!(Stdfs::symlink(&dir1, &link2).unwrap(), link2);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink(), true);
-
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
     #[test]
     fn test_vfs_entry_is_symlink_dir()
@@ -843,51 +566,42 @@ mod tests
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
-    // #[test]
-    // fn test_stdfs_entry_readlink_abs()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let link1 = sys::mash(&tmpdir, "link1");
-    //     let dir1 = sys::mash(&tmpdir, "dir1");
-    //     let link2 = sys::mash(&dir1, "link2");
-    //     let link3 = sys::mash(&dir1, "link3");
-    //     let link4 = sys::mash(&dir1, "link4");
+    #[test]
+    fn test_vfs_entry_follow()
+    {
+        test_entry_follow(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_follow(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_follow((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
 
-    //     // link at the same level
-    //     assert!(Stdfs::touch(&file1).is_ok());
-    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().path(), link1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().alt(), file1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().follow(true).path(), file1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().follow(true).alt(), link1);
-    //     assert_eq!(Stdfs::readlink_abs(&link1).unwrap(), file1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_symlink!(vfs, &link1, &file1);
+        let entry = vfs.entry(&link1).unwrap();
+        assert_eq!(entry.path(), &link1);
+        assert_eq!(entry.following(), false);
+        let entry = entry.follow(true);
+        assert_eq!(entry.path(), &file1);
+        assert_eq!(entry.following(), true);
 
-    //     // link nested one deeper
-    //     assert!(Stdfs::mkdir_p(&dir1).is_ok());
-    //     assert_eq!(Stdfs::symlink(&file1, &link2).unwrap(), link2);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().path(), link2);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().alt(), file1);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().follow(true).path(), file1);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().follow(true).alt(), link2);
-    //     assert_eq!(Stdfs::readlink_abs(&link2).unwrap(), file1);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
-    //     // absolute
-    //     assert!(std::os::unix::fs::symlink(&file1, &link3).is_ok());
-    //     assert_eq!(StdfsEntry::from(&link3).unwrap().path(), link3);
-    //     assert_eq!(StdfsEntry::from(&link3).unwrap().alt(), file1);
-    //     assert_eq!(StdfsEntry::from(&link3).unwrap().follow(true).path(), file1);
-    //     assert_eq!(StdfsEntry::from(&link3).unwrap().follow(true).alt(), link3);
-    //     assert_eq!(Stdfs::readlink_abs(&link3).unwrap(), file1);
+    #[test]
+    fn test_vfs_entry_upcast()
+    {
+        test_entry_upcast(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_upcast(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_upcast((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let file1 = tmpdir.mash("file1");
 
-    //     // absolute path with symbols
-    //     assert!(std::os::unix::fs::symlink(sys::mash(&dir1, "../file1"), &link4).is_ok());
-    //     assert_eq!(StdfsEntry::from(&link4).unwrap().path(), link4);
-    //     assert_eq!(StdfsEntry::from(&link4).unwrap().alt(), file1);
-    //     assert_eq!(StdfsEntry::from(&link4).unwrap().follow(true).path(), file1);
-    //     assert_eq!(StdfsEntry::from(&link4).unwrap().follow(true).alt(), link4);
-    //     assert_eq!(Stdfs::readlink_abs(&link4).unwrap(), file1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(vfs.entry(&file1).unwrap().upcast().path(), &file1);
 
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 }

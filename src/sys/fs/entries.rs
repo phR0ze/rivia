@@ -1,8 +1,9 @@
 use std::{cmp::Ordering, fmt, path::Path};
 
+use super::entry_iter::EntryIter;
 use crate::{
     errors::*,
-    sys::{Entry, EntryIter, VfsEntry},
+    sys::{Entry, VfsEntry},
     trying,
 };
 
