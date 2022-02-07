@@ -1258,7 +1258,7 @@ impl VirtualFileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_entry");
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_entry");
     /// let file = tmpdir.mash("file");
     /// assert_vfs_mkfile!(vfs, &file);
     /// assert!(vfs.entry(&file).unwrap().is_file());
