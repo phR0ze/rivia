@@ -94,6 +94,12 @@ impl MemfsEntryOpts
 /// ### Example
 /// ```
 /// use rivia::prelude::*;
+///
+/// let vfs = Memfs::new();
+/// let file = vfs.root().mash("file");
+/// assert_vfs_mkfile!(vfs, &file);
+/// let entry = vfs.entry(&file).unwrap();
+/// assert_eq!(entry.path(), &file);
 /// ```
 #[derive(Debug)]
 pub struct MemfsEntry
@@ -225,8 +231,11 @@ impl Entry for MemfsEntry
     /// ```ignore
     /// use rivia::prelude::*;
     ///
-    /// let entry = MemfsEntry::opts("foo").new();
-    /// entry.path();
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let entry = vfs.entry(&file).unwrap();
+    /// assert_eq!(entry.path(), &file);
     /// ```
     fn path(&self) -> &Path
     {
@@ -238,6 +247,12 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let entry = vfs.entry(&file).unwrap();
+    /// assert_eq!(entry.path_buf(), file);
     /// ```
     fn path_buf(&self) -> PathBuf
     {
@@ -254,6 +269,14 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// let entry = vfs.entry(&link).unwrap();
+    /// assert_eq!(entry.alt(), &file);
     /// ```
     fn alt(&self) -> &Path
     {
@@ -265,6 +288,14 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// let entry = vfs.entry(&link).unwrap();
+    /// assert_eq!(entry.alt_buf(), file);
     /// ```
     fn alt_buf(&self) -> PathBuf
     {
@@ -276,6 +307,14 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// let entry = vfs.entry(&link).unwrap();
+    /// assert_eq!(entry.rel(), Path::new("file"));
     /// ```
     fn rel(&self) -> &Path
     {
@@ -287,6 +326,14 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// let entry = vfs.entry(&link).unwrap();
+    /// assert_eq!(entry.rel_buf(), PathBuf::from("file"));
     /// ```
     fn rel_buf(&self) -> PathBuf
     {
@@ -298,6 +345,14 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// let entry = vfs.entry(&link).unwrap();
+    /// let entry = entry.follow(false);
     /// ```
     fn follow(self, follow: bool) -> VfsEntry
     {
@@ -309,6 +364,14 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// let entry = vfs.entry(&link).unwrap();
+    /// assert_eq!(entry.following(), false);
     /// ```
     fn following(&self) -> bool
     {
@@ -321,6 +384,12 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let entry = vfs.entry(&file).unwrap();
+    /// assert_eq!(entry.is_dir(), false);
     /// ```
     fn is_dir(&self) -> bool
     {
@@ -332,6 +401,12 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let entry = vfs.entry(&file).unwrap();
+    /// assert_eq!(entry.is_file(), true);
     /// ```
     fn is_file(&self) -> bool
     {
@@ -343,6 +418,12 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let entry = vfs.entry(&file).unwrap();
+    /// assert_eq!(entry.is_symlink(), false);
     /// ```
     fn is_symlink(&self) -> bool
     {
@@ -354,6 +435,12 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let entry = vfs.entry(&file).unwrap();
+    /// assert_ne!(entry.mode(), 0o40644);
     /// ```
     fn mode(&self) -> u32
     {
@@ -365,6 +452,12 @@ impl Entry for MemfsEntry
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// let entry = vfs.entry(&file).unwrap().upcast();
+    /// assert_eq!(entry.is_file(), true);
     /// ```
     fn upcast(self) -> VfsEntry
     {

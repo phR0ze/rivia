@@ -205,4 +205,66 @@ mod tests
         assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
         assert!(iter.next().is_none());
     }
+
+    #[test]
+    fn test_entry_sort()
+    {
+        let vfs = Memfs::new();
+        let tmpdir = vfs.root().mash("tmpdir");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+
+        assert_vfs_mkdir_p!(vfs, &tmpdir);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+
+        // custom sort for files
+        let mut iter = vfs.entry_iter()(&tmpdir, false).unwrap();
+        iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
+        assert_eq!(iter.cached(), true);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn test_entry_follow()
+    {
+        // let vfs = Memfs::new();
+        // let tmpdir = vfs.root().mash("tmpdir");
+        // let file1 = tmpdir.mash("file1");
+        // let file2 = tmpdir.mash("file2");
+        // let link1 = tmpdir.mash("link");
+
+        // assert_vfs_mkdir_p!(vfs, &tmpdir);
+        // assert_vfs_mkfile!(vfs, &file1);
+        // assert_vfs_mkfile!(vfs, &file2);
+        // assert_vfs_symlink!(vfs, &link1, &file1);
+
+        // // custom sort for files
+        // let iter = vfs.entry_iter()(&tmpdir, false).unwrap();
+        // assert_eq!(iter.following(), false);
+        // let mut iter = iter.follow(true);
+        // assert_eq!(iter.following(), true);
+        // iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
+        // assert_eq!(iter.cached(), true);
+
+        // // Extract and examine link
+        // let item1 = iter.next().unwrap().unwrap();
+        // assert_eq!(item1.is_symlink(), true);
+        // assert_eq!(item1.following(), true);
+
+        // let item2 = iter.next().unwrap().unwrap();
+        // assert_eq!(item2.is_symlink(), false);
+
+        // let item3 = iter.next().unwrap().unwrap();
+        // assert_eq!(item3.is_symlink(), false);
+
+        // assert!(iter.next().is_none());
+
+        // assert_eq!(link.is_symlink(), true);
+        // assert_eq!(link.path(), file1);
+        // assert_eq!(link.alt(), link1);
+        // assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+    }
 }
