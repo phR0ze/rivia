@@ -197,6 +197,22 @@ impl Memfs
         }
         Ok(())
     }
+
+    /// Create an EntryIter func
+    pub(crate) fn entry_iter(&self) -> Box<dyn Fn(&Path, bool) -> RvResult<EntryIter>+Send+Sync+'static>
+    {
+        let guard = self.0.read().unwrap();
+        let entries = Arc::new(guard.fs.clone());
+        Box::new(move |path: &Path, follow: bool| -> RvResult<EntryIter> {
+            let entries = entries.clone();
+            Ok(EntryIter {
+                path: path.to_path_buf(),
+                cached: false,
+                following: follow,
+                iter: Box::new(MemfsEntryIter::new(path, entries)?),
+            })
+        })
+    }
 }
 
 impl fmt::Display for Memfs
@@ -507,19 +523,6 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
-        // Create closure with cloned shared memfs instance
-        let guard = self.0.read().unwrap();
-        let entries = Arc::new(guard.fs.clone());
-        let iter_func = move |path: &Path, follow: bool| -> RvResult<EntryIter> {
-            let entries = entries.clone();
-            Ok(EntryIter {
-                path: path.to_path_buf(),
-                cached: false,
-                following: follow,
-                iter: Box::new(MemfsEntryIter::new(path, entries)?),
-            })
-        };
-
         Ok(Entries {
             root: self.clone_entry(path)?.upcast(),
             dirs: false,
@@ -534,7 +537,7 @@ impl VirtualFileSystem for Memfs
             sort_by_name: false,
             pre_op: None,
             sort: None,
-            iter_from: Box::new(iter_func),
+            iter_from: self.entry_iter(),
         })
     }
 
@@ -1434,6 +1437,17 @@ mod tests
 
         assert_vfs_mkfile!(vfs, &file);
         assert!(vfs.entry(&file).unwrap().is_file());
+    }
+
+    #[test]
+    fn test_stdfs_entry_iter()
+    {
+        let vfs = Memfs::new();
+        let file = vfs.root().mash("file");
+        assert_vfs_mkfile!(vfs, &file);
+        let mut iter = vfs.entry_iter()(&vfs.root(), false).unwrap();
+        assert_eq!(iter.next().unwrap().unwrap().path(), file);
+        assert!(iter.next().is_none());
     }
 
     #[test]

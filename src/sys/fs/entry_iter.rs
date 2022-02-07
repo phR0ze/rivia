@@ -167,46 +167,42 @@ impl Iterator for EntryIter
 #[cfg(test)]
 mod tests
 {
+
     use crate::prelude::*;
 
     #[test]
-    fn test_vfs_entry_iter_dirs_first()
+    fn test_entry_iter_dirs_first()
     {
-        test_entry_iter_dirs_first(assert_vfs_setup!(Vfs::memfs()));
-        test_entry_iter_dirs_first(assert_vfs_setup!(Vfs::stdfs()));
-    }
-    fn test_entry_iter_dirs_first((vfs, tmpdir): (Vfs, PathBuf))
-    {
-        // let dir1 = tmpdir.mash("dir1");
-        // let dir2 = tmpdir.mash("dir2");
-        // let file1 = tmpdir.mash("file1");
-        // let file2 = tmpdir.mash("file2");
+        let vfs = Memfs::new();
+        let tmpdir = vfs.root().mash("tmpdir");
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = tmpdir.mash("dir2");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
 
-        // assert_vfs_mkdir!(&dir1);
-        // assert_vfs_mkdir!(&dir2);
-        // assert_vfs_mkfile!(&file1);
-        // assert_vfs_mkfile!(&file2);
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
 
-        // // dirs first
-        // let mut iter = vfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-        // iter.dirs_first(|x, y| x.file_name().cmp(&y.file_name()));
-        // assert_eq!(iter.cached(), true);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-        // assert!(iter.next().is_none());
+        // dirs first
+        let mut iter = vfs.entry_iter()(&tmpdir, false).unwrap();
+        iter.dirs_first(|x, y| x.file_name().cmp(&y.file_name()));
+        assert_eq!(iter.cached(), true);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert!(iter.next().is_none());
 
-        // // files first
-        // let mut iter = vfsEntry::from(&tmpdir).unwrap().iter().unwrap();
-        // iter.files_first(|x, y| x.file_name().cmp(&y.file_name()));
-        // assert_eq!(iter.cached(), true);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), file1);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), file2);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-        // assert!(iter.next().is_none());
-
-        // assert_vfs_remove_all!(&tmpdir);
+        // files first
+        let mut iter = vfs.entry_iter()(&tmpdir, false).unwrap();
+        iter.files_first(|x, y| x.file_name().cmp(&y.file_name()));
+        assert_eq!(iter.cached(), true);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+        assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+        assert!(iter.next().is_none());
     }
 }

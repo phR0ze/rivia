@@ -336,17 +336,6 @@ impl Stdfs
     /// ```
     pub fn entries<T: AsRef<Path>>(path: T) -> RvResult<Entries>
     {
-        let iter_func = |path: &Path, follow: bool| -> RvResult<EntryIter> {
-            Ok(EntryIter {
-                path: path.to_path_buf(),
-                cached: false,
-                following: follow,
-                iter: Box::new(StdfsEntryIter {
-                    dir: fs::read_dir(path)?,
-                }),
-            })
-        };
-
         Ok(Entries {
             root: StdfsEntry::from(path)?.upcast(),
             dirs: Default::default(),
@@ -361,7 +350,7 @@ impl Stdfs
             sort_by_name: false,
             pre_op: None,
             sort: None,
-            iter_from: Box::new(iter_func),
+            iter_from: Box::new(Stdfs::entry_iter),
         })
     }
 
@@ -380,6 +369,19 @@ impl Stdfs
     pub fn entry<T: AsRef<Path>>(path: T) -> RvResult<VfsEntry>
     {
         Ok(StdfsEntry::from(path.as_ref())?.upcast())
+    }
+
+    /// Return a EntryIter function
+    pub(crate) fn entry_iter(path: &Path, follow: bool) -> RvResult<EntryIter>
+    {
+        Ok(EntryIter {
+            path: path.to_path_buf(),
+            cached: false,
+            following: follow,
+            iter: Box::new(StdfsEntryIter {
+                dir: fs::read_dir(path)?,
+            }),
+        })
     }
 
     /// Returns all files for the given path, sorted by name
@@ -1951,6 +1953,18 @@ mod tests
         assert_vfs_mkfile!(vfs, &file);
         assert!(vfs.entry(&file).unwrap().is_file());
 
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_entry_iter()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file1 = tmpdir.mash("file1");
+        assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
+        let mut iter = Stdfs::entry_iter(&tmpdir, false).unwrap();
+        assert_eq!(iter.next().unwrap().unwrap().path(), file1);
+        assert!(iter.next().is_none());
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
 

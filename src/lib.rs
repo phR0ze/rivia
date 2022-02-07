@@ -66,6 +66,7 @@ pub mod prelude
     pub use std::{
         io::{Read, Seek, SeekFrom, Write},
         path::{Component, Path, PathBuf},
+        sync::Arc,
     };
 
     // Export macros by name
