@@ -244,6 +244,12 @@ mod tests
     }
 
     #[test]
+    fn test_as_ref()
+    {
+        assert_eq!(PathError::Empty.as_ref().downcast_ref::<PathError>(), Some(&PathError::Empty));
+    }
+
+    #[test]
     fn test_new_path_empty()
     {
         assert!(path_empty().is_err());

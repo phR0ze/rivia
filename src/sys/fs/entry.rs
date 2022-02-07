@@ -583,6 +583,28 @@ mod tests
 {
     use crate::prelude::*;
 
+    #[test]
+    fn test_vfs_entry_alt_rel()
+    {
+        test_entry_alt_rel(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_alt_rel(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_alt_rel((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let link1 = tmpdir.mash("link1");
+
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_symlink!(vfs, &link1, &dir1);
+        let entry = vfs.entry(&link1).unwrap();
+        assert_eq!(entry.alt(), &dir1);
+        assert_eq!(entry.alt_buf(), dir1);
+        assert_eq!(entry.rel(), Path::new("dir1"));
+        assert_eq!(entry.rel_buf(), PathBuf::from("dir1"));
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
     // #[test]
     // fn test_vfs_dirs_first_files_first()
     // {
@@ -775,56 +797,51 @@ mod tests
     //     assert_stdfs_remove_all!(&tmpdir);
     // }
 
-    // #[test]
-    // fn test_stdfs_entry_is_symlink_dir()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let dir1 = sys::mash(&tmpdir, "dir1");
-    //     let link1 = sys::mash(&tmpdir, "link1");
-    //     let link2 = sys::mash(&tmpdir, "link2");
+    #[test]
+    fn test_vfs_entry_is_symlink_dir()
+    {
+        test_entry_is_symlink_dir(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_is_symlink_dir(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_is_symlink_dir((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let link1 = tmpdir.mash("link1");
 
-    //     // regular dir is not a symlink dir
-    //     assert!(Stdfs::mkdir_p(&dir1).is_ok());
-    //     assert_eq!(StdfsEntry::from(&dir1).unwrap().is_symlink_dir(), false);
+        // regular dir is not a symlink dir
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_eq!(vfs.entry(&dir1).unwrap().is_symlink_dir(), false);
 
-    //     // test absolute
-    //     assert_eq!(Stdfs::symlink(&dir1, &link1).unwrap(), link1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_dir(), true);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), false);
+        // test absolute
+        assert_vfs_symlink!(vfs, &link1, &dir1);
+        assert_eq!(vfs.entry(&link1).unwrap().is_symlink_dir(), true);
+        assert_eq!(vfs.entry(&link1).unwrap().is_symlink_file(), false);
 
-    //     // test relative
-    //     assert!(Stdfs::symlink("dir1", &link2).is_ok());
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), true);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_file(), false);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+    #[test]
+    fn test_vfs_entry_is_symlink_file()
+    {
+        test_entry_is_symlink_file(assert_vfs_setup!(Vfs::memfs()));
+        test_entry_is_symlink_file(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_entry_is_symlink_file((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
 
-    // #[test]
-    // fn test_stdfs_entry_is_symlink_file()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = sys::mash(&tmpdir, "file1");
-    //     let link1 = sys::mash(&tmpdir, "link1");
-    //     let link2 = sys::mash(&tmpdir, "link2");
+        // regular dir is not a symlink dir
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_eq!(vfs.entry(&file1).unwrap().is_symlink_file(), false);
 
-    //     // regular file is not a symlink dir
-    //     assert!(Stdfs::touch(&file1).is_ok());
-    //     assert_eq!(StdfsEntry::from(&file1).unwrap().is_symlink_file(), false);
+        // test absolute
+        assert_vfs_symlink!(vfs, &link1, &file1);
+        assert_eq!(vfs.entry(&link1).unwrap().is_symlink_dir(), false);
+        assert_eq!(vfs.entry(&link1).unwrap().is_symlink_file(), true);
 
-    //     // test absolute
-    //     assert_eq!(Stdfs::symlink(&file1, &link1).unwrap(), link1);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_dir(), false);
-    //     assert_eq!(StdfsEntry::from(&link1).unwrap().is_symlink_file(), true);
-
-    //     // test relative
-    //     assert!(Stdfs::symlink("file1", &link2).is_ok());
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_dir(), false);
-    //     assert_eq!(StdfsEntry::from(&link2).unwrap().is_symlink_file(), true);
-
-    //     // cleanup
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
     // #[test]
     // fn test_stdfs_entry_readlink_abs()

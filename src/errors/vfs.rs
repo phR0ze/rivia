@@ -69,6 +69,12 @@ mod tests
     }
 
     #[test]
+    fn test_as_ref()
+    {
+        assert_eq!(VfsError::Unavailable.as_ref().downcast_ref::<VfsError>(), Some(&VfsError::Unavailable));
+    }
+
+    #[test]
     fn test_downcast()
     {
         assert!(vfs_unavailable().is_err());

@@ -239,99 +239,72 @@ mod tests
     #[test]
     fn test_error()
     {
-        // let mut err = FnError::from(VfsError::FailedToExtractString);
-        // assert_eq!("failed to extract string from file", err.to_string());
-        // assert_eq!("failed to extract string from file", err.as_ref().to_string());
-        // assert_eq!("failed to extract string from file", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<VfsError>().is_some());
-        // assert!(err.downcast_mut::<VfsError>().is_some());
-        // assert!(err.source().is_none());
+        let mut err = RvError::from(CoreError::msg("foo"));
+        assert_eq!(err.to_string(), "foo");
+        assert_eq!(err.as_ref().to_string(), "foo");
+        assert_eq!(err.as_mut().to_string(), "foo");
+        assert!(err.downcast_ref::<CoreError>().is_some());
+        assert!(err.downcast_mut::<CoreError>().is_some());
+        assert!(err.source().is_none());
 
-        // let mut err = FnError::from(glob::PatternError { pos: 1, msg: "1" });
-        // assert_eq!("glob failure: Pattern syntax error near position 1: 1", err.to_string());
-        // assert_eq!(
-        //     "glob failure: Pattern syntax error near position 1: 1",
-        //     err.as_ref().to_string()
-        // );
-        // assert_eq!(
-        //     "glob failure: Pattern syntax error near position 1: 1",
-        //     err.as_mut().to_string()
-        // );
-        // assert!(err.downcast_ref::<MiscError>().is_some());
-        // assert!(err.downcast_mut::<MiscError>().is_some());
-        // assert!(err.source().is_none());
+        let mut err = RvError::from(io::Error::new(io::ErrorKind::AlreadyExists, "foo"));
+        assert_eq!("foo", err.to_string());
+        assert_eq!("foo", err.as_ref().to_string());
+        assert_eq!("foo", err.as_mut().to_string());
+        assert!(err.downcast_ref::<io::Error>().is_some());
+        assert!(err.downcast_mut::<io::Error>().is_some());
+        assert!(err.source().is_none());
 
-        // let mut err = FnError::from(io::Error::new(io::ErrorKind::AlreadyExists, "foo"));
-        // assert_eq!("foo", err.to_string());
-        // assert_eq!("foo", err.as_ref().to_string());
-        // assert_eq!("foo", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<io::Error>().is_some());
-        // assert!(err.downcast_mut::<io::Error>().is_some());
-        // assert!(err.source().is_none());
+        let mut err = RvError::from(IterError::ItemNotFound);
+        assert_eq!("iterator item not found", err.to_string());
+        assert_eq!("iterator item not found", err.as_ref().to_string());
+        assert_eq!("iterator item not found", err.as_mut().to_string());
+        assert!(err.downcast_ref::<IterError>().is_some());
+        assert!(err.downcast_mut::<IterError>().is_some());
+        assert!(err.source().is_none());
 
-        // let mut err = FnError::from(IterError::ItemNotFound);
-        // assert_eq!("iterator item not found", err.to_string());
-        // assert_eq!("iterator item not found", err.as_ref().to_string());
-        // assert_eq!("iterator item not found", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<IterError>().is_some());
-        // assert!(err.downcast_mut::<IterError>().is_some());
-        // assert!(err.source().is_none());
+        let mut err = RvError::from(nix::errno::Errno::UnknownErrno);
+        assert_eq!(err.to_string(), "UnknownErrno: Unknown errno");
+        assert_eq!(err.as_ref().to_string(), "UnknownErrno: Unknown errno");
+        assert_eq!(err.as_mut().to_string(), "UnknownErrno: Unknown errno");
+        assert!(err.downcast_ref::<nix::errno::Errno>().is_some());
+        assert!(err.downcast_mut::<nix::errno::Errno>().is_some());
+        assert!(err.source().is_none());
 
-        // let mut err = FnError::from(std::ffi::CString::new(b"f\0oo".to_vec()).unwrap_err());
-        // assert_eq!("nul byte found in provided data at position: 1", err.to_string());
-        // assert_eq!("nul byte found in provided data at position: 1", err.as_ref().to_string());
-        // assert_eq!("nul byte found in provided data at position: 1", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<std::ffi::NulError>().is_some());
-        // assert!(err.downcast_mut::<std::ffi::NulError>().is_some());
-        // assert!(err.source().is_none());
+        let mut err = RvError::from(PathError::Empty);
+        assert_eq!("path empty", err.to_string());
+        assert_eq!("path empty", err.as_ref().to_string());
+        assert_eq!("path empty", err.as_mut().to_string());
+        assert!(err.downcast_ref::<PathError>().is_some());
+        assert!(err.downcast_mut::<PathError>().is_some());
+        assert!(err.source().is_none());
 
-        // let mut err = FnError::from(OsError::KernelReleaseNotFound);
-        // assert_eq!("kernel release was not found", err.to_string());
-        // assert_eq!("kernel release was not found", err.as_ref().to_string());
-        // assert_eq!("kernel release was not found", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<OsError>().is_some());
-        // assert!(err.downcast_mut::<OsError>().is_some());
-        // assert!(err.source().is_none());
+        let mut err = RvError::from(StringError::FailedToString);
+        assert_eq!("failed to convert value to string", err.to_string());
+        assert_eq!("failed to convert value to string", err.as_ref().to_string());
+        assert_eq!("failed to convert value to string", err.as_mut().to_string());
+        assert!(err.downcast_ref::<StringError>().is_some());
+        assert!(err.downcast_mut::<StringError>().is_some());
+        assert!(err.source().is_none());
 
-        // let mut err = FnError::from(PathError::Empty);
-        // assert_eq!("path empty", err.to_string());
-        // assert_eq!("path empty", err.as_ref().to_string());
-        // assert_eq!("path empty", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<PathError>().is_some());
-        // assert!(err.downcast_mut::<PathError>().is_some());
-        // assert!(err.source().is_none());
+        let time1 = std::time::SystemTime::now();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let time2 = std::time::SystemTime::now();
+        let mut err = RvError::from(time1.duration_since(time2).unwrap_err());
+        assert_eq!(err.to_string(), "second time provided was later than self");
+        assert_eq!(err.as_ref().to_string(), "second time provided was later than self");
+        assert_eq!(err.as_mut().to_string(), "second time provided was later than self");
+        assert!(err.downcast_ref::<std::time::SystemTimeError>().is_some());
+        assert!(err.downcast_mut::<std::time::SystemTimeError>().is_some());
+        assert!(err.source().is_none());
 
-        // let mut err = FnError::from(regex::Error::Syntax("foo".to_string()));
-        // assert_eq!("foo", err.to_string());
-        // assert_eq!("foo", err.as_ref().to_string());
-        // assert_eq!("foo", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<regex::Error>().is_some());
-        // assert!(err.downcast_mut::<regex::Error>().is_some());
-        // assert!(err.source().is_none());
-
-        // let mut err = FnError::from(MiscError::Msg("foo".to_string()));
-        // assert_eq!("foo", err.to_string());
-        // assert_eq!("foo", err.as_ref().to_string());
-        // assert_eq!("foo", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<MiscError>().is_some());
-        // assert!(err.downcast_mut::<MiscError>().is_some());
-        // assert!(err.source().is_none());
-
-        // let mut err = FnError::from(StringError::FailedToString);
-        // assert_eq!("failed to convert value to string", err.to_string());
-        // assert_eq!("failed to convert value to string", err.as_ref().to_string());
-        // assert_eq!("failed to convert value to string", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<StringError>().is_some());
-        // assert!(err.downcast_mut::<StringError>().is_some());
-        // assert!(err.source().is_none());
-
-        // let mut err = FnError::from(UserError::DoesNotExistById(1));
-        // assert_eq!("user does not exist: 1", err.to_string());
-        // assert_eq!("user does not exist: 1", err.as_ref().to_string());
-        // assert_eq!("user does not exist: 1", err.as_mut().to_string());
-        // assert!(err.downcast_ref::<UserError>().is_some());
-        // assert!(err.downcast_mut::<UserError>().is_some());
-        // assert!(err.source().is_none());
+        let mut err = RvError::from(std::str::from_utf8(&vec![0, 159, 146, 150]).unwrap_err());
+        assert_eq!(err.to_string(), "invalid utf-8 sequence of 1 bytes from index 1");
+        assert_eq!(err.as_ref().to_string(), "invalid utf-8 sequence of 1 bytes from index 1");
+        assert_eq!(err.as_mut().to_string(), "invalid utf-8 sequence of 1 bytes from index 1");
+        assert!(err.downcast_ref::<std::str::Utf8Error>().is_some());
+        assert!(err.downcast_mut::<std::str::Utf8Error>().is_some());
+        assert!(err.source().is_none());
 
         let mut err = RvError::from(std::env::VarError::NotPresent);
         assert_eq!("environment variable not found", err.to_string());
@@ -339,6 +312,14 @@ mod tests
         assert_eq!("environment variable not found", err.as_mut().to_string());
         assert!(err.downcast_ref::<std::env::VarError>().is_some());
         assert!(err.downcast_mut::<std::env::VarError>().is_some());
+        assert!(err.source().is_none());
+
+        let mut err = RvError::from(VfsError::FailedToExtractString);
+        assert_eq!("Failed to extract string from file", err.to_string());
+        assert_eq!("Failed to extract string from file", err.as_ref().to_string());
+        assert_eq!("Failed to extract string from file", err.as_mut().to_string());
+        assert!(err.downcast_ref::<VfsError>().is_some());
+        assert!(err.downcast_mut::<VfsError>().is_some());
         assert!(err.source().is_none());
     }
 

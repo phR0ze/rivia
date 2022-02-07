@@ -51,6 +51,7 @@ mod tests
     #[test]
     fn test_errors()
     {
+        assert_eq!(CoreError::msg("foo").to_string(), "foo");
         assert_eq!(CoreError::Msg("foo".to_string()).to_string(), "foo");
         assert_eq!(CoreError::PanicCapture("foo".to_string()).to_string(), "foo");
         assert_eq!(CoreError::PanicCaptureFailure.to_string(), "an error occured during a panic capture");

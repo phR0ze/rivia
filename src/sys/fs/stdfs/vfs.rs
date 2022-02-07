@@ -15,7 +15,7 @@ use super::{StdfsEntry, StdfsEntryIter};
 use crate::{
     core::*,
     errors::*,
-    sys::{self, Chmod, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VirtualFileSystem},
+    sys::{self, Chmod, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VfsEntry, VirtualFileSystem},
 };
 
 /// Provides a wrapper around the `std::fs` module as a [`VirtualFileSystem`] backend implementation
@@ -363,6 +363,23 @@ impl Stdfs
             sort: None,
             iter_from: Box::new(iter_func),
         })
+    }
+
+    /// Return a virtual filesystem entry for the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_entry");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(Stdfs::entry(&file).unwrap().is_file());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn entry<T: AsRef<Path>>(path: T) -> RvResult<VfsEntry>
+    {
+        Ok(StdfsEntry::from(path.as_ref())?.upcast())
     }
 
     /// Returns all files for the given path, sorted by name
@@ -1235,6 +1252,23 @@ impl VirtualFileSystem for Stdfs
         Stdfs::entries(path)
     }
 
+    /// Return a virtual filesystem entry for the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_entry");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.entry(&file).unwrap().is_file());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
+    {
+        Stdfs::entry(path)
+    }
+
     /// Returns true if the `path` exists
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1901,6 +1935,21 @@ mod tests
         let mut iter = vfs.entries(&file1).unwrap().into_iter();
         assert_eq!(iter.next().unwrap().unwrap().path(), file1);
         assert!(iter.next().is_none());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_entry()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs error
+        assert_eq!(vfs.entry("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert!(vfs.entry(&file).unwrap().is_file());
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     errors::*,
-    sys::{Chmod, Entries, Memfs, Stdfs},
+    sys::{Chmod, Entries, Memfs, Stdfs, VfsEntry},
 };
 
 /// Defines a combination of the Read + Seek traits
@@ -192,6 +192,19 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert!(iter.next().is_none());
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
+
+    /// Return a virtual filesystem entry for the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.entry(&file).unwrap().is_file());
+    /// ```
+    fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>;
 
     /// Returns true if the `path` exists
     ///
@@ -872,6 +885,25 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.entries(path),
             Vfs::Memfs(x) => x.entries(path),
+        }
+    }
+
+    /// Return a virtual filesystem entry for the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.entry(&file).unwrap().is_file());
+    /// ```
+    fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.entry(path),
+            Vfs::Memfs(x) => x.entry(path),
         }
     }
 

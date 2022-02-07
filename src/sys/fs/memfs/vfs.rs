@@ -12,7 +12,7 @@ use super::{MemfsEntry, MemfsEntryIter, MemfsFile};
 use crate::{
     core::*,
     errors::*,
-    sys::{self, Chmod, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VirtualFileSystem},
+    sys::{self, Chmod, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VfsEntry, VirtualFileSystem},
 };
 
 // Helper aliases
@@ -536,6 +536,22 @@ impl VirtualFileSystem for Memfs
             sort: None,
             iter_from: Box::new(iter_func),
         })
+    }
+
+    /// Return a virtual filesystem entry for the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.entry(&file).unwrap().is_file());
+    /// ```
+    fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
+    {
+        Ok(self.clone_entry(path)?.upcast())
     }
 
     /// Returns true if the `path` exists
@@ -1405,6 +1421,19 @@ mod tests
         assert_eq!(iter.next().unwrap().unwrap().path(), &dir2);
         assert_eq!(iter.next().unwrap().unwrap().path(), &file);
         assert_eq!(iter.next().is_none(), true);
+    }
+
+    #[test]
+    fn test_memfs_entry()
+    {
+        let vfs = Memfs::new();
+        let file = vfs.root().mash("file");
+
+        // abs error
+        assert_eq!(vfs.entry("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert!(vfs.entry(&file).unwrap().is_file());
     }
 
     #[test]
