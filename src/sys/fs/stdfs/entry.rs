@@ -130,25 +130,6 @@ impl StdfsEntry
             cached: true,
         })
     }
-
-    /// Switch the `path` and `alt` values if `is_symlink` reports true.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub(crate) fn follow(mut self, follow: bool) -> Self
-    {
-        if follow && !self.follow {
-            self.follow = true;
-            if self.link {
-                let path = self.path;
-                self.path = self.alt;
-                self.alt = path;
-            }
-        }
-        self
-    }
 }
 
 impl Entry for StdfsEntry
@@ -235,12 +216,18 @@ impl Entry for StdfsEntry
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    fn follow(self, follow: bool) -> VfsEntry
+    fn follow(mut self, follow: bool) -> VfsEntry
     {
-        VfsEntry::Stdfs(self.follow(follow))
+        if follow && self.link && !self.follow {
+            self.follow = true;
+            let path = self.path;
+            self.path = self.alt;
+            self.alt = path;
+        }
+        self.upcast()
     }
 
-    /// Return the current following state
+    /// Return the current following state. Only applies to symlinks
     ///
     /// ### Examples
     /// ```

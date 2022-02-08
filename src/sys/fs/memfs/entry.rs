@@ -164,24 +164,6 @@ impl MemfsEntry
         Ok(())
     }
 
-    /// Switch the `path` and `alt` values if `is_link` reports true.
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
-    pub(crate) fn follow(mut self, follow: bool) -> Self
-    {
-        if follow && !self.follow {
-            self.follow = true;
-            if self.link {
-                let path = self.path;
-                self.path = self.alt;
-                self.alt = path;
-            }
-        }
-        self
-    }
     /// Remove an entry from this directory
     ///
     /// * Returns true on success or false if there was no file to remove
@@ -354,12 +336,19 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&link).unwrap();
     /// let entry = entry.follow(false);
     /// ```
-    fn follow(self, follow: bool) -> VfsEntry
+    fn follow(mut self, follow: bool) -> VfsEntry
     {
-        VfsEntry::Memfs(self.follow(follow))
+        if follow && self.link && !self.follow {
+            self.follow = true;
+            let path = self.path;
+            self.path = self.alt;
+            self.alt = path;
+        }
+        self.upcast()
     }
 
-    /// Return the current following state
+    /// Return the current following state. Only applies to symlinks
+    ///
     ///
     /// ### Examples
     /// ```

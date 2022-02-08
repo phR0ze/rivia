@@ -449,7 +449,7 @@ impl Entry for VfsEntry
         }
     }
 
-    /// Return the current following state
+    /// Return the current following state. Only applies to symlinks
     ///
     /// ### Examples
     /// ```

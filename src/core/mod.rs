@@ -21,7 +21,7 @@ pub use string::*;
 /// Expands to the current function's name similar to the venerable `file!` or `line!`
 ///
 /// ### References
-/// * https://github.com/rust-lang/rfcs/pull/1719.
+/// * <https://github.com/rust-lang/rfcs/pull/1719>
 ///
 /// ### Examples
 /// ```
@@ -37,7 +37,7 @@ macro_rules! function {
     () => {{
         // Capture the function's type and passes it to `std::any::type_name` to get the
         // function's fully qualified name, which includes our target.
-        // https://doc.rust-lang.org/std/any/fn.type_name.html
+        // <https://doc.rust-lang.org/std/any/fn.type_name.html>
         fn _f() {}
         fn type_of<T>(_: T) -> &'static str
         {
@@ -61,7 +61,7 @@ macro_rules! function {
 /// Expands to the current functions's fully qualified name
 ///
 /// ### References
-/// * https://github.com/rust-lang/rfcs/pull/1719.
+/// * <https://github.com/rust-lang/rfcs/pull/1719>
 ///
 /// ### Examples
 /// ```
@@ -77,7 +77,7 @@ macro_rules! function_fqn {
     () => {{
         // Capture the function's type and passes it to `std::any::type_name` to get the
         // function's fully qualified name, which includes our target.
-        // https://doc.rust-lang.org/std/any/fn.type_name.html
+        // <https://doc.rust-lang.org/std/any/fn.type_name.html>
         fn _f() {}
         fn type_of<T>(_: T) -> &'static str
         {

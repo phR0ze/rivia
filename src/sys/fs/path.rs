@@ -293,7 +293,7 @@ pub fn has_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> bool
 /// Returns the full path to the current user's home directory.
 ///
 /// Alternate implementation as the Rust std::env::home_dir implementation has been
-/// deprecated https://doc.rust-lang.org/std/env/fn.home_dir.html
+/// deprecated <https://doc.rust-lang.org/std/env/fn.home_dir.html>
 ///
 /// ### Examples
 /// ```

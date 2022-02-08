@@ -83,6 +83,7 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
+    #[allow(dead_code)]
     pub fn follow(mut self, follow: bool) -> Self
     {
         self.following = follow;
@@ -90,6 +91,7 @@ impl EntryIter
     }
 
     /// Return the current following state
+    #[allow(dead_code)]
     pub fn following(&self) -> bool
     {
         self.following
@@ -230,41 +232,51 @@ mod tests
     #[test]
     fn test_entry_follow()
     {
-        // let vfs = Memfs::new();
-        // let tmpdir = vfs.root().mash("tmpdir");
-        // let file1 = tmpdir.mash("file1");
-        // let file2 = tmpdir.mash("file2");
-        // let link1 = tmpdir.mash("link");
+        let vfs = Memfs::new();
+        let tmpdir = vfs.root().mash("tmpdir");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+        let link1 = tmpdir.mash("link");
 
-        // assert_vfs_mkdir_p!(vfs, &tmpdir);
-        // assert_vfs_mkfile!(vfs, &file1);
-        // assert_vfs_mkfile!(vfs, &file2);
-        // assert_vfs_symlink!(vfs, &link1, &file1);
+        assert_vfs_mkdir_p!(vfs, &tmpdir);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+        assert_vfs_symlink!(vfs, &link1, &file1);
 
-        // // custom sort for files
-        // let iter = vfs.entry_iter()(&tmpdir, false).unwrap();
-        // assert_eq!(iter.following(), false);
-        // let mut iter = iter.follow(true);
-        // assert_eq!(iter.following(), true);
-        // iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
-        // assert_eq!(iter.cached(), true);
+        // custom sort for files
+        let iter = vfs.entry_iter()(&tmpdir, false).unwrap();
+        assert_eq!(iter.following(), false);
+        let mut iter = iter.follow(true);
+        assert_eq!(iter.following(), true);
+        iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
+        assert_eq!(iter.cached(), true);
 
-        // // Extract and examine link
-        // let item1 = iter.next().unwrap().unwrap();
-        // assert_eq!(item1.is_symlink(), true);
-        // assert_eq!(item1.following(), true);
+        // because we sort on the path and we have follow set which switch the path and alt
+        // sort order is not deterministic as file1 and file1 are the same name
+        let item1 = iter.next().unwrap().unwrap();
+        if item1.is_symlink() {
+            assert_eq!(item1.following(), true);
+            assert_eq!(item1.path(), &file1);
+            assert_eq!(item1.alt(), &link1);
+        } else {
+            assert_eq!(item1.following(), false);
+            assert_eq!(item1.path(), &file1);
+        }
 
-        // let item2 = iter.next().unwrap().unwrap();
-        // assert_eq!(item2.is_symlink(), false);
+        let item2 = iter.next().unwrap().unwrap();
+        if item2.is_symlink() {
+            assert_eq!(item2.following(), true);
+            assert_eq!(item2.path(), &file1);
+            assert_eq!(item2.alt(), &link1);
+        } else {
+            assert_eq!(item2.following(), false);
+            assert_eq!(item2.path(), &file1);
+        }
 
-        // let item3 = iter.next().unwrap().unwrap();
-        // assert_eq!(item3.is_symlink(), false);
+        let item3 = iter.next().unwrap().unwrap();
+        assert_eq!(item3.is_symlink(), false);
+        assert_eq!(item3.following(), false);
 
-        // assert!(iter.next().is_none());
-
-        // assert_eq!(link.is_symlink(), true);
-        // assert_eq!(link.path(), file1);
-        // assert_eq!(link.alt(), link1);
-        // assert_eq!(iter.next().unwrap().unwrap().path(), file2);
+        assert!(iter.next().is_none());
     }
 }
