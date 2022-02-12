@@ -100,35 +100,39 @@ impl Memfs
     pub(crate) fn clone_entries<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntries>
     {
         // let abs = self.abs(path.as_ref())?;
-        let abs = self.root();
+        // let abs = self.root();
         let guard = self.0.read().unwrap();
-        let mut entries = HashMap::new();
+        // let mut entries = HashMap::new();
 
-        let mut paths = vec![abs];
-        // for (_, entry) in guard.entries.iter() {
-        //    paths.push(entry.path_buf());
-        //}
-        while let Some(path) = paths.pop() {
-            if let Some(entry) = guard.entries.get(&path) {
-                entries.insert(entry.path_buf(), entry.clone());
+        // let mut paths = vec![abs];
+        // while let Some(path) = paths.pop() {
+        //     if let Some(entry) = guard.entries.get(&path) {
+        //         entries.insert(entry.path_buf(), entry.clone());
 
-                // Queue up children
-                if let Some(ref files) = entry.files {
-                    for name in files {
-                        paths.push(entry.path().mash(name));
-                    }
-                }
+        //         // Queue up children
+        //         if let Some(ref files) = entry.files {
+        //             for name in files {
+        //                 paths.push(entry.path().mash(name));
+        //             }
+        //         }
 
-                // Queue up link targets
-                if entry.is_symlink() {
-                    paths.push(entry.alt_buf());
-                }
-            } else {
-                return Err(PathError::does_not_exist(path).into());
-            }
-        }
+        //         // Queue up link targets that exist
+        //         if entry.is_symlink() && guard.entries.contains_key(entry.alt()) {
+        //             paths.push(entry.alt_buf());
+        //         }
+        //     } else {
+        //         return Err(PathError::does_not_exist(path).into());
+        //     }
+        // }
 
-        Ok(entries)
+        // // Compare the original to the copy
+        // assert_eq!(guard.entries.len(), entries.len());
+        // for (path, entry) in entries.iter() {
+        //     assert!(guard.entries.contains_key(path));
+        // }
+
+        // Ok(entries)
+        Ok(guard.entries.clone())
     }
 
     /// Create the given MemfsEntry if it doesn't already exist
@@ -1220,11 +1224,38 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
-        if self.exists(&path) {
-            for entry in self.entries(path)?.contents_first().into_iter() {
-                self.remove(entry?.path())?;
+        let path = self.abs(path)?;
+        let mut guard = self.0.write().unwrap();
+
+        let mut paths = vec![path];
+        while let Some(path) = paths.pop() {
+            if !guard.entries.contains_key(&path) {
+                continue;
             }
+
+            // First process the entry's children
+            if let Some(ref files) = guard.entries[&path].files {
+                paths.push(path.clone()); // remove after children
+                for name in files {
+                    paths.push(path.mash(name));
+                }
+                continue;
+            }
+
+            // Remove the file from its parent
+            if let Some(parent) = guard.entries.get_mut(&path.dir()?) {
+                parent.remove(path.base()?)?;
+            }
+
+            // Next remove its data file if it exists
+            if guard.files.contains_key(&path) {
+                guard.files.remove(&path);
+            }
+
+            // Finally remove the entry from the filesystem
+            guard.entries.remove(&path);
         }
+
         Ok(())
     }
 
