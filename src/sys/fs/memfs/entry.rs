@@ -546,4 +546,43 @@ mod tests
         assert_eq!(entry.alt(), &path);
         assert_eq!(entry.rel(), Path::new("target"));
     }
+
+    #[test]
+    fn test_entry_new_file()
+    {
+        let vfs = Memfs::new();
+        let path = vfs.root().mash("file");
+        let entry = MemfsEntry::opts(&path).file().new();
+
+        assert_eq!(&entry.path, &path);
+        assert_eq!(&entry.alt, &PathBuf::new());
+        assert_eq!(&entry.rel, &PathBuf::new());
+        assert_eq!(entry.dir, false);
+        assert_eq!(entry.file, true);
+        assert_eq!(entry.link, false);
+        assert_eq!(entry.follow, false);
+        assert_eq!(entry.cached, false);
+        assert_eq!(entry.mode, 0o100644);
+        assert_eq!(entry.files, None);
+    }
+
+    #[test]
+    fn test_entry_new_dir()
+    {
+        let vfs = Memfs::new();
+        let path = vfs.root().mash("dir");
+        let entry = MemfsEntry::opts(&path).dir().new();
+
+        assert_eq!(&entry.path, &path);
+        assert_eq!(&entry.alt, &PathBuf::new());
+        assert_eq!(&entry.rel, &PathBuf::new());
+        assert_eq!(entry.dir, true);
+        assert_eq!(entry.file, false);
+        assert_eq!(entry.link, false);
+        assert_eq!(entry.follow, false);
+        assert_eq!(entry.cached, false);
+        assert_eq!(entry.mode, 0o40755);
+        assert!(entry.files.is_some());
+        assert!(entry.files.unwrap().is_empty());
+    }
 }

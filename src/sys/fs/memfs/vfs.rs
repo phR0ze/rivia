@@ -1179,7 +1179,7 @@ impl VirtualFileSystem for Memfs
         // First check if the target contains files
         if let Some(entry) = guard.entries.get(&path) {
             if let Some(ref files) = entry.files {
-                if files.len() > 0 {
+                if !files.is_empty() {
                     return Err(PathError::dir_contains_files(path).into());
                 }
             }
@@ -1235,11 +1235,13 @@ impl VirtualFileSystem for Memfs
 
             // First process the entry's children
             if let Some(ref files) = guard.entries[&path].files {
-                paths.push(path.clone()); // remove after children
-                for name in files {
-                    paths.push(path.mash(name));
+                if !files.is_empty() {
+                    paths.push(path.clone()); // remove after children
+                    for name in files {
+                        paths.push(path.mash(name));
+                    }
+                    continue;
                 }
-                continue;
             }
 
             // Remove the file from its parent
