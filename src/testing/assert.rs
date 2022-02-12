@@ -903,7 +903,8 @@ mod tests
             format!("\nassert_vfs_no_symlink!: symlink still exists\n  target: {:?}\n", &link1)
         );
 
-        assert_vfs_remove_all!(vfs, &tmpdir);
+        assert!(vfs.remove_all(&tmpdir).is_ok());
+        // assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
     #[test]

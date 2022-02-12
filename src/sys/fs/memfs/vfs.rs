@@ -99,32 +99,34 @@ impl Memfs
     /// * Returns a PathError::DoesNotExist(PathBuf) when this file doesn't exist
     pub(crate) fn clone_entries<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntries>
     {
-        let guard = self.0.read().unwrap();
-        let entries = guard.entries.clone();
         // let abs = self.abs(path.as_ref())?;
-        // let guard = self.0.read().unwrap();
-        // let mut entries = HashMap::new();
+        let abs = self.root();
+        let guard = self.0.read().unwrap();
+        let mut entries = HashMap::new();
 
-        // let mut paths = vec![abs];
-        // while let Some(path) = paths.pop() {
-        //     if let Some(entry) = guard.entries.get(&path) {
-        //         entries.insert(entry.path_buf(), entry.clone());
+        let mut paths = vec![abs];
+        // for (_, entry) in guard.entries.iter() {
+        //    paths.push(entry.path_buf());
+        //}
+        while let Some(path) = paths.pop() {
+            if let Some(entry) = guard.entries.get(&path) {
+                entries.insert(entry.path_buf(), entry.clone());
 
-        //         // Queue up children
-        //         if let Some(ref files) = entry.files {
-        //             for name in files {
-        //                 paths.push(entry.path().mash(name));
-        //             }
-        //         }
+                // Queue up children
+                if let Some(ref files) = entry.files {
+                    for name in files {
+                        paths.push(entry.path().mash(name));
+                    }
+                }
 
-        //         // Queue up link targets
-        //         if entry.is_symlink() {
-        //             paths.push(entry.alt_buf());
-        //         }
-        //     } else {
-        //         return Err(PathError::does_not_exist(path).into());
-        //     }
-        // }
+                // Queue up link targets
+                if entry.is_symlink() {
+                    paths.push(entry.alt_buf());
+                }
+            } else {
+                return Err(PathError::does_not_exist(path).into());
+            }
+        }
 
         Ok(entries)
     }
@@ -161,7 +163,7 @@ impl Memfs
             }
         } else {
             // Add the new file to the data system if not a link
-            if entry.is_file() {
+            if !entry.is_symlink() && entry.is_file() {
                 guard.files.insert(path.clone(), MemfsFile::default());
             }
 
@@ -2026,19 +2028,27 @@ mod tests
         let vfs = Memfs::new().upcast();
         let dir1 = vfs.root().mash("dir1");
         let file1 = dir1.mash("file1");
+        let file2 = vfs.root().mash("file2");
         let link1 = vfs.root().mash("link1");
+        let link2 = vfs.root().mash("link2");
         assert_vfs_mkdir_p!(vfs, &dir1);
         assert_vfs_mkfile!(vfs, &file1);
         assert_vfs_symlink!(vfs, &link1, &dir1);
+
+        // Creating a link without the file existing on purpose
+        assert_vfs_symlink!(vfs, &link2, &file2);
 
         // Validate the link was created correctly
         if let Vfs::Memfs(ref memfs) = vfs {
             let guard = memfs.0.read().unwrap();
 
-            // Ensure that no file was created for the link
+            // Ensure that no file was created for the links
+            assert_eq!(guard.files.contains_key(&file1), true);
+            assert_eq!(guard.files.contains_key(&file2), false);
             assert_eq!(guard.files.contains_key(&link1), false);
+            assert_eq!(guard.files.contains_key(&link2), false);
 
-            // Ensure that the entry has the right properties
+            // Ensure dir link has the right properties
             if let Some(entry) = guard.entries.get(&link1) {
                 // Check the correct path is set for the link
                 assert_eq!(entry.path(), &link1);
@@ -2048,6 +2058,18 @@ mod tests
 
                 // Check that the target's relative path is accurate
                 assert_eq!(entry.rel(), Path::new("dir1"));
+            }
+
+            // Ensure file link has the right properties
+            if let Some(entry) = guard.entries.get(&link2) {
+                // Check the correct path is set for the link
+                assert_eq!(entry.path(), &link2);
+
+                // Check that the target is absolute
+                assert_eq!(entry.alt(), &file2);
+
+                // Check that the target's relative path is accurate
+                assert_eq!(entry.rel(), Path::new("file2"));
             }
         }
     }
