@@ -560,8 +560,8 @@ pub trait VirtualFileSystem: Debug + Send + Sync + 'static {
     /// let dir = vfs.root().mash("dir");
     /// assert_eq!(vfs.cwd().unwrap(), vfs.root());
     /// assert_vfs_mkdir_p!(vfs, &dir);
-    /// assert_eq!(vfs.set_cwd(&dir).unwrap(), &dir);
-    /// assert_eq!(vfs.cwd().unwrap(), &dir);
+    /// assert_eq!(vfs.set_cwd(&dir).unwrap(), dir.clone());
+    /// assert_eq!(vfs.cwd().unwrap(), dir);
     /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
@@ -1342,8 +1342,8 @@ impl VirtualFileSystem for Vfs {
     /// let dir = vfs.root().mash("dir");
     /// assert_eq!(vfs.cwd().unwrap(), vfs.root());
     /// assert_vfs_mkdir_p!(vfs, &dir);
-    /// assert_eq!(vfs.set_cwd(&dir).unwrap(), &dir);
-    /// assert_eq!(vfs.cwd().unwrap(), &dir);
+    /// assert_eq!(vfs.set_cwd(&dir).unwrap(), dir.clone());
+    /// assert_eq!(vfs.cwd().unwrap(), dir);
     /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
         match self {

@@ -191,6 +191,10 @@ impl Memfs {
         Ok(())
     }
 
+    pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()> {
+        Ok(())
+    }
+
     /// Create an EntryIter func
     pub(crate) fn entry_iter(&self) -> Box<dyn Fn(&Path, bool) -> RvResult<EntryIter> + Send + Sync + 'static> {
         let guard = self.0.read().unwrap();
