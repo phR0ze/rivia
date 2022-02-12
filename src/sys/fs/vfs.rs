@@ -10,13 +10,16 @@ use crate::{
 };
 
 /// Defines a combination of the Read + Seek traits
-pub trait ReadSeek: std::io::Read + std::io::Seek {}
+pub trait ReadSeek: std::io::Read+std::io::Seek
+{
+}
 
 // Blanket implementation for any type that implements Read + Seek
-impl<T> ReadSeek for T where T: std::io::Read + std::io::Seek {}
+impl<T> ReadSeek for T where T: std::io::Read+std::io::Seek {}
 
 /// Defines a virtual file system that can be implemented by various backed providers
-pub trait VirtualFileSystem: Debug + Send + Sync + 'static {
+pub trait VirtualFileSystem: Debug+Send+Sync+'static
+{
     /// Return the path in an absolute clean form
     ///
     /// * Environment variable expansion
@@ -625,12 +628,14 @@ pub trait VirtualFileSystem: Debug + Send + Sync + 'static {
 /// Provides an ergonomic encapsulation of the underlying [`VirtualFileSystem`] backend
 /// implementations
 #[derive(Debug)]
-pub enum Vfs {
+pub enum Vfs
+{
     Stdfs(Stdfs),
     Memfs(Memfs),
 }
 
-impl Vfs {
+impl Vfs
+{
     /// Create a new instance of Memfs wrapped in the Vfs enum
     ///
     /// ### Examples
@@ -640,7 +645,8 @@ impl Vfs {
     /// let vfs = Vfs::memfs();
     /// assert_vfs_no_exists!(vfs, "humbug5");
     /// ```
-    pub fn memfs() -> Vfs {
+    pub fn memfs() -> Vfs
+    {
         Vfs::Memfs(Memfs::new())
     }
 
@@ -653,12 +659,14 @@ impl Vfs {
     /// let vfs = Vfs::stdfs();
     /// assert_vfs_no_exists!(vfs, "humbug5");
     /// ```
-    pub fn stdfs() -> Vfs {
+    pub fn stdfs() -> Vfs
+    {
         Vfs::Stdfs(Stdfs::new())
     }
 }
 
-impl VirtualFileSystem for Vfs {
+impl VirtualFileSystem for Vfs
+{
     /// Return the path in an absolute clean form
     ///
     /// * Environment variable expansion
@@ -676,7 +684,8 @@ impl VirtualFileSystem for Vfs {
     /// let home = sys::home_dir().unwrap();
     /// assert_eq!(vfs.abs("~").unwrap(), PathBuf::from(&home));
     /// ```
-    fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
+    fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.abs(path),
             Vfs::Memfs(x) => x.abs(path),
@@ -707,7 +716,8 @@ impl VirtualFileSystem for Vfs {
     /// f.flush().unwrap();
     /// assert_vfs_read_all!(vfs, &file, "foobar123".to_string());
     /// ```
-    fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>> {
+    fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
         match self {
             Vfs::Stdfs(x) => x.append(path),
             Vfs::Memfs(x) => x.append(path),
@@ -734,7 +744,8 @@ impl VirtualFileSystem for Vfs {
     /// assert!(vfs.chmod(&file, 0o555).is_ok());
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
     /// ```
-    fn chmod<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<()> {
+    fn chmod<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<()>
+    {
         match self {
             Vfs::Stdfs(x) => x.chmod(path, mode),
             Vfs::Memfs(x) => x.chmod(path, mode),
@@ -765,7 +776,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
     /// ```
-    fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod> {
+    fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod>
+    {
         match self {
             Vfs::Stdfs(x) => x.chmod_b(path),
             Vfs::Memfs(x) => x.chmod_b(path),
@@ -792,7 +804,8 @@ impl VirtualFileSystem for Vfs {
     /// f.flush().unwrap();
     /// assert_vfs_read_all!(vfs, &file, "foobar".to_string());
     /// ```
-    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>> {
+    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
         match self {
             Vfs::Stdfs(x) => x.create(path),
             Vfs::Memfs(x) => x.create(path),
@@ -811,7 +824,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_eq!(vfs.set_cwd("foo").unwrap(), vfs.root().mash("foo"));
     /// assert_eq!(vfs.cwd().unwrap(), vfs.root().mash("foo"));
     /// ```
-    fn cwd(&self) -> RvResult<PathBuf> {
+    fn cwd(&self) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.cwd(),
             Vfs::Memfs(x) => x.cwd(),
@@ -838,7 +852,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkfile!(vfs, &file1);
     /// assert_iter_eq(vfs.dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
     /// ```
-    fn dirs<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>> {
+    fn dirs<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
         match self {
             Vfs::Stdfs(x) => x.dirs(path),
             Vfs::Memfs(x) => x.dirs(path),
@@ -865,7 +880,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
     /// assert!(iter.next().is_none());
     /// ```
-    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries> {
+    fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
+    {
         match self {
             Vfs::Stdfs(x) => x.entries(path),
             Vfs::Memfs(x) => x.entries(path),
@@ -883,7 +899,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkfile!(vfs, &file);
     /// assert!(vfs.entry(&file).unwrap().is_file());
     /// ```
-    fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry> {
+    fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
+    {
         match self {
             Vfs::Stdfs(x) => x.entry(path),
             Vfs::Memfs(x) => x.entry(path),
@@ -903,7 +920,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkdir_p!(vfs, "foo");
     /// assert_vfs_exists!(vfs, "foo");
     /// ```
-    fn exists<T: AsRef<Path>>(&self, path: T) -> bool {
+    fn exists<T: AsRef<Path>>(&self, path: T) -> bool
+    {
         match self {
             Vfs::Stdfs(x) => x.exists(path),
             Vfs::Memfs(x) => x.exists(path),
@@ -930,7 +948,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkfile!(vfs, &file2);
     /// assert_iter_eq(vfs.files(&tmpdir).unwrap(), vec![file1, file2]);
     /// ```
-    fn files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>> {
+    fn files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
         match self {
             Vfs::Stdfs(x) => x.files(path),
             Vfs::Memfs(x) => x.files(path),
@@ -952,7 +971,8 @@ impl VirtualFileSystem for Vfs {
     /// assert!(vfs.chmod(&file, 0o777).is_ok());
     /// assert_eq!(vfs.is_exec(&file), true);
     /// ```
-    fn is_exec<T: AsRef<Path>>(&self, path: T) -> bool {
+    fn is_exec<T: AsRef<Path>>(&self, path: T) -> bool
+    {
         match self {
             Vfs::Stdfs(x) => x.is_exec(path),
             Vfs::Memfs(x) => x.is_exec(path),
@@ -973,7 +993,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkdir_p!(vfs, "foo");
     /// assert_vfs_is_dir!(vfs, "foo");
     /// ```
-    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool {
+    fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool
+    {
         match self {
             Vfs::Stdfs(x) => x.is_dir(path),
             Vfs::Memfs(x) => x.is_dir(path),
@@ -994,7 +1015,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkfile!(vfs, "foo");
     /// assert_vfs_is_file!(vfs, "foo");
     /// ```
-    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool {
+    fn is_file<T: AsRef<Path>>(&self, path: T) -> bool
+    {
         match self {
             Vfs::Stdfs(x) => x.is_file(path),
             Vfs::Memfs(x) => x.is_file(path),
@@ -1017,7 +1039,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100444);
     /// assert_eq!(vfs.is_readonly(&file), true);
     /// ```
-    fn is_readonly<T: AsRef<Path>>(&self, path: T) -> bool {
+    fn is_readonly<T: AsRef<Path>>(&self, path: T) -> bool
+    {
         match self {
             Vfs::Stdfs(x) => x.is_readonly(path),
             Vfs::Memfs(x) => x.is_readonly(path),
@@ -1037,7 +1060,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_symlink!(vfs, "foo", "bar");
     /// assert_vfs_is_symlink!(vfs, "foo");
     /// ```
-    fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool {
+    fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool
+    {
         match self {
             Vfs::Stdfs(x) => x.is_symlink(path),
             Vfs::Memfs(x) => x.is_symlink(path),
@@ -1055,7 +1079,8 @@ impl VirtualFileSystem for Vfs {
     /// assert!(vfs.mkdir_m(&dir, 0o555).is_ok());
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40555);
     /// ```
-    fn mkdir_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf> {
+    fn mkdir_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.mkdir_m(path, mode),
             Vfs::Memfs(x) => x.mkdir_m(path, mode),
@@ -1078,7 +1103,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkdir_p!(vfs, "foo");
     /// assert_vfs_is_dir!(vfs, "foo");
     /// ```
-    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
+    fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.mkdir_p(path),
             Vfs::Memfs(x) => x.mkdir_p(path),
@@ -1104,7 +1130,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkfile!(vfs, "foo");
     /// assert_vfs_is_file!(vfs, "foo");
     /// ```
-    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
+    fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.mkfile(path),
             Vfs::Memfs(x) => x.mkfile(path),
@@ -1122,7 +1149,8 @@ impl VirtualFileSystem for Vfs {
     /// assert!(vfs.mkfile_m(&file, 0o555).is_ok());
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
     /// ```
-    fn mkfile_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf> {
+    fn mkfile_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.mkfile_m(path, mode),
             Vfs::Memfs(x) => x.mkfile_m(path, mode),
@@ -1148,7 +1176,8 @@ impl VirtualFileSystem for Vfs {
     /// assert!(vfs.chmod(&file, 0o555).is_ok());
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
     /// ```
-    fn mode<T: AsRef<Path>>(&self, path: T) -> RvResult<u32> {
+    fn mode<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
         match self {
             Vfs::Stdfs(x) => x.mode(path),
             Vfs::Memfs(x) => x.mode(path),
@@ -1176,7 +1205,8 @@ impl VirtualFileSystem for Vfs {
     /// file.read_to_string(&mut buf);
     /// assert_eq!(buf, "foobar 1".to_string());
     /// ```
-    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>> {
+    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
+    {
         match self {
             Vfs::Stdfs(x) => x.open(path),
             Vfs::Memfs(x) => x.open(path),
@@ -1203,7 +1233,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_mkfile!(vfs, &file1);
     /// assert_iter_eq(vfs.paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
     /// ```
-    fn paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>> {
+    fn paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
         match self {
             Vfs::Stdfs(x) => x.paths(path),
             Vfs::Memfs(x) => x.paths(path),
@@ -1227,7 +1258,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
     /// assert_vfs_read_all!(vfs, &file, "foobar 1");
     /// ```
-    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String> {
+    fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>
+    {
         match self {
             Vfs::Stdfs(x) => x.read_all(path),
             Vfs::Memfs(x) => x.read_all(path),
@@ -1249,7 +1281,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_symlink!(vfs, &link, &file);
     /// assert_vfs_readlink!(vfs, &link, &file);
     /// ```
-    fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
+    fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.readlink(path),
             Vfs::Memfs(x) => x.readlink(path),
@@ -1275,7 +1308,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_remove!(vfs, &file);
     /// assert_vfs_no_exists!(vfs, &file);
     /// ```
-    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()> {
+    fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
         match self {
             Vfs::Stdfs(x) => x.remove(path),
             Vfs::Memfs(x) => x.remove(path),
@@ -1301,7 +1335,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_no_exists!(vfs, &file);
     /// assert_vfs_no_exists!(vfs, &dir);
     /// ```
-    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()> {
+    fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
+    {
         match self {
             Vfs::Stdfs(x) => x.remove_all(path),
             Vfs::Memfs(x) => x.remove_all(path),
@@ -1319,7 +1354,8 @@ impl VirtualFileSystem for Vfs {
     /// root.push(Component::RootDir);
     /// assert_eq!(vfs.root(), root);
     /// ```
-    fn root(&self) -> PathBuf {
+    fn root(&self) -> PathBuf
+    {
         match self {
             Vfs::Stdfs(x) => x.root(),
             Vfs::Memfs(x) => x.root(),
@@ -1345,7 +1381,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_eq!(vfs.set_cwd(&dir).unwrap(), dir.clone());
     /// assert_eq!(vfs.cwd().unwrap(), dir);
     /// ```
-    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
+    fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.set_cwd(path),
             Vfs::Memfs(x) => x.set_cwd(path),
@@ -1373,7 +1410,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_symlink!(vfs, &link, &file);
     /// assert_vfs_readlink!(vfs, &link, &file);
     /// ```
-    fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf> {
+    fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
+    {
         match self {
             Vfs::Stdfs(x) => x.symlink(link, target),
             Vfs::Memfs(x) => x.symlink(link, target),
@@ -1401,7 +1439,8 @@ impl VirtualFileSystem for Vfs {
     /// assert_vfs_is_file!(vfs, &file);
     /// assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
     /// ```
-    fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()> {
+    fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
+    {
         match self {
             Vfs::Stdfs(x) => x.write_all(path, data),
             Vfs::Memfs(x) => x.write_all(path, data),
@@ -1416,7 +1455,8 @@ impl VirtualFileSystem for Vfs {
     ///
     /// let vfs = Memfs::new().upcast();
     /// ```
-    fn upcast(self) -> Vfs {
+    fn upcast(self) -> Vfs
+    {
         match self {
             Vfs::Stdfs(x) => x.upcast(),
             Vfs::Memfs(x) => x.upcast(),
@@ -1427,11 +1467,13 @@ impl VirtualFileSystem for Vfs {
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests {
+mod tests
+{
     use crate::prelude::*;
 
     #[test]
-    fn test_vfs_cwd() {
+    fn test_vfs_cwd()
+    {
         // Stdfs
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
         assert_eq!(vfs.cwd().unwrap(), vfs.cwd().unwrap());
@@ -1445,11 +1487,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_dirs() {
+    fn test_vfs_dirs()
+    {
         test_dirs(assert_vfs_setup!(Vfs::memfs()));
         test_dirs(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_dirs((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_dirs((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
@@ -1462,11 +1506,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_files() {
+    fn test_vfs_files()
+    {
         test_files(assert_vfs_setup!(Vfs::memfs()));
         test_files(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_files((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_files((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
@@ -1479,11 +1525,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_paths() {
+    fn test_vfs_paths()
+    {
         test_paths(assert_vfs_setup!(Vfs::memfs()));
         test_paths(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_paths((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_paths((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
@@ -1496,11 +1544,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_root() {
+    fn test_vfs_root()
+    {
         test_root(assert_vfs_setup!(Vfs::memfs()));
         test_root(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_root((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_root((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let mut root = PathBuf::new();
         root.push(Component::RootDir);
         assert_eq!(vfs.root(), root);
@@ -1508,11 +1558,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_upcast() {
+    fn test_vfs_upcast()
+    {
         test_upcast(assert_vfs_setup!(Vfs::memfs()));
         test_upcast(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_upcast((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_upcast((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let upcast = vfs.upcast();
         assert_vfs_remove_all!(upcast, &tmpdir);
     }
