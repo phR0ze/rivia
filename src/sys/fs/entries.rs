@@ -51,7 +51,8 @@ pub(crate) const DEFAULT_MAX_DESCRIPTORS: u16 = 50;
 /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file1"));
 /// assert!(iter.next().is_none());
 /// ```
-pub struct Entries {
+pub struct Entries
+{
     pub(crate) root: VfsEntry,
     pub(crate) dirs: bool,
     pub(crate) files: bool,
@@ -63,12 +64,13 @@ pub struct Entries {
     pub(crate) files_first: bool,
     pub(crate) sort_by_name: bool,
     pub(crate) contents_first: bool,
-    pub(crate) pre_op: Option<Box<dyn FnMut(&VfsEntry) -> RvResult<()> + Send + Sync + 'static>>,
-    pub(crate) sort: Option<Box<dyn Fn(&VfsEntry, &VfsEntry) -> Ordering + Send + Sync + 'static>>,
-    pub(crate) iter_from: Box<dyn Fn(&Path, bool) -> RvResult<EntryIter> + Send + Sync + 'static>,
+    pub(crate) pre_op: Option<Box<dyn FnMut(&VfsEntry) -> RvResult<()>+Send+Sync+'static>>,
+    pub(crate) sort: Option<Box<dyn Fn(&VfsEntry, &VfsEntry) -> Ordering+Send+Sync+'static>>,
+    pub(crate) iter_from: Box<dyn Fn(&Path, bool) -> RvResult<EntryIter>+Send+Sync+'static>,
 }
 
-impl Entries {
+impl Entries
+{
     /// Filter entries down to just directories
     ///
     /// * Default is `false`
@@ -85,7 +87,8 @@ impl Entries {
     /// assert_eq!(iter.next().unwrap().unwrap().path(), vfs.root().mash("zdir"));
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn dirs(mut self) -> Self {
+    pub fn dirs(mut self) -> Self
+    {
         self.dirs = true;
         self.files = false;
         self
@@ -106,7 +109,8 @@ impl Entries {
     /// assert_eq!(iter.next().unwrap().unwrap().path(), vfs.root().mash("file"));
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn files(mut self) -> Self {
+    pub fn files(mut self) -> Self
+    {
         self.dirs = false;
         self.files = true;
         self
@@ -128,13 +132,14 @@ impl Entries {
     /// assert_vfs_mkdir_p!(vfs, &dir);
     /// assert_vfs_mkfile!(vfs, &file);
     /// assert_vfs_symlink!(vfs, &link, &dir);
-    /// let mut iter = vfs.entries(&link).unwrap().follow().into_iter();
+    /// let mut iter = vfs.entries(&link).unwrap().follow(true).into_iter();
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir);
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn follow(mut self) -> Self {
-        self.follow = true;
+    pub fn follow(mut self, yes: bool) -> Self
+    {
+        self.follow = yes;
         self
     }
 
@@ -158,7 +163,8 @@ impl Entries {
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &file);
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn min_depth(mut self, min: usize) -> Self {
+    pub fn min_depth(mut self, min: usize) -> Self
+    {
         self.min_depth = min;
         if self.min_depth > self.max_depth {
             self.min_depth = self.max_depth;
@@ -188,7 +194,8 @@ impl Entries {
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &dir);
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn max_depth(mut self, max: usize) -> Self {
+    pub fn max_depth(mut self, max: usize) -> Self
+    {
         self.max_depth = max;
         if self.max_depth < self.min_depth {
             self.max_depth = self.min_depth;
@@ -206,7 +213,8 @@ impl Entries {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn pre_op(mut self, op: impl FnMut(&VfsEntry) -> RvResult<()> + Send + Sync + 'static) -> Self {
+    pub fn pre_op(mut self, op: impl FnMut(&VfsEntry) -> RvResult<()>+Send+Sync+'static) -> Self
+    {
         self.pre_op = Some(Box::new(op));
         self
     }
@@ -221,7 +229,8 @@ impl Entries {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn dirs_first(mut self) -> Self {
+    pub fn dirs_first(mut self) -> Self
+    {
         self.dirs_first = true;
         self.sort(|x, y| x.file_name().cmp(&y.file_name()))
     }
@@ -236,7 +245,8 @@ impl Entries {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn files_first(mut self) -> Self {
+    pub fn files_first(mut self) -> Self
+    {
         self.files_first = true;
         self.sort(|x, y| x.file_name().cmp(&y.file_name()))
     }
@@ -250,7 +260,8 @@ impl Entries {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn contents_first(mut self) -> Self {
+    pub fn contents_first(mut self) -> Self
+    {
         self.contents_first = true;
         self
     }
@@ -264,7 +275,8 @@ impl Entries {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn sort_by_name(mut self) -> Self {
+    pub fn sort_by_name(mut self) -> Self
+    {
         self.sort_by_name = true;
         self.sort(|x, y| x.file_name().cmp(&y.file_name()))
     }
@@ -277,14 +289,17 @@ impl Entries {
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn sort(mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering + Send + Sync + 'static) -> Self {
+    pub fn sort(mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering+Send+Sync+'static) -> Self
+    {
         self.sort = Some(Box::new(cmp));
         self
     }
 }
 
-impl fmt::Debug for Entries {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::result::Result<(), fmt::Error> {
+impl fmt::Debug for Entries
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::result::Result<(), fmt::Error>
+    {
         f.debug_struct("Entries")
             .field("root", &self.root)
             .field("dirs", &self.dirs)
@@ -302,11 +317,13 @@ impl fmt::Debug for Entries {
 }
 
 /// Convert Entries in an iterator over EntriesIter
-impl IntoIterator for Entries {
+impl IntoIterator for Entries
+{
     type IntoIter = EntriesIter;
     type Item = RvResult<VfsEntry>;
 
-    fn into_iter(self) -> EntriesIter {
+    fn into_iter(self) -> EntriesIter
+    {
         let mut iter = EntriesIter {
             opts: self,
             started: false,
@@ -348,7 +365,8 @@ impl IntoIterator for Entries {
 /// assert_eq!(iter.next().unwrap().unwrap().path(), Path::new("/file1"));
 /// assert!(iter.next().is_none());
 /// ```
-pub struct EntriesIter {
+pub struct EntriesIter
+{
     // Builder pattern options
     opts: Entries,
 
@@ -368,10 +386,12 @@ pub struct EntriesIter {
     filter: Option<Box<dyn FnMut(&VfsEntry) -> bool>>,
 }
 
-impl EntriesIter {
+impl EntriesIter
+{
     /// Enqueue the entry if it is a directory or a directory link and follow is true.
     /// None will be returned if the given entry was filtered out.
-    fn process(&mut self, entry: VfsEntry) -> Option<RvResult<VfsEntry>> {
+    fn process(&mut self, entry: VfsEntry) -> Option<RvResult<VfsEntry>>
+    {
         let depth = self.iters.len(); // save depth before possible recursion
 
         if entry.is_dir() && (!entry.is_symlink() || self.opts.follow) {
@@ -449,16 +469,19 @@ impl EntriesIter {
     /// assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn filter_p(mut self, predicate: impl FnMut(&VfsEntry) -> bool + 'static) -> Self {
+    pub fn filter_p(mut self, predicate: impl FnMut(&VfsEntry) -> bool+'static) -> Self
+    {
         self.filter = Some(Box::new(predicate));
         self
     }
 }
 
-impl Iterator for EntriesIter {
+impl Iterator for EntriesIter
+{
     type Item = RvResult<VfsEntry>;
 
-    fn next(&mut self) -> Option<RvResult<VfsEntry>> {
+    fn next(&mut self) -> Option<RvResult<VfsEntry>>
+    {
         if !self.started {
             self.started = true;
 
@@ -512,10 +535,12 @@ impl Iterator for EntriesIter {
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests {
+mod tests
+{
     use crate::prelude::*;
 
-    fn assert_iter_eq(iter: EntriesIter, paths: Vec<&PathBuf>) {
+    fn assert_iter_eq(iter: EntriesIter, paths: Vec<&PathBuf>)
+    {
         // Using a vector here as there can be duplicates
         let mut entries = Vec::new();
         for entry in iter {
@@ -529,18 +554,21 @@ mod tests {
     }
 
     #[test]
-    fn test_entries_debug() {
+    fn test_entries_debug()
+    {
         let vfs = Vfs::memfs();
         let entries = vfs.entries(vfs.root()).unwrap();
         assert_eq!(format!("{:?}", &entries), format!("{:?}", &entries));
     }
 
     #[test]
-    fn test_vfs_dirs() {
+    fn test_vfs_dirs()
+    {
         test_dirs(assert_vfs_setup!(Vfs::memfs()));
         test_dirs(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_dirs((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_dirs((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("zdir");
         let file1 = tmpdir.mash("file");
         assert_vfs_mkdir_p!(vfs, &dir1);
@@ -563,11 +591,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_files() {
+    fn test_vfs_files()
+    {
         test_files(assert_vfs_setup!(Vfs::memfs()));
         test_files(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_files((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_files((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("zdir");
         let file1 = tmpdir.mash("file");
         assert_vfs_mkdir_p!(vfs, &dir1);
@@ -589,11 +619,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_follow() {
+    fn test_vfs_follow()
+    {
         test_follow(assert_vfs_setup!(Vfs::memfs()));
         test_follow(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_follow((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_follow((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let link1 = tmpdir.mash("link1");
@@ -607,7 +639,7 @@ mod tests {
         assert!(iter.next().is_none());
 
         // With follow
-        let mut iter = vfs.entries(&link1).unwrap().follow().sort_by_name().into_iter();
+        let mut iter = vfs.entries(&link1).unwrap().follow(true).sort_by_name().into_iter();
         assert_eq!(iter.next().unwrap().unwrap().path(), &dir1);
         assert_eq!(iter.next().unwrap().unwrap().path(), &file1);
         assert!(iter.next().is_none());
@@ -616,11 +648,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_depth() {
+    fn test_vfs_depth()
+    {
         test_depth(assert_vfs_setup!(Vfs::memfs()));
         test_depth(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_depth((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_depth((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let dir1file1 = dir1.mash("file1");
         let file1 = tmpdir.mash("file1");
@@ -673,11 +707,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_contents_first() {
+    fn test_vfs_contents_first()
+    {
         test_contents_first(assert_vfs_setup!(Vfs::memfs()));
         test_contents_first(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_contents_first((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_contents_first((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -710,11 +746,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_sort() {
+    fn test_vfs_sort()
+    {
         test_sort(assert_vfs_setup!(Vfs::memfs()));
         test_sort(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_sort((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_sort((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let zdir1 = tmpdir.mash("zdir1");
         let dir1file1 = zdir1.mash("file1");
         let dir1file2 = zdir1.mash("file2");
@@ -735,12 +773,9 @@ mod tests {
 
         // Without sorting
         let iter = vfs.entries(&tmpdir).unwrap().into_iter();
-        assert_iter_eq(
-            iter,
-            vec![
-                &tmpdir, &file2, &zdir1, &dir1file2, &dir1file1, &file1, &zdir2, &dir2file2, &dir2file1,
-            ],
-        );
+        assert_iter_eq(iter, vec![
+            &tmpdir, &file2, &zdir1, &dir1file2, &dir1file1, &file1, &zdir2, &dir2file2, &dir2file1,
+        ]);
 
         // with manual sorting on name
         let mut iter = vfs.entries(&tmpdir).unwrap().sort(|x, y| x.file_name().cmp(&y.file_name())).into_iter();
@@ -828,11 +863,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_max_descriptors() {
+    fn test_vfs_max_descriptors()
+    {
         test_max_descriptors(assert_vfs_setup!(Vfs::memfs()));
         test_max_descriptors(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_max_descriptors((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_max_descriptors((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -859,11 +896,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_loop_detection() {
+    fn test_vfs_loop_detection()
+    {
         test_loop_detection(assert_vfs_setup!(Vfs::memfs()));
         test_loop_detection(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_loop_detection((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_loop_detection((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let dir2 = dir1.mash("dir2");
         let link1 = dir2.mash("link1");
@@ -876,7 +915,7 @@ mod tests {
         assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &link1]);
 
         // Follow link will loop
-        let mut iter = vfs.entries(&tmpdir).unwrap().follow().into_iter();
+        let mut iter = vfs.entries(&tmpdir).unwrap().follow(true).into_iter();
         assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
         assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
         assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
@@ -887,11 +926,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_filter() {
+    fn test_vfs_filter()
+    {
         test_filter(assert_vfs_setup!(Vfs::memfs()));
         test_filter(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_filter((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_filter((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -927,11 +968,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_multiple() {
+    fn test_vfs_multiple()
+    {
         test_multiple(assert_vfs_setup!(Vfs::memfs()));
         test_multiple(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_multiple((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_multiple((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -951,11 +994,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vfs_single() {
+    fn test_vfs_single()
+    {
         test_single(assert_vfs_setup!(Vfs::memfs()));
         test_single(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_single((vfs, tmpdir): (Vfs, PathBuf)) {
+    fn test_single((vfs, tmpdir): (Vfs, PathBuf))
+    {
         let file1 = tmpdir.mash("file1");
 
         // Single directory

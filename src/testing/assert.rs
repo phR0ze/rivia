@@ -268,6 +268,56 @@ macro_rules! assert_vfs_no_symlink {
     };
 }
 
+/// Assert the creation of the given directory with the given mode
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Vfs::memfs();
+/// assert_vfs_no_dir!(vfs, "foo");
+/// assert_vfs_mkdir_m!(vfs, "foo", 0o40777);
+/// assert_vfs_is_dir!(vfs, "foo");
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_mkdir_m {
+    ($vfs:expr, $path:expr, $mode:expr) => {
+        let target = match $vfs.abs($path) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_mkdir_m!", "failed to get absolute path", $path),
+        };
+        match $vfs.mkdir_m(&target, $mode) {
+            Ok(x) => {
+                if &x != &target {
+                    panic_compare_msg!(
+                        "assert_vfs_mkdir_m!",
+                        "created directory path doesn't match the target",
+                        &x,
+                        &target
+                    );
+                }
+                match $vfs.mode(&target) {
+                    Ok(x) => {
+                        if x != $mode {
+                            panic_compare_msg!(
+                                "assert_vfs_mkdir_m!",
+                                "created directory mode doesn't match the target",
+                                &x,
+                                &target
+                            );
+                        }
+                    },
+                    Err(e) => panic!("assert_vfs_mkdir_m!: mode failure for {}", e.to_string()),
+                };
+            },
+            Err(e) => panic!("assert_vfs_mkdir_m!: {}", e.to_string()),
+        };
+        if !$vfs.is_dir(&target) {
+            panic_msg!("assert_vfs_mkdir_m!", "failed to create directory", &target);
+        }
+    };
+}
+
 /// Assert the creation of the given directory.
 ///
 /// ### Examples
@@ -854,6 +904,41 @@ mod tests
         );
 
         assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_assert_vfs_mkdir_m()
+    {
+        let vfs = Memfs::new();
+        let file1 = vfs.root().mash("file1");
+        let dir1 = vfs.root().mash("dir1");
+        assert_vfs_mkfile!(vfs, &file1);
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_mkdir_m!(vfs, "", 0o40777);
+        });
+
+        // fail abs
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_mkdir_m!: failed to get absolute path\n  target: \"\"\n"
+        );
+
+        // exists but not a directory
+        let result = testing::capture_panic(|| {
+            assert_vfs_mkdir_m!(vfs, &file1, 0o40777);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("assert_vfs_mkdir_m!: Target path is not a directory: {}", &file1.display())
+        );
+
+        // happy path
+        assert_vfs_no_dir!(vfs, &dir1);
+        assert_vfs_mkdir_m!(vfs, &dir1, 0o40777);
+        assert_eq!(vfs.mode(&dir1).unwrap(), 0o40777);
+        assert_vfs_is_dir!(vfs, &dir1);
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::{self, File},
     io::Write,
     os::unix::{self, fs::PermissionsExt},
     path::{Component, Path, PathBuf},
@@ -117,7 +117,7 @@ impl Stdfs
         // Ensure the file exists as the std functions don't do that
         Stdfs::mkfile(&path)?;
 
-        Ok(Box::new(OpenOptions::new().write(true).append(true).open(Stdfs::abs(path)?)?))
+        Ok(Box::new(File::options().write(true).append(true).open(Stdfs::abs(path)?)?))
     }
 
     /// Change all file/dir permissions recursivly to `mode`
@@ -200,16 +200,11 @@ impl Stdfs
             false => 0,
         });
 
-        // Set `follow` as directed
-        if mode.follow {
-            entries = entries.follow();
-        }
-
         // Using `dirs_first` and `pre_op` options here to grant addative permissions as a
         // pre-traversal operation to allow for the possible addition of permissions that would allow
         // directory traversal that otherwise wouldn't be allowed.
         let m = mode.clone();
-        entries = entries.dirs_first().pre_op(move |x| {
+        entries = entries.follow(mode.follow).dirs_first().pre_op(move |x| {
             let m1 = sys::mode(x, m.dirs, &m.sym)?;
             if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
                 fs::set_permissions(x.path(), fs::Permissions::from_mode(m1))?;

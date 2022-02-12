@@ -38,8 +38,8 @@ impl MemfsFile
         if let Some(ref fs) = self.fs {
             if let Some(ref path) = self.path {
                 let mut guard = fs.write().unwrap();
-                if guard.fs.contains_key(path) {
-                    if let Some(f) = guard.data.get_mut(path) {
+                if guard.entries.contains_key(path) {
+                    if let Some(f) = guard.files.get_mut(path) {
                         f.data = self.data.clone();
                     }
                 } else {

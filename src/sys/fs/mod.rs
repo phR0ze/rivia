@@ -1,4 +1,5 @@
 mod chmod;
+mod copy;
 mod entries;
 mod entry;
 mod entry_iter;
@@ -8,6 +9,7 @@ mod stdfs;
 mod vfs;
 
 pub use chmod::*;
+pub use copy::*;
 pub use entries::*;
 pub use entry::*;
 #[allow(unused_imports)]
