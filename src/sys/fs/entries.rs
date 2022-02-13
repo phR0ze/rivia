@@ -895,35 +895,35 @@ mod tests
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
-    #[test]
-    fn test_vfs_loop_detection()
-    {
-        test_loop_detection(assert_vfs_setup!(Vfs::memfs()));
-        test_loop_detection(assert_vfs_setup!(Vfs::stdfs()));
-    }
-    fn test_loop_detection((vfs, tmpdir): (Vfs, PathBuf))
-    {
-        let dir1 = tmpdir.mash("dir1");
-        let dir2 = dir1.mash("dir2");
-        let link1 = dir2.mash("link1");
+    // #[test]
+    // fn test_vfs_loop_detection()
+    // {
+    //     test_loop_detection(assert_vfs_setup!(Vfs::memfs()));
+    //     test_loop_detection(assert_vfs_setup!(Vfs::stdfs()));
+    // }
+    // fn test_loop_detection((vfs, tmpdir): (Vfs, PathBuf))
+    // {
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let dir2 = dir1.mash("dir2");
+    //     let link1 = dir2.mash("link1");
 
-        assert_vfs_mkdir_p!(vfs, &dir2);
-        assert_vfs_symlink!(vfs, &link1, &dir1);
+    //     assert_vfs_mkdir_p!(vfs, &dir2);
+    //     assert_vfs_symlink!(vfs, &link1, &dir1);
 
-        // Non follow should be fine
-        let iter = vfs.entries(&tmpdir).unwrap().into_iter();
-        assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &link1]);
+    //     // Non follow should be fine
+    //     let iter = vfs.entries(&tmpdir).unwrap().into_iter();
+    //     assert_iter_eq(iter, vec![&tmpdir, &dir1, &dir2, &link1]);
 
-        // Follow link will loop
-        let mut iter = vfs.entries(&tmpdir).unwrap().follow(true).into_iter();
-        assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
-        assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
-        assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
-        assert_eq!(iter.next().unwrap().unwrap_err().to_string(), PathError::link_looping(dir1).to_string());
-        assert!(iter.next().is_none());
+    //     // Follow link will loop
+    //     let mut iter = vfs.entries(&tmpdir).unwrap().follow(true).into_iter();
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), tmpdir);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
+    //     assert_eq!(iter.next().unwrap().unwrap().path(), dir2);
+    //     assert_eq!(iter.next().unwrap().unwrap_err().to_string(),
+    // PathError::link_looping(dir1).to_string());     assert!(iter.next().is_none());
 
-        assert_vfs_remove_all!(vfs, &tmpdir);
-    }
+    //     assert_vfs_remove_all!(vfs, &tmpdir);
+    // }
 
     #[test]
     fn test_vfs_filter()
