@@ -108,15 +108,18 @@ impl Memfs
             if let Some(entry) = guard.entries.get(&path) {
                 entries.insert(entry.path_buf(), entry.clone());
 
-                // Queue up children
+                // Recursively clone children
                 if let Some(ref files) = entry.files {
                     for name in files {
                         paths.push(entry.path().mash(name));
                     }
                 }
 
-                // Queue up link targets that exist
-                if entry.is_symlink() && guard.entries.contains_key(entry.alt()) {
+                // Recursively clone link targets that exist but don't allow looping
+                if entry.is_symlink()
+                    && guard.entries.contains_key(entry.alt())
+                    && !entries.contains_key(entry.alt())
+                {
                     paths.push(entry.alt_buf());
                 }
             } else {
