@@ -29,15 +29,18 @@ impl MemfsEntryOpts
     // Create a MemfsEntry instance from the MemfsEntryOpts instance
     pub(crate) fn new(self) -> MemfsEntry
     {
+        // Default entry to be a directory if not specified
+        let opts = if !self.dir && !self.file && !self.link { self.dir() } else { self };
+
         MemfsEntry {
-            files: if self.dir { Some(HashSet::new()) } else { None },
-            path: self.path,
-            alt: self.alt,
-            rel: self.rel,
-            dir: self.dir,
-            file: self.file,
-            link: self.link,
-            mode: self.mode,
+            files: if opts.dir { Some(HashSet::new()) } else { None },
+            path: opts.path,
+            alt: opts.alt,
+            rel: opts.rel,
+            dir: opts.dir,
+            file: opts.file,
+            link: opts.link,
+            mode: opts.mode,
             follow: false,
             cached: false,
         }
@@ -47,25 +50,26 @@ impl MemfsEntryOpts
     {
         self.dir = true;
         self.file = false;
-        self.mode = 0o40755;
-        self
+        let mode = if self.mode == 0 { None } else { Some(self.mode) };
+        self.mode(mode)
     }
 
     pub(crate) fn file(mut self) -> Self
     {
         self.file = true;
         self.dir = false;
-        self.mode = 0o100644;
-        self
+        let mode = if self.mode == 0 { None } else { Some(self.mode) };
+        self.mode(mode)
     }
 
+    // Options allow for being a file/dir and link
     pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> RvResult<Self>
     {
         self.link = true;
-        self.mode = 0o120777;
         self.alt = path.into();
         self.rel = self.alt.relative(self.path.dir()?)?;
-        Ok(self)
+        let mode = if self.mode == 0 { None } else { Some(self.mode) };
+        Ok(self.mode(mode))
     }
 
     // no safty checks only useful for testing
@@ -76,16 +80,32 @@ impl MemfsEntryOpts
     }
 
     // provides some safty checks
-    pub(crate) fn set_mode(mut self, mode: u32) -> Self
+    pub(crate) fn mode(mut self, mode: Option<u32>) -> Self
     {
-        if self.file {
-            self.mode = mode | 0o100000;
+        let mode = mode.unwrap_or(self.default_mode());
+        self.mode = if self.link {
+            mode | 0o120000
+        } else if self.file {
+            mode | 0o100000
         } else if self.dir {
-            self.mode = mode | 0o40000;
-        } else if self.link {
-            self.mode = mode | 0o120000;
-        }
+            mode | 0o40000
+        } else {
+            mode
+        };
         self
+    }
+
+    // Calculate the correct default mode for the given type
+    pub(crate) fn default_mode(&self) -> u32
+    {
+        // We can have a link & dir/file so it takes priority
+        if self.link {
+            0o120777
+        } else if self.file {
+            0o100644
+        } else {
+            0o40755
+        }
     }
 }
 
@@ -127,10 +147,10 @@ impl MemfsEntry
             path: path.into(),
             alt: PathBuf::new(),
             rel: PathBuf::new(),
-            dir: true, // directory by default
+            dir: false,
             file: false,
             link: false,
-            mode: 0o40755, // directory default mode
+            mode: 0,
         }
     }
 

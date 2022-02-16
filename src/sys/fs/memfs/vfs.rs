@@ -3,7 +3,7 @@ use std::{
     fmt,
     io::{Read, Seek, SeekFrom, Write},
     path::{Component, Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockWriteGuard},
 };
 
 use itertools::Itertools;
@@ -53,21 +53,6 @@ impl Memfs
             entries,
             files: HashMap::new(),
         })))
-    }
-
-    /// Clone the target entry
-    ///
-    /// * Handles converting path to absolute form
-    /// * Returns a PathError::DoesNotExist(PathBuf) when this entry doesn't exist
-    pub(crate) fn clone_entry<T: AsRef<Path>>(&self, path: T) -> RvResult<MemfsEntry>
-    {
-        let abs = self.abs(path.as_ref())?;
-        let guard = self.0.read().unwrap();
-
-        match guard.entries.get(&abs) {
-            Some(entry) => Ok(entry.clone()),
-            None => Err(PathError::does_not_exist(&abs).into()),
-        }
     }
 
     /// Clone the target file
@@ -252,19 +237,32 @@ impl Memfs
     // Execute copy with the given [`Copy`] option
     fn _copy(&self, cp: &Copy) -> RvResult<()>
     {
-        if cp.src == cp.dst {
-            return Ok(());
-        }
-
         // Resolve abs paths
         let src_root = self.abs(&cp.src)?;
         let dst_root = self.abs(&cp.dst)?;
+
+        // Detect source is destination
+        if src_root == dst_root {
+            return Ok(());
+        }
+
+        // Determine the given modes
+        let dir_mode = match cp.mode {
+            Some(x) if cp.cdirs || (!cp.cfiles && !cp.cdirs) => Some(x),
+            _ => None,
+        };
+        let file_mode = match cp.mode {
+            Some(x) if cp.cfiles || (!cp.cfiles && !cp.cdirs) => Some(x),
+            _ => None,
+        };
 
         // Copy into requires a pre-existing destination directory
         let copy_into = dst_root.is_dir();
 
         // Recurse on sources as directed
-        for entry in self.entries(&src_root)?.follow(cp.follow) {
+        let entries = self.entries(&src_root)?.follow(cp.follow);
+        let mut guard = self.0.write().unwrap();
+        for entry in entries {
             let src = entry?;
 
             // Set destination path based on source path
@@ -278,16 +276,29 @@ impl Memfs
             if !cp.follow && src.is_symlink() {
                 self.symlink(src.alt(), dst)?;
             } else {
+                // Create the directory using the given mode or src mode
                 if src.is_dir() {
-                    self._mkdir(&cp, &src.path(), &dst)?;
+                    Memfs::_mkdir_m(&mut guard, &dst, dir_mode.or(Some(src.mode())))?;
                 } else {
-                    self._mkdir(&cp, &src.path().dir()?, &dst.dir()?)?;
+                    // Create the parent directory using the given mode or src mode
+                    // let dir_mode = if dir_mode.is_none() {
+                    //     match guard.entries.get(&src.path().dir()?) {
+                    //         Some(entry) => Some(entry.mode()),
+                    //         None => return Err(PathError::does_not_exist(&src.path().dir()?).into()),
+                    //     }
+                    // } else {
+                    //     dir_mode
+                    // };
+                    // Memfs::_mkdir_m(&mut guard, &dst.dir()?, dir_mode)?;
+
                     // fs::copy(&src.path(), &dst)?;
 
                     // Optionally set new mode
-                    if let Some(mode) = cp.mode {
-                        if cp.cfiles || (!cp.cfiles && !cp.cdirs) {
-                            // fs::set_permissions(&dst, fs::Permissions::from_mode(mode))?;
+                    if let Some(mode) = file_mode {
+                        if let Some(entry) = guard.entries.get_mut(src.path()) {
+                            entry.set_mode(mode);
+                        } else {
+                            return Err(PathError::does_not_exist(src.path()).into());
                         }
                     }
                 }
@@ -297,15 +308,30 @@ impl Memfs
         Ok(())
     }
 
-    // Create the destination directory with either the source or copy permissions
-    fn _mkdir(&self, cp: &Copy, src: &Path, dst: &Path) -> RvResult<()>
+    // Create the destination directory with the given mode
+    //
+    // * path is required to be abs already
+    // *
+    fn _mkdir_m(guard: &mut RwLockWriteGuard<MemfsInner>, abs: &Path, mode: Option<u32>) -> RvResult<()>
     {
-        if !self.exists(dst) {
-            let mode = match cp.mode {
-                Some(x) if cp.cdirs || (!cp.cfiles && !cp.cdirs) => x,
-                _ => self.entry(src)?.mode(),
-            };
-            self.mkdir_m(dst, mode)?;
+        // Check each component along the way
+        let mut path = PathBuf::new();
+        for component in abs.components() {
+            path.push(component);
+            if let Some(entry) = guard.entries.get(&path) {
+                // No component should be anything other than a directory
+                if !entry.is_dir() {
+                    return Err(PathError::is_not_dir(&path).into());
+                }
+            } else {
+                // Add new entry using the given mode
+                guard.entries.insert(path.clone(), MemfsEntry::opts(&path).mode(mode).new());
+
+                // Update the parent directory
+                if let Some(entry) = guard.entries.get_mut(&path.dir()?) {
+                    entry.add(component.to_string()?)?;
+                }
+            }
         }
         Ok(())
     }
@@ -659,8 +685,16 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
+        // Clone the target entry
+        let abs = self.abs(path.as_ref())?;
+        let guard = self.0.read().unwrap();
+        let entry = match guard.entries.get(&abs) {
+            Some(entry) => entry.clone().upcast(),
+            None => return Err(PathError::does_not_exist(&abs).into()),
+        };
+
         Ok(Entries {
-            root: self.clone_entry(&path)?.upcast(),
+            root: entry,
             dirs: false,
             files: false,
             follow: false,
@@ -690,7 +724,13 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
     {
-        Ok(self.clone_entry(path)?.upcast())
+        let abs = self.abs(path.as_ref())?;
+        let guard = self.0.read().unwrap();
+
+        match guard.entries.get(&abs) {
+            Some(entry) => Ok(entry.clone().upcast()),
+            None => Err(PathError::does_not_exist(&abs).into()),
+        }
     }
 
     /// Returns true if the `path` exists
@@ -889,27 +929,7 @@ impl VirtualFileSystem for Memfs
     fn mkdir_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
     {
         let abs = self.abs(path)?;
-        let mut guard = self.0.write().unwrap();
-
-        // Check each component along the way
-        let mut path = PathBuf::new();
-        for component in abs.components() {
-            path.push(component);
-            if let Some(entry) = guard.entries.get(&path) {
-                // No component should be anything other than a directory
-                if !entry.is_dir() {
-                    return Err(PathError::is_not_dir(&path).into());
-                }
-            } else {
-                // Add new entry using the given mode
-                guard.entries.insert(path.clone(), MemfsEntry::opts(&path).set_mode(mode).new());
-
-                // Update the parent directory
-                if let Some(entry) = guard.entries.get_mut(&path.dir()?) {
-                    entry.add(component.to_string()?)?;
-                }
-            }
-        }
+        Memfs::_mkdir_m(&mut self.0.write().unwrap(), &abs, Some(mode))?;
         Ok(abs)
     }
 
@@ -932,27 +952,7 @@ impl VirtualFileSystem for Memfs
     fn mkdir_p<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         let abs = self.abs(path)?;
-        let mut guard = self.0.write().unwrap();
-
-        // Check each component along the way
-        let mut path = PathBuf::new();
-        for component in abs.components() {
-            path.push(component);
-            if let Some(entry) = guard.entries.get(&path) {
-                // No component should be anything other than a directory
-                if !entry.is_dir() {
-                    return Err(PathError::is_not_dir(&path).into());
-                }
-            } else {
-                // Add new entry
-                guard.entries.insert(path.clone(), MemfsEntry::opts(&path).new());
-
-                // Update the parent directory
-                if let Some(entry) = guard.entries.get_mut(&path.dir()?) {
-                    entry.add(component.to_string()?)?;
-                }
-            }
-        }
+        Memfs::_mkdir_m(&mut self.0.write().unwrap(), &abs, None)?;
         Ok(abs)
     }
 
@@ -1593,43 +1593,6 @@ mod tests
         f.write_all(b"this is a test").unwrap();
         f.flush().unwrap();
         assert_vfs_read_all!(vfs, &file, "this is a test".to_string());
-    }
-
-    #[test]
-    fn test_memfs_copy_mkdir()
-    {
-        let vfs = Memfs::new();
-        let dir1 = vfs.root().mash("dir1");
-        let dir2 = vfs.root().mash("dir2");
-
-        // Use mode from source directory
-        assert_vfs_mkdir_m!(vfs, &dir1, 0o40777);
-        assert_vfs_no_dir!(vfs, &dir2);
-        let copy = vfs.copy_b(&dir1, &dir2).unwrap();
-        assert!(vfs._mkdir(&copy, &dir1, &dir2).is_ok());
-        assert_vfs_is_dir!(vfs, &dir2);
-        assert_eq!(vfs.mode(&dir2).unwrap(), 0o40777);
-
-        // Use mode from copy builder chmod_all
-        assert_vfs_remove!(vfs, &dir2);
-        let copy = vfs.copy_b(&dir1, &dir2).unwrap().chmod_all(0o40555);
-        assert!(vfs._mkdir(&copy, &dir1, &dir2).is_ok());
-        assert_vfs_is_dir!(vfs, &dir2);
-        assert_eq!(vfs.mode(&dir2).unwrap(), 0o40555);
-
-        // Use mode from copy builder chmod_dirs
-        assert_vfs_remove!(vfs, &dir2);
-        let copy = vfs.copy_b(&dir1, &dir2).unwrap().chmod_dirs(0o40555);
-        assert!(vfs._mkdir(&copy, &dir1, &dir2).is_ok());
-        assert_vfs_is_dir!(vfs, &dir2);
-        assert_eq!(vfs.mode(&dir2).unwrap(), 0o40555);
-
-        // Don't use files only mode from copy builder chmod_files
-        assert_vfs_remove!(vfs, &dir2);
-        let copy = vfs.copy_b(&dir1, &dir2).unwrap().chmod_files(0o40555);
-        assert!(vfs._mkdir(&copy, &dir1, &dir2).is_ok());
-        assert_vfs_is_dir!(vfs, &dir2);
-        assert_eq!(vfs.mode(&dir2).unwrap(), 0o40777);
     }
 
     #[test]
