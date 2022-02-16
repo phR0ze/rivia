@@ -311,7 +311,6 @@ impl Memfs
     // Create the destination directory with the given mode
     //
     // * path is required to be abs already
-    // *
     fn _mkdir_m(guard: &mut RwLockWriteGuard<MemfsInner>, abs: &Path, mode: Option<u32>) -> RvResult<()>
     {
         // Check each component along the way

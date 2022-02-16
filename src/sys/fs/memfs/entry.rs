@@ -68,8 +68,7 @@ impl MemfsEntryOpts
         self.link = true;
         self.alt = path.into();
         self.rel = self.alt.relative(self.path.dir()?)?;
-        let mode = if self.mode == 0 { None } else { Some(self.mode) };
-        Ok(self.mode(mode))
+        Ok(self.mode(None))
     }
 
     // no safty checks only useful for testing
@@ -82,7 +81,16 @@ impl MemfsEntryOpts
     // provides some safty checks
     pub(crate) fn mode(mut self, mode: Option<u32>) -> Self
     {
-        let mode = mode.unwrap_or(self.default_mode());
+        // Given or default mode
+        let mode = mode.unwrap_or(if self.link {
+            0o120777
+        } else if self.file {
+            0o100644
+        } else {
+            0o40755
+        });
+
+        // Ensure prefix permissions are set
         self.mode = if self.link {
             mode | 0o120000
         } else if self.file {
@@ -93,19 +101,6 @@ impl MemfsEntryOpts
             mode
         };
         self
-    }
-
-    // Calculate the correct default mode for the given type
-    pub(crate) fn default_mode(&self) -> u32
-    {
-        // We can have a link & dir/file so it takes priority
-        if self.link {
-            0o120777
-        } else if self.file {
-            0o100644
-        } else {
-            0o40755
-        }
     }
 }
 
