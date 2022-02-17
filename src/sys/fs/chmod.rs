@@ -666,39 +666,49 @@ mod tests
     #[test]
     fn test_vfs_chmod_symbolic()
     {
-        let memfs_dir = |m: u32| -> VfsEntry { MemfsEntry::opts(PathBuf::new())._mode(m).new().upcast() };
-        let memfs_file = |m: u32| -> VfsEntry { MemfsEntry::opts(PathBuf::new()).file()._mode(m).new().upcast() };
-        test_chmod_symbolic(Box::new(memfs_dir), Box::new(memfs_file));
+        test_chmod_symbolic(
+            Box::new(|m: u32| -> VfsEntry {
+                let mut entry = MemfsEntry::opts(PathBuf::new()).dir().new();
+                entry.mode = m;
+                entry.upcast()
+            }),
+            Box::new(|m: u32| -> VfsEntry {
+                let mut entry = MemfsEntry::opts(PathBuf::new()).file().new();
+                entry.mode = m;
+                entry.upcast()
+            }),
+        );
 
-        let stdfs_dir = |m: u32| -> VfsEntry {
-            StdfsEntry {
-                path: PathBuf::new(),
-                alt: PathBuf::new(),
-                rel: PathBuf::new(),
-                dir: true,
-                file: false,
-                link: false,
-                mode: m,
-                follow: false,
-                cached: false,
-            }
-            .upcast()
-        };
-        let stdfs_file = |m: u32| -> VfsEntry {
-            StdfsEntry {
-                path: PathBuf::new(),
-                alt: PathBuf::new(),
-                rel: PathBuf::new(),
-                dir: false,
-                file: true,
-                link: false,
-                mode: m,
-                follow: false,
-                cached: false,
-            }
-            .upcast()
-        };
-        test_chmod_symbolic(Box::new(stdfs_dir), Box::new(stdfs_file));
+        test_chmod_symbolic(
+            Box::new(|m: u32| -> VfsEntry {
+                StdfsEntry {
+                    path: PathBuf::new(),
+                    alt: PathBuf::new(),
+                    rel: PathBuf::new(),
+                    dir: true,
+                    file: false,
+                    link: false,
+                    mode: m,
+                    follow: false,
+                    cached: false,
+                }
+                .upcast()
+            }),
+            Box::new(|m: u32| -> VfsEntry {
+                StdfsEntry {
+                    path: PathBuf::new(),
+                    alt: PathBuf::new(),
+                    rel: PathBuf::new(),
+                    dir: false,
+                    file: true,
+                    link: false,
+                    mode: m,
+                    follow: false,
+                    cached: false,
+                }
+                .upcast()
+            }),
+        );
     }
     fn test_chmod_symbolic(d: Box<dyn Fn(u32) -> VfsEntry>, f: Box<dyn Fn(u32) -> VfsEntry>)
     {
