@@ -177,7 +177,8 @@ mod tests
     {
         let vfs = Memfs::new();
         let tmpdir = PathBuf::new();
-        if let Err(e) = vfs.entry_iter(&tmpdir) {
+        let guard = sys::MemfsGuard::read(&vfs);
+        if let Err(e) = vfs.entry_iter(&guard, &tmpdir) {
             assert_eq!(e.to_string(), PathError::Empty.to_string());
         }
     }
@@ -197,8 +198,10 @@ mod tests
         assert_vfs_mkfile!(vfs, &file1);
         assert_vfs_mkfile!(vfs, &file2);
 
+        let guard = sys::MemfsGuard::read(&vfs);
+
         // dirs first
-        let mut iter = vfs.entry_iter(&tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let mut iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         iter.dirs_first(|x, y| x.file_name().cmp(&y.file_name()));
         assert_eq!(iter.cached(), true);
         assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
@@ -208,7 +211,7 @@ mod tests
         assert!(iter.next().is_none());
 
         // files first
-        let mut iter = vfs.entry_iter(&tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let mut iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         iter.files_first(|x, y| x.file_name().cmp(&y.file_name()));
         assert_eq!(iter.cached(), true);
         assert_eq!(iter.next().unwrap().unwrap().path(), file1);
@@ -231,7 +234,8 @@ mod tests
         assert_vfs_mkfile!(vfs, &file2);
 
         // custom sort for files
-        let mut iter = vfs.entry_iter(&tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let guard = sys::MemfsGuard::read(&vfs);
+        let mut iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
         assert_eq!(iter.cached(), true);
         assert_eq!(iter.next().unwrap().unwrap().path(), file1);
@@ -255,8 +259,10 @@ mod tests
         assert_vfs_mkfile!(vfs, &file3);
         assert_vfs_symlink!(vfs, &link1, &file3);
 
+        let guard = sys::MemfsGuard::read(&vfs);
+
         // custom sort for files
-        let iter = vfs.entry_iter(&tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         assert_eq!(iter.following(), false);
         let mut iter = iter.follow(true);
         assert_eq!(iter.following(), true);
