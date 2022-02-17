@@ -107,6 +107,9 @@ pub fn concat<T: AsRef<Path>, U: AsRef<str>>(path: T, val: U) -> RvResult<PathBu
 
 /// Returns the given `path` without its final component if there is one.
 ///
+/// ### Errors
+/// * PathError:ParentNotFound if the path has no parent
+///
 /// ### Examples
 /// ```
 /// use rivia::prelude::*;
@@ -576,6 +579,9 @@ pub trait PathExt
 
     /// Returns the `Path` without its final component, if there is one.
     ///
+    /// ### Errors
+    /// * PathError:ParentNotFound if the path has no parent
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
@@ -836,6 +842,9 @@ impl PathExt for Path
     }
 
     /// Returns the `Path` without its final component, if there is one.
+    ///
+    /// ### Errors
+    /// * PathError:ParentNotFound if the path has no parent
     ///
     /// ### Examples
     /// ```

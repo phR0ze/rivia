@@ -178,7 +178,7 @@ mod tests
         let vfs = Memfs::new();
         let tmpdir = PathBuf::new();
         let guard = sys::MemfsGuard::read(&vfs);
-        if let Err(e) = vfs.entry_iter(&guard, &tmpdir) {
+        if let Err(e) = vfs._entry_iter(&guard, &tmpdir) {
             assert_eq!(e.to_string(), PathError::Empty.to_string());
         }
     }
@@ -201,7 +201,7 @@ mod tests
         let guard = sys::MemfsGuard::read(&vfs);
 
         // dirs first
-        let mut iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let mut iter = vfs._entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         iter.dirs_first(|x, y| x.file_name().cmp(&y.file_name()));
         assert_eq!(iter.cached(), true);
         assert_eq!(iter.next().unwrap().unwrap().path(), dir1);
@@ -211,7 +211,7 @@ mod tests
         assert!(iter.next().is_none());
 
         // files first
-        let mut iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let mut iter = vfs._entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         iter.files_first(|x, y| x.file_name().cmp(&y.file_name()));
         assert_eq!(iter.cached(), true);
         assert_eq!(iter.next().unwrap().unwrap().path(), file1);
@@ -235,7 +235,7 @@ mod tests
 
         // custom sort for files
         let guard = sys::MemfsGuard::read(&vfs);
-        let mut iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let mut iter = vfs._entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
         assert_eq!(iter.cached(), true);
         assert_eq!(iter.next().unwrap().unwrap().path(), file1);
@@ -262,7 +262,7 @@ mod tests
         let guard = sys::MemfsGuard::read(&vfs);
 
         // custom sort for files
-        let iter = vfs.entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
+        let iter = vfs._entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         assert_eq!(iter.following(), false);
         let mut iter = iter.follow(true);
         assert_eq!(iter.following(), true);
