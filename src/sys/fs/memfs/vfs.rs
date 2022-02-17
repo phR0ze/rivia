@@ -30,15 +30,6 @@ pub(crate) enum MemfsGuard<'a>
 
 impl<'a> MemfsGuard<'a>
 {
-    pub(crate) fn read(memfs: &Memfs) -> MemfsGuard
-    {
-        MemfsGuard::Read(memfs.0.read().unwrap())
-    }
-
-    pub(crate) fn write(memfs: &Memfs) -> MemfsGuard
-    {
-        MemfsGuard::Write(memfs.0.write().unwrap())
-    }
     pub(crate) fn contains_entry(&self, path: &Path) -> bool
     {
         match self {
@@ -167,6 +158,18 @@ impl Memfs
         Memfs(self.0.clone())
     }
 
+    // Create a MemfsGuard::Read
+    pub(crate) fn read_guard(&self) -> MemfsGuard
+    {
+        MemfsGuard::Read(self.0.read().unwrap())
+    }
+
+    // Create a MemfsGuard::write
+    pub(crate) fn write_guard(&self) -> MemfsGuard
+    {
+        MemfsGuard::Write(self.0.write().unwrap())
+    }
+
     /// Resolve the absolute path for the given path
     pub(crate) fn _abs<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<PathBuf>
     {
@@ -286,7 +289,7 @@ impl Memfs
         entries = entries.follow(mode.follow).dirs_first().pre_op(move |x| {
             let m1 = sys::mode(x, m.dirs, &m.sym)?;
             if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
-                let mut guard = MemfsGuard::write(&vfs);
+                let mut guard = vfs.write_guard();
                 if let Some(entry) = guard.get_entry_mut(x.path()) {
                     entry.set_mode(m1);
                 }
@@ -309,7 +312,7 @@ impl Memfs
 
             // Apply permission to entry if set
             if (!src.is_symlink() || mode.follow) && m2 != src.mode() && m2 != 0 {
-                let mut guard = MemfsGuard::write(self);
+                let mut guard = self.write_guard();
                 if let Some(entry) = guard.get_entry_mut(src.path()) {
                     entry.set_mode(m2);
                 }
@@ -401,7 +404,7 @@ impl Memfs
 
         // Recurse on sources as directed
         let entries = self.entries(&src_root)?.follow(cp.follow);
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         for entry in entries {
             let src = entry?;
 
@@ -594,8 +597,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
-        let guard = MemfsGuard::read(self);
-        self._abs(&guard, path)
+        self._abs(&self.read_guard(), path)
     }
 
     /// Opens a file in append mode
@@ -624,7 +626,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
 
         // Make sure the file exists
         let path = self._abs(&guard, path)?;
@@ -737,7 +739,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
 
         // Make sure the file exists
         let path = self._abs(&guard, path)?;
@@ -766,7 +768,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn cwd(&self) -> RvResult<PathBuf>
     {
-        Ok(MemfsGuard::read(self).cwd())
+        Ok(self.read_guard().cwd())
     }
 
     /// Returns all directories for the given path, sorted by name
@@ -826,8 +828,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
-        let guard = MemfsGuard::read(self);
-        self._entries(&guard, path)
+        self._entries(&self.read_guard(), path)
     }
 
     /// Return a virtual filesystem entry for the given path
@@ -843,7 +844,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn entry<T: AsRef<Path>>(&self, path: T) -> RvResult<VfsEntry>
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let abs = self._abs(&guard, path.as_ref())?;
         match guard.get_entry(&abs) {
             Some(entry) => Ok(entry.clone().upcast()),
@@ -866,7 +867,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn exists<T: AsRef<Path>>(&self, path: T) -> bool
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let abs = unwrap_or_false!(self._abs(&guard, path));
         guard.contains_entry(&abs)
     }
@@ -921,7 +922,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn is_exec<T: AsRef<Path>>(&self, path: T) -> bool
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let abs = unwrap_or_false!(self._abs(&guard, path));
         match guard.get_entry(&abs) {
             Some(entry) => entry.is_exec(),
@@ -945,7 +946,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn is_dir<T: AsRef<Path>>(&self, path: T) -> bool
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let abs = unwrap_or_false!(self._abs(&guard, path));
         match guard.get_entry(&abs) {
             Some(entry) => entry.is_dir(),
@@ -969,7 +970,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn is_file<T: AsRef<Path>>(&self, path: T) -> bool
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let abs = unwrap_or_false!(self._abs(&guard, path));
         match guard.get_entry(&abs) {
             Some(entry) => entry.is_file(),
@@ -995,7 +996,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn is_readonly<T: AsRef<Path>>(&self, path: T) -> bool
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let abs = unwrap_or_false!(self._abs(&guard, path));
         match guard.get_entry(&abs) {
             Some(entry) => entry.is_readonly(),
@@ -1019,7 +1020,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn is_symlink<T: AsRef<Path>>(&self, path: T) -> bool
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let abs = unwrap_or_false!(self._abs(&guard, path));
         match guard.get_entry(&abs) {
             Some(entry) => entry.is_symlink(),
@@ -1040,7 +1041,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn mkdir_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         let abs = self._abs(&guard, path)?;
         self._mkdir_m(&mut guard, &abs, Some(mode))?;
         Ok(abs)
@@ -1064,7 +1065,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn mkdir_p<'a, T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         let abs = self._abs(&guard, path)?;
         self._mkdir_m(&mut guard, &abs, None)?;
         Ok(abs)
@@ -1091,7 +1092,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn mkfile<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         let path = self._abs(&guard, path)?;
         self._add(&mut guard, MemfsEntry::opts(path).file().new())
     }
@@ -1110,7 +1111,7 @@ impl VirtualFileSystem for Memfs
     fn mkfile_m<T: AsRef<Path>>(&self, path: T, mode: u32) -> RvResult<PathBuf>
     {
         let path = {
-            let mut guard = MemfsGuard::write(self);
+            let mut guard = self.write_guard();
             let path = self._abs(&guard, path)?;
             self._add(&mut guard, MemfsEntry::opts(path).file().new())?
         };
@@ -1139,7 +1140,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn mode<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let path = self._abs(&guard, path)?;
         match guard.get_entry(&path) {
             Some(entry) => Ok(entry.mode()),
@@ -1170,8 +1171,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
     {
-        let guard = MemfsGuard::read(self);
-        Ok(Box::new(self._clone_file(&guard, &path)?))
+        Ok(Box::new(self._clone_file(&self.read_guard(), &path)?))
     }
 
     /// Returns all paths for the given path, sorted by name
@@ -1253,7 +1253,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn readlink<T: AsRef<Path>>(&self, link: T) -> RvResult<PathBuf>
     {
-        let guard = MemfsGuard::read(self);
+        let guard = self.read_guard();
         let path = self._abs(&guard, link)?;
 
         // Validate the link path
@@ -1288,7 +1288,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn remove<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         let path = self._abs(&guard, path)?;
 
         // First check if the target contains files
@@ -1339,7 +1339,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn remove_all<T: AsRef<Path>>(&self, path: T) -> RvResult<()>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         let path = self._abs(&guard, path)?;
 
         let mut paths = vec![path];
@@ -1391,8 +1391,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn root(&self) -> PathBuf
     {
-        let guard = MemfsGuard::read(self);
-        guard.root()
+        self.read_guard().root()
     }
 
     /// Set the current working directory
@@ -1416,7 +1415,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn set_cwd<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         let path = self._abs(&guard, path)?;
         if !guard.contains_entry(&path) {
             return Err(PathError::does_not_exist(&path).into());
@@ -1448,7 +1447,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
     {
-        let mut guard = MemfsGuard::write(self);
+        let mut guard = self.write_guard();
         let link = self._abs(&guard, link)?;
         let target = target.as_ref().to_owned();
 
@@ -1654,7 +1653,7 @@ mod tests
         assert_vfs_symlink!(vfs, &link1, &file1);
 
         // Clone link with target
-        let entries = vfs._clone_entries(&super::MemfsGuard::read(&vfs), &link1).unwrap();
+        let entries = vfs._clone_entries(&vfs.read_guard(), &link1).unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[&link1].alt(), &file1);
         assert_eq!(entries[&file1].path(), &file1);
@@ -1662,7 +1661,7 @@ mod tests
         // Clone single file
         let file2 = vfs.root().mash("file2");
         assert_vfs_mkfile!(vfs, &file2);
-        let entries = vfs._clone_entries(&super::MemfsGuard::read(&vfs), &file2).unwrap();
+        let entries = vfs._clone_entries(&vfs.read_guard(), &file2).unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[&file2].path(), &file2);
 
@@ -1672,14 +1671,14 @@ mod tests
         let file3 = dir2.mash("file3");
         assert_vfs_mkdir_p!(vfs, &dir2);
         assert_vfs_mkfile!(vfs, &file3);
-        let entries = vfs._clone_entries(&super::MemfsGuard::read(&vfs), &dir1).unwrap();
+        let entries = vfs._clone_entries(&vfs.read_guard(), &dir1).unwrap();
         assert_eq!(entries.len(), 3);
         assert_eq!(entries[&dir1].path(), &dir1);
         assert_eq!(entries[&dir2].path(), &dir2);
         assert_eq!(entries[&file3].path(), &file3);
 
         // Clone full tree
-        let entries = vfs._clone_entries(&super::MemfsGuard::read(&vfs), vfs.root()).unwrap();
+        let entries = vfs._clone_entries(&vfs.read_guard(), vfs.root()).unwrap();
         assert_eq!(entries.len(), 7);
         assert_eq!(entries[&vfs.root()].path(), &vfs.root());
         assert_eq!(entries[&link1].alt(), &file1);
@@ -1785,7 +1784,7 @@ mod tests
         let vfs = Memfs::new();
         let file = vfs.root().mash("file");
         assert_vfs_mkfile!(vfs, &file);
-        let guard = super::MemfsGuard::read(&vfs);
+        let guard = vfs.read_guard();
         let mut iter = vfs._entry_iter(&guard, &vfs.root()).unwrap()(&vfs.root(), false).unwrap();
         assert_eq!(iter.next().unwrap().unwrap().path(), file);
         assert!(iter.next().is_none());
@@ -2154,7 +2153,7 @@ mod tests
 
         // Validate the link was created correctly
         if let Vfs::Memfs(ref memfs) = vfs {
-            let guard = sys::MemfsGuard::read(memfs);
+            let guard = memfs.read_guard();
 
             // Ensure that no file was created for the links
             assert_eq!(guard.contains_file(&file1), true);

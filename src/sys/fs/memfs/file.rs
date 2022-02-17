@@ -37,7 +37,7 @@ impl MemfsFile
     {
         if let Some(ref fs) = self.fs {
             if let Some(ref path) = self.path {
-                let mut guard = MemfsGuard::write(fs);
+                let mut guard = fs.write_guard();
                 if guard.contains_entry(path) {
                     if let Some(f) = guard.get_file_mut(path) {
                         f.data = self.data.clone();

@@ -177,7 +177,7 @@ mod tests
     {
         let vfs = Memfs::new();
         let tmpdir = PathBuf::new();
-        let guard = sys::MemfsGuard::read(&vfs);
+        let guard = vfs.read_guard();
         if let Err(e) = vfs._entry_iter(&guard, &tmpdir) {
             assert_eq!(e.to_string(), PathError::Empty.to_string());
         }
@@ -198,7 +198,7 @@ mod tests
         assert_vfs_mkfile!(vfs, &file1);
         assert_vfs_mkfile!(vfs, &file2);
 
-        let guard = sys::MemfsGuard::read(&vfs);
+        let guard = vfs.read_guard();
 
         // dirs first
         let mut iter = vfs._entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
@@ -234,7 +234,7 @@ mod tests
         assert_vfs_mkfile!(vfs, &file2);
 
         // custom sort for files
-        let guard = sys::MemfsGuard::read(&vfs);
+        let guard = vfs.read_guard();
         let mut iter = vfs._entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
         iter.sort(|x, y| x.file_name().cmp(&y.file_name()));
         assert_eq!(iter.cached(), true);
@@ -259,7 +259,7 @@ mod tests
         assert_vfs_mkfile!(vfs, &file3);
         assert_vfs_symlink!(vfs, &link1, &file3);
 
-        let guard = sys::MemfsGuard::read(&vfs);
+        let guard = vfs.read_guard();
 
         // custom sort for files
         let iter = vfs._entry_iter(&guard, &tmpdir).unwrap()(&tmpdir, false).unwrap();
