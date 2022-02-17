@@ -452,6 +452,33 @@ impl Memfs
         Ok(())
     }
 
+    pub(crate) fn _entries<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<Entries>
+    {
+        // Clone the target entry
+        let path = self._abs(&guard, path)?;
+        let entry = match guard.get_entry(&path) {
+            Some(entry) => entry.clone().upcast(),
+            None => return Err(PathError::does_not_exist(&path).into()),
+        };
+
+        Ok(Entries {
+            root: entry,
+            dirs: false,
+            files: false,
+            follow: false,
+            min_depth: 0,
+            max_depth: std::usize::MAX,
+            max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
+            dirs_first: false,
+            files_first: false,
+            contents_first: false,
+            sort_by_name: false,
+            pre_op: None,
+            sort: None,
+            iter_from: self.entry_iter(&guard, &path)?,
+        })
+    }
+
     // Create the destination directory with the given mode
     //
     // * path is required to be abs already
@@ -794,30 +821,8 @@ impl VirtualFileSystem for Memfs
     /// ```
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>
     {
-        // Clone the target entry
         let guard = MemfsGuard::read(self);
-        let path = self._abs(&guard, path)?;
-        let entry = match guard.get_entry(&path) {
-            Some(entry) => entry.clone().upcast(),
-            None => return Err(PathError::does_not_exist(&path).into()),
-        };
-
-        Ok(Entries {
-            root: entry,
-            dirs: false,
-            files: false,
-            follow: false,
-            min_depth: 0,
-            max_depth: std::usize::MAX,
-            max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
-            dirs_first: false,
-            files_first: false,
-            contents_first: false,
-            sort_by_name: false,
-            pre_op: None,
-            sort: None,
-            iter_from: self.entry_iter(&guard, &path)?,
-        })
+        self._entries(&guard, path)
     }
 
     /// Return a virtual filesystem entry for the given path
