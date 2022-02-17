@@ -161,59 +161,47 @@ impl Memfs
         })))
     }
 
-    /// Clone the target file
-    ///
-    /// * Handles converting path to absolute form
-    /// * Returns a PathError::DoesNotExist(PathBuf) when this file doesn't exist
-    pub(crate) fn _clone_file<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<MemfsFile>
+    /// Resolve the absolute path for the given path
+    pub(crate) fn _abs<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<PathBuf>
     {
-        let path = self._abs(&guard, path)?;
+        let path = path.as_ref();
 
-        // Validate target is a file
-        if let Some(f) = guard.get_entry(&path) {
-            if !f.is_file() {
-                return Err(PathError::is_not_file(&path).into());
+        // Check for empty string
+        if path.is_empty() {
+            return Err(PathError::Empty.into());
+        }
+
+        // Expand home directory
+        let mut path_buf = path.expand()?;
+
+        // Trim protocol prefix if needed
+        path_buf = path_buf.trim_protocol();
+
+        // Clean the resulting path
+        path_buf = path_buf.clean();
+
+        // Expand relative directories if needed
+        if !path_buf.is_absolute() {
+            let mut curr = guard.cwd();
+            while let Ok(path) = path_buf.components().first_result() {
+                match path {
+                    Component::CurDir => {
+                        path_buf = path_buf.trim_first();
+                    },
+                    Component::ParentDir => {
+                        if curr.to_string()? == "/" {
+                            return Err(PathError::ParentNotFound(curr).into());
+                        }
+                        curr = curr.dir()?;
+                        path_buf = path_buf.trim_first();
+                    },
+                    _ => return Ok(curr.mash(path_buf)),
+                };
             }
+            return Ok(curr);
         }
 
-        // Clone the file if it exists
-        match guard.get_file(&path) {
-            Some(entry) => Ok(entry.clone()),
-            None => Err(PathError::does_not_exist(&path).into()),
-        }
-    }
-
-    /// Clone the fs entries for the entry tree rather than the full filesystem
-    ///
-    /// * Handles converting path to absolute form
-    /// * Returns a PathError::DoesNotExist(PathBuf) when this file doesn't exist
-    pub(crate) fn _clone_entries<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<MemfsEntries>
-    {
-        let abs = self._abs(&guard, path)?;
-        let mut entries = HashMap::new();
-
-        let mut paths = vec![abs];
-        while let Some(path) = paths.pop() {
-            if let Some(entry) = guard.get_entry(&path) {
-                entries.insert(entry.path_buf(), entry.clone());
-
-                // Recursively clone children
-                if let Some(ref files) = entry.files {
-                    for name in files {
-                        paths.push(entry.path().mash(name));
-                    }
-                }
-
-                // Recursively clone link targets that exist but don't allow looping
-                if entry.is_symlink() && guard.contains_entry(entry.alt()) && !entries.contains_key(entry.alt()) {
-                    paths.push(entry.alt_buf());
-                }
-            } else {
-                return Err(PathError::does_not_exist(path).into());
-            }
-        }
-
-        Ok(entries)
+        Ok(path_buf)
     }
 
     /// Create the given MemfsEntry if it doesn't already exist
@@ -224,8 +212,6 @@ impl Memfs
     /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
     /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
     /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
-    // fn _mkdir_m(guard: &mut RwLockWriteGuard<MemfsInner>, abs: &Path, mode: Option<u32>) ->
-    // RvResult<()>
     pub(crate) fn _add(&self, guard: &mut MemfsGuard, entry: MemfsEntry) -> RvResult<PathBuf>
     {
         let path = entry.path_buf();
@@ -270,66 +256,6 @@ impl Memfs
         }
 
         Ok(path)
-    }
-
-    /// Create an EntryIter func
-    pub(crate) fn _entry_iter<T: AsRef<Path>>(
-        &self, guard: &MemfsGuard, path: T,
-    ) -> RvResult<Box<dyn Fn(&Path, bool) -> RvResult<EntryIter>+Send+Sync+'static>>
-    {
-        let entries = Arc::new(self._clone_entries(&guard, path)?);
-        Ok(Box::new(move |path: &Path, follow: bool| -> RvResult<EntryIter> {
-            let entries = entries.clone();
-            Ok(EntryIter {
-                path: path.to_path_buf(),
-                cached: false,
-                following: follow,
-                iter: Box::new(MemfsEntryIter::new(path, entries)?),
-            })
-        }))
-    }
-
-    /// Resolve the absolute path for the given path
-    pub(crate) fn _abs<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<PathBuf>
-    {
-        let path = path.as_ref();
-
-        // Check for empty string
-        if path.is_empty() {
-            return Err(PathError::Empty.into());
-        }
-
-        // Expand home directory
-        let mut path_buf = path.expand()?;
-
-        // Trim protocol prefix if needed
-        path_buf = path_buf.trim_protocol();
-
-        // Clean the resulting path
-        path_buf = path_buf.clean();
-
-        // Expand relative directories if needed
-        if !path_buf.is_absolute() {
-            let mut curr = guard.cwd();
-            while let Ok(path) = path_buf.components().first_result() {
-                match path {
-                    Component::CurDir => {
-                        path_buf = path_buf.trim_first();
-                    },
-                    Component::ParentDir => {
-                        if curr.to_string()? == "/" {
-                            return Err(PathError::ParentNotFound(curr).into());
-                        }
-                        curr = curr.dir()?;
-                        path_buf = path_buf.trim_first();
-                    },
-                    _ => return Ok(curr.mash(path_buf)),
-                };
-            }
-            return Ok(curr);
-        }
-
-        Ok(path_buf)
     }
 
     // Execute chmod with the given [`Mode`] options
@@ -384,6 +310,62 @@ impl Memfs
             }
         }
         Ok(())
+    }
+
+    /// Makes a copy of the tree branch that is implicated includeing any links rather than the full
+    /// filesystem. This reduces resource use and provides a performance increase.
+    ///
+    /// * Handles converting path to absolute form
+    /// * Returns a PathError::DoesNotExist(PathBuf) when this file doesn't exist
+    pub(crate) fn _clone_entries<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<MemfsEntries>
+    {
+        let abs = self._abs(&guard, path)?;
+        let mut entries = HashMap::new();
+
+        let mut paths = vec![abs];
+        while let Some(path) = paths.pop() {
+            if let Some(entry) = guard.get_entry(&path) {
+                entries.insert(entry.path_buf(), entry.clone());
+
+                // Recursively clone children
+                if let Some(ref files) = entry.files {
+                    for name in files {
+                        paths.push(entry.path().mash(name));
+                    }
+                }
+
+                // Recursively clone link targets that exist but don't allow looping
+                if entry.is_symlink() && guard.contains_entry(entry.alt()) && !entries.contains_key(entry.alt()) {
+                    paths.push(entry.alt_buf());
+                }
+            } else {
+                return Err(PathError::does_not_exist(path).into());
+            }
+        }
+
+        Ok(entries)
+    }
+
+    /// Clone the target file
+    ///
+    /// * Handles converting path to absolute form
+    /// * Returns a PathError::DoesNotExist(PathBuf) when this file doesn't exist
+    pub(crate) fn _clone_file<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<MemfsFile>
+    {
+        let path = self._abs(&guard, path)?;
+
+        // Validate target is a file
+        if let Some(f) = guard.get_entry(&path) {
+            if !f.is_file() {
+                return Err(PathError::is_not_file(&path).into());
+            }
+        }
+
+        // Clone the file if it exists
+        match guard.get_file(&path) {
+            Some(entry) => Ok(entry.clone()),
+            None => Err(PathError::does_not_exist(&path).into()),
+        }
     }
 
     // Execute copy with the given [`Copy`] option
@@ -459,6 +441,30 @@ impl Memfs
         Ok(())
     }
 
+    /// Uses `_clone_entries` to make a copy of the tree branch that is implicated and returns it as
+    /// a re-enterable function that contains the copy of the tree
+    ///
+    /// * Handles converting path to absolute form
+    pub(crate) fn _entry_iter<T: AsRef<Path>>(
+        &self, guard: &MemfsGuard, path: T,
+    ) -> RvResult<Box<dyn Fn(&Path, bool) -> RvResult<EntryIter>+Send+Sync+'static>>
+    {
+        let entries = Arc::new(self._clone_entries(&guard, path)?);
+        Ok(Box::new(move |path: &Path, follow: bool| -> RvResult<EntryIter> {
+            let entries = entries.clone();
+            Ok(EntryIter {
+                path: path.to_path_buf(),
+                cached: false,
+                following: follow,
+                iter: Box::new(MemfsEntryIter::new(path, entries)?),
+            })
+        }))
+    }
+
+    /// Uses `_entry_iter` which will then use `_clone_entries` to make a copy of the tree branch
+    /// that is implicated to be used for iteration.
+    ///
+    /// * Handles converting path to absolute form
     pub(crate) fn _entries<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<Entries>
     {
         // Clone the target entry
