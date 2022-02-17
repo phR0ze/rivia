@@ -161,6 +161,12 @@ impl Memfs
         })))
     }
 
+    /// Make a clone of the Memfs as a shallow Arc clone
+    pub(crate) fn clone(&self) -> Memfs
+    {
+        Memfs(self.0.clone())
+    }
+
     /// Resolve the absolute path for the given path
     pub(crate) fn _abs<T: AsRef<Path>>(&self, guard: &MemfsGuard, path: T) -> RvResult<PathBuf>
     {
@@ -276,12 +282,12 @@ impl Memfs
         // pre-traversal operation to allow for the possible addition of permissions that would allow
         // directory traversal that otherwise wouldn't be allowed.
         let m = mode.clone();
-        let vfs = Memfs(self.0.clone());
+        let vfs = self.clone();
         entries = entries.follow(mode.follow).dirs_first().pre_op(move |x| {
             let m1 = sys::mode(x, m.dirs, &m.sym)?;
             if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
-                let mut guard = vfs.0.write().unwrap();
-                if let Some(entry) = guard.entries.get_mut(x.path()) {
+                let mut guard = MemfsGuard::write(&vfs);
+                if let Some(entry) = guard.get_entry_mut(x.path()) {
                     entry.set_mode(m1);
                 }
             }
@@ -303,8 +309,8 @@ impl Memfs
 
             // Apply permission to entry if set
             if (!src.is_symlink() || mode.follow) && m2 != src.mode() && m2 != 0 {
-                let mut guard = self.0.write().unwrap();
-                if let Some(entry) = guard.entries.get_mut(src.path()) {
+                let mut guard = MemfsGuard::write(self);
+                if let Some(entry) = guard.get_entry_mut(src.path()) {
                     entry.set_mode(m2);
                 }
             }
@@ -528,7 +534,7 @@ impl Memfs
     pub fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copy>
     {
         // Construct the copy closure callback
-        let vfs = Memfs(self.0.clone());
+        let vfs = self.clone();
         let exec_func = move |cp: &Copy| -> RvResult<()> { vfs._copy(cp) };
 
         // Return the new Copy builder
@@ -628,7 +634,7 @@ impl VirtualFileSystem for Memfs
             // Clone the file to append to
             let mut clone = file.clone();
             clone.path = Some(path.clone());
-            clone.fs = Some(self.0.clone());
+            clone.fs = Some(self.clone());
 
             // Seek to the end for appending
             clone.seek(SeekFrom::End(0))?;
@@ -692,7 +698,7 @@ impl VirtualFileSystem for Memfs
         let path = self.abs(path)?;
 
         // Construct the chmod closure callback
-        let vfs = Memfs(self.0.clone());
+        let vfs = self.clone();
         let exec_func = move |mode: Mode| -> RvResult<()> { vfs._chmod(mode) };
 
         // Return the new Chmod builder
@@ -742,7 +748,7 @@ impl VirtualFileSystem for Memfs
             pos: 0,
             data: vec![],
             path: Some(path),
-            fs: Some(self.0.clone()),
+            fs: Some(self.clone()),
         }))
     }
 

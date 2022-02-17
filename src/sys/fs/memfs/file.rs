@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::MemfsInner;
+use super::{Memfs, MemfsGuard};
 
 /// `MemfsFile` is an implementation of memory based file in the memory filesytem.
 ///
@@ -15,10 +15,10 @@ use super::MemfsInner;
 #[derive(Debug, Default)]
 pub(crate) struct MemfsFile
 {
-    pub(crate) pos: u64,                            // position in the memory file
-    pub(crate) data: Vec<u8>,                       // datastore for the memory file
-    pub(crate) path: Option<PathBuf>,               // optional path to write to
-    pub(crate) fs: Option<Arc<RwLock<MemfsInner>>>, // optional sharable filesystem for writes
+    pub(crate) pos: u64,              // position in the memory file
+    pub(crate) data: Vec<u8>,         // datastore for the memory file
+    pub(crate) path: Option<PathBuf>, // optional path to write to
+    pub(crate) fs: Option<Memfs>,     // optional sharable filesystem for writes
 }
 
 impl MemfsFile
@@ -37,9 +37,9 @@ impl MemfsFile
     {
         if let Some(ref fs) = self.fs {
             if let Some(ref path) = self.path {
-                let mut guard = fs.write().unwrap();
-                if guard.entries.contains_key(path) {
-                    if let Some(f) = guard.files.get_mut(path) {
+                let mut guard = MemfsGuard::write(fs);
+                if guard.contains_entry(path) {
+                    if let Some(f) = guard.get_file_mut(path) {
                         f.data = self.data.clone();
                     }
                 } else {
