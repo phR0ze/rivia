@@ -24,6 +24,9 @@ pub enum VfsError
 
     /// An error indicating that the virtual filesystem is unavailable
     Unavailable,
+
+    /// An error indicating that the underlying vfs implementation was the wrong one
+    WrongProvider,
 }
 
 impl StdError for VfsError {}
@@ -54,6 +57,7 @@ impl fmt::Display for VfsError
                 write!(f, "Invalid chmod target given: {}", sym)
             },
             VfsError::Unavailable => write!(f, "Virtual filesystem is unavailable"),
+            VfsError::WrongProvider => write!(f, "Wrong Virtual filesystem provider was given"),
         }
     }
 }
@@ -94,5 +98,6 @@ mod tests
         );
         assert_eq!(VfsError::InvalidChmodTarget("foo".to_string()).to_string(), "Invalid chmod target given: foo");
         assert_eq!(VfsError::Unavailable.to_string(), "Virtual filesystem is unavailable");
+        assert_eq!(VfsError::WrongProvider.to_string(), "Wrong Virtual filesystem provider was given");
     }
 }

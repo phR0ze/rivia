@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     io::{Read, Seek, SeekFrom, Write},
     path::{Component, Path, PathBuf},
@@ -291,7 +291,7 @@ impl Memfs
             if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
                 let mut guard = vfs.write_guard();
                 if let Some(entry) = guard.get_entry_mut(x.path()) {
-                    entry.set_mode(m1);
+                    entry.set_mode(Some(m1));
                 }
             }
             Ok(())
@@ -314,7 +314,7 @@ impl Memfs
             if (!src.is_symlink() || mode.follow) && m2 != src.mode() && m2 != 0 {
                 let mut guard = self.write_guard();
                 if let Some(entry) = guard.get_entry_mut(src.path()) {
-                    entry.set_mode(m2);
+                    entry.set_mode(Some(m2));
                 }
             }
         }
@@ -406,7 +406,7 @@ impl Memfs
         let entries = self.entries(&src_root)?.follow(cp.follow);
         let mut guard = self.write_guard();
         for entry in entries {
-            let src = entry?;
+            let src = MemfsEntry::downcast(entry?)?;
 
             // Set destination path based on source path
             let dst_path = if copy_into {
@@ -423,26 +423,22 @@ impl Memfs
                 if src.is_dir() {
                     self._mkdir_m(&mut guard, &dst_path, dir_mode.or(Some(src.mode())))?;
                 } else {
-                    // Create the parent directory using the given mode or src mode
-                    // let dir_mode = if dir_mode.is_none() {
-                    //     match guard.entries.get(&src.path().dir()?) {
-                    //         Some(entry) => Some(entry.mode()),
-                    //         None => return
-                    // Err(PathError::does_not_exist(&src.path().dir()?).into()),
-                    //     }
-                    // } else {
-                    //     dir_mode
-                    // };
-                    // Memfs::_mkdir_m(&mut guard, &dst.dir()?, dir_mode)?;
+                    // Clone the src entry and override its paths
+                    let mut dst = src.clone();
+                    dst.path = dst_path.clone();
+                    // TODO: convert alt and rel paths
 
-                    // Copy the src file to dst
-                    // let dst = MemfsEntry::opts(&path).mode(mode).new();
-                    // guard.entries.insert(path.clone(), MemfsEntry::opts(&path).mode(mode).new());
+                    // Update mode as directed
+                    dst.set_mode(file_mode.or(Some(src.mode())));
 
-                    // Update the parent directory
-                    // if let Some(entry) = guard.entries.get_mut(&path.dir()?) {
-                    //     entry.add(component.to_string()?)?;
-                    // }
+                    // Add the new dst entry to the filesystem
+                    self._add(&mut guard, dst)?;
+
+                    // Copy the src file over as well
+                    if !src.is_symlink() {
+                        let dst_file = self._clone_file(&guard, &src.path())?;
+                        guard.insert_file(dst_path, dst_file);
+                    }
                 }
             }
         }
@@ -512,6 +508,31 @@ impl Memfs
             self._add(guard, MemfsEntry::opts(&path).mode(mode).new())?;
         }
         Ok(())
+    }
+
+    /// Copies src to dst recursively
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Creates destination directories as needed
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Doesn't follow links
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file1 = vfs.root().mash("file1");
+    /// let file2 = vfs.root().mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// //assert!(vfs.copy_b(&file1, &file2).exec().is_ok());
+    /// //assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    /// ```
+    pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>
+    {
+        self.copy_b(src, dst)?.exec()
     }
 
     /// Creates a new [`Copy`] for use with the builder pattern
@@ -1687,6 +1708,20 @@ mod tests
         assert_eq!(entries[&dir1].path(), &dir1);
         assert_eq!(entries[&dir2].path(), &dir2);
         assert_eq!(entries[&file3].path(), &file3);
+    }
+
+    #[test]
+    fn test_memfs_copy()
+    {
+        let vfs = Memfs::new();
+
+        // Single file copy
+        let file1 = vfs.root().mash("file1");
+        let file2 = vfs.root().mash("file2");
+        assert_vfs_write_all!(vfs, &file1, "data: file1");
+        assert_vfs_no_file!(vfs, &file2);
+        assert!(vfs.copy(&file1, &file2).is_ok());
+        assert_vfs_read_all!(vfs, &file2, "data: file1");
     }
 
     #[test]

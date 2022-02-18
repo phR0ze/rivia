@@ -90,7 +90,7 @@ impl MemfsEntryOpts
             0o40755
         });
 
-        // Ensure prefix permissions are set
+        // OR given mode with defaults for physical entries
         self.mode = if self.link {
             mode | 0o120000
         } else if self.file {
@@ -179,6 +179,15 @@ impl MemfsEntry
         Ok(())
     }
 
+    /// Convert the given VfsEntry to a MemfsEntry or fail
+    pub(crate) fn downcast(vfs: VfsEntry) -> RvResult<MemfsEntry>
+    {
+        match vfs {
+            VfsEntry::Memfs(x) => Ok(x),
+            _ => Err(VfsError::WrongProvider.into()),
+        }
+    }
+
     /// Remove an entry from this directory
     ///
     /// * Returns true on success or false if there was no file to remove
@@ -205,13 +214,22 @@ impl MemfsEntry
     }
 
     /// Set the given mode taking into account physical file querks
-    pub(crate) fn set_mode(&mut self, mode: u32)
+    pub(crate) fn set_mode(&mut self, mode: Option<u32>)
     {
-        if self.file {
-            self.mode = mode | 0o100000;
-        } else if self.dir {
-            self.mode = mode | 0o40000;
+        // Calculate the new mode
+        let opts = MemfsEntryOpts {
+            path: PathBuf::new(),
+            alt: PathBuf::new(),
+            rel: PathBuf::new(),
+            dir: self.dir,
+            file: self.file,
+            link: self.link,
+            mode: self.mode,
         }
+        .mode(mode);
+
+        // Set the new mode
+        self.mode = opts.mode;
     }
 }
 
