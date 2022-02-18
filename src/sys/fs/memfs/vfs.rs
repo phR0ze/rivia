@@ -1711,7 +1711,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_copy()
+    fn test_memfs_copy_b()
     {
         let vfs = Memfs::new();
 
@@ -1720,7 +1720,7 @@ mod tests
         let file2 = vfs.root().mash("file2");
         assert_vfs_write_all!(vfs, &file1, "data: file1");
         assert_vfs_no_file!(vfs, &file2);
-        assert!(vfs.copy(&file1, &file2).is_ok());
+        assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
         assert_vfs_read_all!(vfs, &file2, "data: file1");
     }
 
