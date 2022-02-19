@@ -453,7 +453,7 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     ///
     /// * Handles path expansion and absolute path resolution
     ///
-    /// # Errors
+    /// ### Errors
     /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
     ///
     /// ### Examples
@@ -1362,7 +1362,7 @@ impl VirtualFileSystem for Vfs
     ///
     /// * Handles path expansion and absolute path resolution
     ///
-    /// # Errors
+    /// ### Errors
     /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
     ///
     /// ### Examples

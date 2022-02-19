@@ -815,7 +815,7 @@ impl Stdfs
     ///
     /// * Handles path expansion and absolute path resolution
     ///
-    /// # Errors
+    /// ### Errors
     /// * io::Error if its unable to create the directory
     /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
     ///
@@ -1787,7 +1787,7 @@ impl VirtualFileSystem for Stdfs
     ///
     /// * Handles path expansion and absolute path resolution
     ///
-    /// # Errors
+    /// ### Errors
     /// * io::Error if its unable to create the directory
     /// * PathError::IsNotDir(PathBuf) when the path already exists and is not a directory
     ///

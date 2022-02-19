@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{
-    errors::{RvResult, VfsError},
-    sys::{Entry, VfsEntry},
-};
+use crate::errors::RvResult;
 
 /// Provides a builder pattern for flexibly copying files
 ///

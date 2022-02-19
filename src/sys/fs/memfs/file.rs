@@ -1,10 +1,6 @@
-use std::{
-    cmp, io,
-    path::PathBuf,
-    sync::{Arc, RwLock},
-};
+use std::{cmp, io, path::PathBuf};
 
-use super::{Memfs, MemfsGuard};
+use super::Memfs;
 
 /// `MemfsFile` is an implementation of memory based file in the memory filesytem.
 ///
