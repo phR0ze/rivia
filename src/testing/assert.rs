@@ -60,6 +60,55 @@ macro_rules! assert_vfs_setup {
     }};
 }
 
+/// Assert the copy of a file
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Vfs::memfs();
+/// let file1 = vfs.root().mash("file1");
+/// let file2 = vfs.root().mash("file2");
+/// assert_vfs_write_all!(vfs, &file1, "this is a test");
+/// assert_vfs_copyfile!(vfs, &file1, &file2);
+/// ```
+#[macro_export]
+macro_rules! assert_vfs_copyfile {
+    ($vfs:expr, $from:expr, $to:expr) => {
+        let src = match $vfs.abs($from) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_copyfile!", "failed to get absolute src path", $from),
+        };
+        let dst = match $vfs.abs($to) {
+            Ok(x) => x,
+            _ => panic_msg!("assert_vfs_copyfile!", "failed to get absolute dst path", $to),
+        };
+        if !$vfs.exists(&src) {
+            panic_msg!("assert_vfs_copyfile!", "doesn't exist", &src);
+        } else if !$vfs.is_file(&src) {
+            panic_msg!("assert_vfs_copyfile!", "is not a file", &src);
+        } else {
+            match $vfs.copy(&src, &dst) {
+                Ok(_) => match $vfs.read_all(&src) {
+                    Ok(x) => match $vfs.read_all(&dst) {
+                        Ok(y) => {
+                            if &x != &y {
+                                panic_compare_msg!("assert_vfs_copyfile!", "src data doesn't match dst", &x, &y);
+                            }
+                        },
+                        _ => panic_msg!("assert_vfs_copyfile!", "failed reading dst file", &dst),
+                    },
+                    _ => panic_msg!("assert_vfs_copyfile!", "failed reading src file", &src),
+                },
+                _ => panic_msg!("assert_vfs_copyfile!", "failed while copying src file", &src),
+            };
+            if !$vfs.is_file(&dst) {
+                panic_msg!("assert_vfs_copyfile!", "dst doesn't exist", &dst);
+            }
+        }
+    };
+}
+
 /// Assert that a file or directory exists
 ///
 /// ### Examples
@@ -703,6 +752,56 @@ mod tests
         let expected = vfs.root().mash(testing::TEST_TEMP_DIR).mash("foobar_vfs_setup");
         assert_eq!(&tmpdir, &expected);
         assert_vfs_exists!(vfs, &expected);
+    }
+
+    #[test]
+    fn test_assert_vfs_copyfile()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::memfs());
+
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+        let dir1 = tmpdir.mash("dir1");
+        assert_vfs_mkdir_p!(vfs, &dir1);
+
+        // fail abs
+        let result = testing::capture_panic(|| {
+            assert_vfs_copyfile!(vfs, "", "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_copyfile!: failed to get absolute src path\n  target: \"\"\n"
+        );
+
+        let result = testing::capture_panic(|| {
+            assert_vfs_copyfile!(vfs, "foo", "");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "\nassert_vfs_copyfile!: failed to get absolute dst path\n  target: \"\"\n"
+        );
+
+        // src doesn't exist
+        let result = testing::capture_panic(|| {
+            assert_vfs_copyfile!(vfs, &file1, &file2);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_vfs_copyfile!: doesn't exist\n  target: {:?}\n", &file1)
+        );
+
+        // exists but not a file
+        let result = testing::capture_panic(|| {
+            assert_vfs_copyfile!(vfs, &dir1, &file2);
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!("\nassert_vfs_copyfile!: is not a file\n  target: {:?}\n", &dir1)
+        );
+
+        // happy path
+        assert_vfs_write_all!(vfs, &file1, "this is a test");
+        assert_vfs_copyfile!(vfs, &file1, &file2);
     }
 
     #[test]

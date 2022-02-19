@@ -71,11 +71,12 @@ pub mod prelude
 
     // Export macros by name
     pub use crate::{
-        assert_vfs_exists, assert_vfs_is_dir, assert_vfs_is_file, assert_vfs_is_symlink, assert_vfs_mkdir_m,
-        assert_vfs_mkdir_p, assert_vfs_mkfile, assert_vfs_no_dir, assert_vfs_no_exists, assert_vfs_no_file,
-        assert_vfs_no_symlink, assert_vfs_read_all, assert_vfs_readlink, assert_vfs_readlink_abs,
-        assert_vfs_remove, assert_vfs_remove_all, assert_vfs_setup, assert_vfs_symlink, assert_vfs_write_all,
-        cfgblock, function, function_fqn, panic_compare_msg, panic_msg, trying, unwrap_or_false,
+        assert_vfs_copyfile, assert_vfs_exists, assert_vfs_is_dir, assert_vfs_is_file, assert_vfs_is_symlink,
+        assert_vfs_mkdir_m, assert_vfs_mkdir_p, assert_vfs_mkfile, assert_vfs_no_dir, assert_vfs_no_exists,
+        assert_vfs_no_file, assert_vfs_no_symlink, assert_vfs_read_all, assert_vfs_readlink,
+        assert_vfs_readlink_abs, assert_vfs_remove, assert_vfs_remove_all, assert_vfs_setup, assert_vfs_symlink,
+        assert_vfs_write_all, cfgblock, function, function_fqn, panic_compare_msg, panic_msg, trying,
+        unwrap_or_false,
     };
     // Export internal types
     pub use crate::{
