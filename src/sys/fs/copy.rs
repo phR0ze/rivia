@@ -20,7 +20,7 @@ use crate::{
 /// assert!(vfs.chmod_b(&file).unwrap().sym("f:a+x").exec().is_ok());
 /// assert_eq!(vfs.is_exec(&file), true);
 /// ```
-pub struct Copy
+pub struct Copier
 {
     pub(crate) opts: CopyOpts,
     pub(crate) exec: Box<dyn Fn(CopyOpts) -> RvResult<()>>, // vfs backend to use
@@ -38,7 +38,7 @@ pub(crate) struct CopyOpts
     pub(crate) follow: bool,      // follow links when copying files
 }
 
-impl Copy
+impl Copier
 {
     /// Apply chmod to all files and directories.
     ///

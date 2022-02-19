@@ -16,7 +16,8 @@ use crate::{
     core::*,
     errors::*,
     sys::{
-        self, Chmod, ChmodOpts, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VfsEntry, VirtualFileSystem,
+        self, Chmod, ChmodOpts, Copier, CopyOpts, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VfsEntry,
+        VirtualFileSystem,
     },
 };
 
@@ -234,6 +235,68 @@ impl Stdfs
         }
 
         Ok(())
+    }
+
+    /// Copies src to dst recursively
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Creates destination directories as needed
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Doesn't follow links
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_copy");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy(&file1, &file2).is_ok());
+    /// assert_vfs_read_all!(vfs, &file2, "this is a test");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> RvResult<()>
+    {
+        Stdfs::copy_b(src, dst)?.exec()
+    }
+
+    /// Creates a new [`Copier`] for use with the builder pattern
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Options for recursion, mode setting and following links
+    /// * Execute by calling `exec`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_copy_b");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
+    /// assert_vfs_read_all!(vfs, &file2, "this is a test");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> RvResult<Copier>
+    {
+        Ok(Copier {
+            opts: CopyOpts {
+                src: src.as_ref().to_owned(),
+                dst: dst.as_ref().to_owned(),
+                mode: Default::default(),
+                cdirs: Default::default(),
+                cfiles: Default::default(),
+                follow: Default::default(),
+            },
+            exec: Box::new(Stdfs::_copy),
+        })
     }
 
     // Execute copy with the given [`Copy`] option
@@ -1214,6 +1277,58 @@ impl VirtualFileSystem for Stdfs
     fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod>
     {
         Stdfs::chmod_b(path)
+    }
+
+    /// Copies src to dst recursively
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Creates destination directories as needed
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Doesn't follow links
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_copy");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy(&file1, &file2).is_ok());
+    /// assert_vfs_read_all!(vfs, &file2, "this is a test");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>
+    {
+        Stdfs::copy(src, dst)
+    }
+
+    /// Creates a new [`Copier`] for use with the builder pattern
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Options for recursion, mode setting and following links
+    /// * Execute by calling `exec`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_copy_b");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
+    /// assert_vfs_read_all!(vfs, &file2, "this is a test");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copier>
+    {
+        Stdfs::copy_b(src, dst)
     }
 
     /// Opens a file in write-only mode

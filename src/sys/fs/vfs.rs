@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     errors::*,
-    sys::{Chmod, Entries, Memfs, Stdfs, VfsEntry},
+    sys::{Chmod, Copier, Entries, Memfs, Stdfs, VfsEntry},
 };
 
 /// Defines a combination of the Read + Seek traits
@@ -113,49 +113,49 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod>;
 
-    // /// Copies src to dst recursively
-    // ///
-    // /// * `dst` will be copied into if it is an existing directory
-    // /// * `dst` will be a copy of the src if it doesn't exist
-    // /// * Creates destination directories as needed
-    // /// * Handles environment variable expansion
-    // /// * Handles relative path resolution for `.` and `..`
-    // /// * Doesn't follow links
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let vfs = Vfs::memfs();
-    // /// let file1 = vfs.root().mash("file1");
-    // /// let file2 = vfs.root().mash("file2");
-    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
-    // /// assert!(vfs.copy(&file1, &file2).is_ok());
-    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
-    // /// ```
-    // fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>;
+    /// Copies src to dst recursively
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Creates destination directories as needed
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Doesn't follow links
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// let file2 = vfs.root().mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy(&file1, &file2).is_ok());
+    /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    /// ```
+    fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>;
 
-    // /// Creates a new [`Copy`] for use with the builder pattern
-    // ///
-    // /// * `dst` will be copied into if it is an existing directory
-    // /// * `dst` will be a copy of the src if it doesn't exist
-    // /// * Handles environment variable expansion
-    // /// * Handles relative path resolution for `.` and `..`
-    // /// * Options for recursion, mode setting and following links
-    // /// * Execute by calling `exec`
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let vfs = Vfs::memfs();
-    // /// let file1 = vfs.root().mash("file1");
-    // /// let file2 = vfs.root().mash("file2");
-    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
-    // /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
-    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
-    // /// ```
-    // fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copy>;
+    /// Creates a new [`Copier`] for use with the builder pattern
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Options for recursion, mode setting and following links
+    /// * Execute by calling `exec`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// let file2 = vfs.root().mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
+    /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    /// ```
+    fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copier>;
 
     /// Opens a file in write-only mode
     ///
@@ -849,49 +849,61 @@ impl VirtualFileSystem for Vfs
         }
     }
 
-    // /// Copies src to dst recursively
-    // ///
-    // /// * `dst` will be copied into if it is an existing directory
-    // /// * `dst` will be a copy of the src if it doesn't exist
-    // /// * Creates destination directories as needed
-    // /// * Handles environment variable expansion
-    // /// * Handles relative path resolution for `.` and `..`
-    // /// * Doesn't follow links
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let vfs = Vfs::memfs();
-    // /// let file1 = vfs.root().mash("file1");
-    // /// let file2 = vfs.root().mash("file2");
-    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
-    // /// assert!(vfs.copy(&file1, &file2).is_ok());
-    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
-    // /// ```
-    // fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>;
+    /// Copies src to dst recursively
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Creates destination directories as needed
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Doesn't follow links
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// let file2 = vfs.root().mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy(&file1, &file2).is_ok());
+    /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    /// ```
+    fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.copy(src, dst),
+            Vfs::Memfs(x) => x.copy(src, dst),
+        }
+    }
 
-    // /// Creates a new [`Copy`] for use with the builder pattern
-    // ///
-    // /// * `dst` will be copied into if it is an existing directory
-    // /// * `dst` will be a copy of the src if it doesn't exist
-    // /// * Handles environment variable expansion
-    // /// * Handles relative path resolution for `.` and `..`
-    // /// * Options for recursion, mode setting and following links
-    // /// * Execute by calling `exec`
-    // ///
-    // /// ### Examples
-    // /// ```
-    // /// use rivia::prelude::*;
-    // ///
-    // /// let vfs = Vfs::memfs();
-    // /// let file1 = vfs.root().mash("file1");
-    // /// let file2 = vfs.root().mash("file2");
-    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
-    // /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
-    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
-    // /// ```
-    // fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copy>;
+    /// Creates a new [`Copier`] for use with the builder pattern
+    ///
+    /// * `dst` will be copied into if it is an existing directory
+    /// * `dst` will be a copy of the src if it doesn't exist
+    /// * Handles environment variable expansion
+    /// * Handles relative path resolution for `.` and `..`
+    /// * Options for recursion, mode setting and following links
+    /// * Execute by calling `exec`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// let file2 = vfs.root().mash("file2");
+    /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
+    /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    /// ```
+    fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copier>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.copy_b(src, dst),
+            Vfs::Memfs(x) => x.copy_b(src, dst),
+        }
+    }
 
     /// Opens a file in write-only mode
     ///
