@@ -443,6 +443,10 @@ impl Stdfs
                 if src.is_dir() {
                     Stdfs::mkdir_m(&dst_path, dir_mode.unwrap_or(src.mode()))?;
                 } else {
+                    // Copying into a directory might require creating it first
+                    Stdfs::mkdir_m(&dst_path.dir()?, dir_mode.unwrap_or(src.mode()))?;
+
+                    // Copy over the file/link
                     fs::copy(&src.path(), &dst_path)?;
 
                     // Optionally set new mode
@@ -2306,6 +2310,23 @@ mod tests
         assert!(vfs.chmod_b(&dir).unwrap().recurse().all(0o777).exec().is_ok());
         assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
         assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_copy()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file1 = tmpdir.mash("file1");
+        let dir1 = tmpdir.mash("dir1");
+        let dir1file2 = dir1.mash("file2");
+
+        // Copy file to a dir that doesn't exist with new name
+        assert_vfs_mkfile!(vfs, &file1);
+        assert!(vfs.copy(&file1, &dir1file2).is_ok());
+        assert_vfs_exists!(vfs, &dir1);
+        assert_vfs_exists!(vfs, &dir1file2);
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

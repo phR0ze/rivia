@@ -438,6 +438,9 @@ impl Memfs
                 if src.is_dir() {
                     self._mkdir_m(guard, &dst_path, dir_mode.or(Some(src.mode())))?;
                 } else {
+                    // Copying into a directory might require creating it first
+                    self._mkdir_m(guard, &dst_path.dir()?, dir_mode.or(Some(src.mode())))?;
+
                     // Clone the src entry and override its paths
                     let mut dst = src.clone();
                     dst.path = dst_path.clone();

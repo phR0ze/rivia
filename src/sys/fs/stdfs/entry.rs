@@ -88,16 +88,16 @@ impl Clone for StdfsEntry
 
 impl StdfsEntry
 {
-    /// Create a Stdfs entry from the given path. The path is always expanded, cleaned and
-    /// turned into an absolute value. Additionally filesystem properties are cached.
+    /// Create a Stdfs entry from the given path
     ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    /// ```
+    /// * Handles path expansion and absolute path resolution
+    /// * Filesystem properties are cached during load
     pub(crate) fn from<T: AsRef<Path>>(path: T) -> RvResult<Self>
     {
         let path = Stdfs::abs(path)?;
+        if !Stdfs::exists(&path) {
+            return Err(PathError::does_not_exist(&path).into());
+        }
         let mut link = false;
         let mut alt = PathBuf::new();
         let mut rel = PathBuf::new();
