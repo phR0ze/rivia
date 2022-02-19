@@ -577,68 +577,6 @@ impl Memfs
 
         Ok(link)
     }
-
-    /// Returns true if the given path exists and is a symlink pointing to a directory
-    ///
-    /// * Handles path expansion and absolute path resolution
-    /// * Checks the path itself and what it points to
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Memfs::new();
-    /// let dir = vfs.root().mash("dir");
-    /// let file = vfs.root().mash("file");
-    /// let link1 = vfs.root().mash("link1");
-    /// let link2 = vfs.root().mash("link2");
-    /// assert_vfs_mkdir_p!(vfs, &dir);
-    /// assert_vfs_mkfile!(vfs, &file);
-    /// assert_vfs_symlink!(vfs, &link1, &dir);
-    /// assert_vfs_symlink!(vfs, &link2, &file);
-    /// assert_eq!(vfs.is_symlink_dir(&link1), true);
-    /// assert_eq!(vfs.is_symlink_dir(&link2), false);
-    /// ```
-    pub fn is_symlink_dir<T: AsRef<Path>>(&self, path: T) -> bool
-    {
-        let guard = self.read_guard();
-        let abs = unwrap_or_false!(self._abs(&guard, path));
-        match guard.get_entry(&abs) {
-            Some(entry) => entry.is_symlink_dir(),
-            None => false,
-        }
-    }
-
-    /// Returns true if the given path exists and is a symlink pointing to a file
-    ///
-    /// * Handles path expansion and absolute path resolution
-    /// * Checks the path itself and what it points to
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Memfs::new();
-    /// let dir = vfs.root().mash("dir");
-    /// let file = vfs.root().mash("file");
-    /// let link1 = vfs.root().mash("link1");
-    /// let link2 = vfs.root().mash("link2");
-    /// assert_vfs_mkdir_p!(vfs, &dir);
-    /// assert_vfs_mkfile!(vfs, &file);
-    /// assert_vfs_symlink!(vfs, &link1, &dir);
-    /// assert_vfs_symlink!(vfs, &link2, &file);
-    /// assert_eq!(vfs.is_symlink_file(&link1), false);
-    /// assert_eq!(vfs.is_symlink_file(&link2), true);
-    /// ```
-    pub fn is_symlink_file<T: AsRef<Path>>(&self, path: T) -> bool
-    {
-        let guard = self.read_guard();
-        let abs = unwrap_or_false!(self._abs(&guard, path));
-        match guard.get_entry(&abs) {
-            Some(entry) => entry.is_symlink_file(),
-            None => false,
-        }
-    }
 }
 
 impl fmt::Display for Memfs
@@ -1283,6 +1221,68 @@ impl VirtualFileSystem for Memfs
         }
     }
 
+    /// Returns true if the given path exists and is a symlink pointing to a directory
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Checks the path itself and what it points to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = vfs.root().mash("file");
+    /// let link1 = vfs.root().mash("link1");
+    /// let link2 = vfs.root().mash("link2");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link1, &dir);
+    /// assert_vfs_symlink!(vfs, &link2, &file);
+    /// assert_eq!(vfs.is_symlink_dir(&link1), true);
+    /// assert_eq!(vfs.is_symlink_dir(&link2), false);
+    /// ```
+    fn is_symlink_dir<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        let guard = self.read_guard();
+        let abs = unwrap_or_false!(self._abs(&guard, path));
+        match guard.get_entry(&abs) {
+            Some(entry) => entry.is_symlink_dir(),
+            None => false,
+        }
+    }
+
+    /// Returns true if the given path exists and is a symlink pointing to a file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Checks the path itself and what it points to
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = vfs.root().mash("file");
+    /// let link1 = vfs.root().mash("link1");
+    /// let link2 = vfs.root().mash("link2");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link1, &dir);
+    /// assert_vfs_symlink!(vfs, &link2, &file);
+    /// assert_eq!(vfs.is_symlink_file(&link1), false);
+    /// assert_eq!(vfs.is_symlink_file(&link2), true);
+    /// ```
+    fn is_symlink_file<T: AsRef<Path>>(&self, path: T) -> bool
+    {
+        let guard = self.read_guard();
+        let abs = unwrap_or_false!(self._abs(&guard, path));
+        match guard.get_entry(&abs) {
+            Some(entry) => entry.is_symlink_file(),
+            None => false,
+        }
+    }
+
     /// Creates the given directory and any parent directories needed with the given mode
     ///
     /// ### Examples
@@ -1315,9 +1315,9 @@ impl VirtualFileSystem for Memfs
     ///
     /// let vfs = Vfs::memfs();
     /// let dir = vfs.root().mash("dir");
-    /// assert_vfs_no_dir!(&dir);
+    /// assert_vfs_no_dir!(vfs, &dir);
     /// assert_eq!(&vfs.mkdir_p(&dir).unwrap(), &dir);
-    /// assert_vfs_is_dir!(&dir);
+    /// assert_vfs_is_dir!(vfs, &dir);
     /// ```
     fn mkdir_p<'a, T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
