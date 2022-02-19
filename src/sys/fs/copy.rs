@@ -14,11 +14,11 @@ use crate::{
 /// use rivia::prelude::*;
 ///
 /// let vfs = Memfs::new();
-/// let file = vfs.root().mash("file");
-/// assert_vfs_mkfile!(vfs, &file);
-/// assert_eq!(vfs.is_exec(&file), false);
-/// assert!(vfs.chmod_b(&file).unwrap().sym("f:a+x").exec().is_ok());
-/// assert_eq!(vfs.is_exec(&file), true);
+/// let file1 = vfs.root().mash("file1");
+/// let file2 = vfs.root().mash("file2");
+/// assert_vfs_write_all!(vfs, &file1, "this is a test");
+/// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
+/// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
 /// ```
 pub struct Copier
 {
@@ -54,12 +54,12 @@ impl Copier
     /// let file2 = tmpdir.mash("file2");
     /// let dir1 = tmpdir.mash("dir1");
     /// let dir2 = tmpdir.mash("dir2");
-    /// //assert!(sys::mkfile_m(&file1, 0o600).is_ok());
-    /// //assert!(sys::mkdir_m(&dir1, 0o777).is_ok());
-    /// //assert!(sys::copy_b(&file1, &file2).unwrap().chmod_all(0o655).exec().is_ok());
-    /// //assert_eq!(vfs.mode(&file2).unwrap(), 0o100655);
-    /// //assert!(vfs.copy_b(&dir1, &dir2).unwrap().chmod_all(0o755).exec().is_ok());
-    /// //assert_eq!(vfs.mode(&dir2).unwrap(), 0o40755);
+    /// assert!(vfs.mkfile_m(&file1, 0o600).is_ok());
+    /// assert!(vfs.mkdir_m(&dir1, 0o777).is_ok());
+    /// assert!(vfs.copy_b(&file1, &file2).unwrap().chmod_all(0o655).exec().is_ok());
+    /// assert_eq!(vfs.mode(&file2).unwrap(), 0o100655);
+    /// assert!(vfs.copy_b(&dir1, &dir2).unwrap().chmod_all(0o755).exec().is_ok());
+    /// assert_eq!(vfs.mode(&dir2).unwrap(), 0o40755);
     /// ```
     pub fn chmod_all(mut self, mode: u32) -> Self
     {
