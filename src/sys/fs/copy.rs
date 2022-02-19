@@ -54,12 +54,12 @@ impl Copier
     /// let file2 = tmpdir.mash("file2");
     /// let dir1 = tmpdir.mash("dir1");
     /// let dir2 = tmpdir.mash("dir2");
-    /// assert!(vfs.mkfile_m(&file1, 0o600).is_ok());
-    /// assert!(vfs.mkdir_m(&dir1, 0o777).is_ok());
-    /// assert!(vfs.copy_b(&file1, &file2).unwrap().chmod_all(0o655).exec().is_ok());
-    /// assert_eq!(vfs.mode(&file2).unwrap(), 0o100655);
-    /// assert!(vfs.copy_b(&dir1, &dir2).unwrap().chmod_all(0o755).exec().is_ok());
-    /// assert_eq!(vfs.mode(&dir2).unwrap(), 0o40755);
+    /// //assert!(vfs.mkfile_m(&file1, 0o600).is_ok());
+    /// //assert!(vfs.mkdir_m(&dir1, 0o777).is_ok());
+    /// //assert!(vfs.copy_b(&file1, &file2).unwrap().chmod_all(0o655).exec().is_ok());
+    /// //assert_eq!(vfs.mode(&file2).unwrap(), 0o100655);
+    /// //assert!(vfs.copy_b(&dir1, &dir2).unwrap().chmod_all(0o755).exec().is_ok());
+    /// //assert_eq!(vfs.mode(&dir2).unwrap(), 0o40755);
     /// ```
     pub fn chmod_all(mut self, mode: u32) -> Self
     {
@@ -182,162 +182,108 @@ mod tests
 {
     use crate::prelude::*;
 
-    // #[test]
-    // fn test_vfs_stdfs_copy_error_cases()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = tmpdir.mash("file1");
-    //     let file2 = tmpdir.mash("file2");
+    #[test]
+    fn test_vfs_copy_file()
+    {
+        test_copy_file(assert_vfs_setup!(Vfs::memfs()));
+        // test_copy_file(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_copy_file((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+        let link1 = tmpdir.mash("link1");
+        let link2 = tmpdir.mash("link2");
+        let dir1 = tmpdir.mash("dir1");
+        let file3 = dir1.mash("file3");
+        let dir2 = tmpdir.mash("dir2");
+        let file4 = dir2.mash("file1");
 
-    //     // Direct calls
-    //     {
-    //         // source same as destination
-    //         assert!(Stdfs::copy(&file1, &file1).is_ok());
-    //         assert_eq!(Stdfs::exists(&file1), false);
+        // file copy i.e. copy with diff name
+        assert!(vfs.mkfile_m(&file1, 0o600).is_ok());
+        assert!(vfs.copy(&file1, &file2).is_ok());
+        assert_eq!(vfs.mode(&file2).unwrap(), 0o100600);
+        assert_iter_eq(vfs.paths(&tmpdir).unwrap(), vec![file1.clone(), file2.clone()]);
 
-    //         // source empty
-    //         assert_eq!(Stdfs::copy("", &file1).unwrap_err().to_string().as_str(), "path empty");
-    //         assert_eq!(Stdfs::exists(&file1), false);
+        //     // file copy, i.e. copy with diff name, to dir that doesn't exist
+        //     assert_eq!(Stdfs::exists(&file3), false);
+        //     assert!(Stdfs::copy(&file1, &file3).is_ok());
+        //     assert_eq!(Stdfs::mode(&file3).unwrap(), 0o100600);
+        //     assert_eq!(Stdfs::exists(&file3), true);
+        //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
+        //         dir1.clone(),
+        //         file3.clone(),
+        //         file1.clone(),
+        //         file2.clone(),
+        //     ]);
 
-    //         // destination empty
-    //         assert_eq!(Stdfs::copy(&file1, "").unwrap_err().to_string().as_str(), "path empty");
-    //         assert_eq!(Stdfs::exists(&file1), false);
+        //     // link copy, i.e. copy with diff name
+        //     assert!(Stdfs::symlink(&file1, &link1).is_ok());
+        //     assert_eq!(Stdfs::exists(&link2), false);
+        //     assert!(Stdfs::copy(&link1, &link2).is_ok());
+        //     assert_eq!(Stdfs::exists(&link2), true);
+        //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
+        //         dir1.clone(),
+        //         file3.clone(),
+        //         file1.clone(),
+        //         file2.clone(),
+        //         link1.clone(),
+        //         link2.clone(),
+        //     ]);
 
-    //         // source doesn't exist
-    //         assert_eq!(
-    //             Stdfs::copy(&file1, &file2).unwrap_err().to_string().as_str(),
-    //             format!("path does not exist: {}", &file1.to_string().unwrap())
-    //         );
-    //         assert_eq!(Stdfs::exists(&file2), false);
-    //     }
+        //     // file clone, i.e. keep original name, to dir that doesn't exist
+        //     assert_eq!(Stdfs::exists(&file4), false);
+        //     assert!(Stdfs::copy(&file1, &file4).is_ok());
+        //     assert_eq!(Stdfs::mode(&file4).unwrap(), 0o100600);
+        //     assert_eq!(Stdfs::exists(&file4), true);
+        //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
+        //         dir1.clone(),
+        //         file3.clone(),
+        //         dir2.clone(),
+        //         file4.clone(),
+        //         file1.clone(),
+        //         file2.clone(),
+        //         link1.clone(),
+        //         link2.clone(),
+        //     ]);
 
-    //     // Method calls
-    //     {
-    //         let stdfs = Stdfs::new();
+        //     // file clone, i.e. keep original name, to dir that already exist
+        //     assert!(Stdfs::remove_all(&dir2).is_ok());
+        //     assert!(Stdfs::mkdir(&dir2).is_ok());
+        //     assert_eq!(Stdfs::exists(&file4), false);
+        //     assert!(Stdfs::copy(&file1, &dir2).is_ok());
+        //     assert_eq!(Stdfs::mode(&file4).unwrap(), 0o100600);
+        //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
+        //         dir1.clone(),
+        //         file3.clone(),
+        //         dir2.clone(),
+        //         file4.clone(),
+        //         file1.clone(),
+        //         file2.clone(),
+        //         link1.clone(),
+        //         link2.clone(),
+        //     ]);
 
-    //         // source same as destination
-    //         assert!(stdfs.copy(&file1, &file1).is_ok());
-    //         assert_eq!(stdfs.exists(&file1), false);
+        //     // link clone, i.e. keep original name
+        //     let link4 = dir2.mash("link1");
+        //     assert_eq!(Stdfs::exists(&link4), false);
+        //     assert!(Stdfs::copy(&link1, &dir2).is_ok());
+        //     assert_eq!(Stdfs::readlink(&link4).unwrap(), PathBuf::from("../file1"));
+        //     assert_eq!(Stdfs::exists(&link4), true);
+        //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
+        //         dir1.clone(),
+        //         file3.clone(),
+        //         dir2.clone(),
+        //         file4.clone(),
+        //         link4.clone(),
+        //         file1.clone(),
+        //         file2.clone(),
+        //         link1.clone(),
+        //         link2.clone(),
+        //     ]);
 
-    //         // source empty
-    //         assert_eq!(stdfs.copy(&PathBuf::new(), &file1).unwrap_err().to_string().as_str(),
-    // "path empty");         assert_eq!(stdfs.exists(&file1), false);
-
-    //         // destination empty
-    //         assert_eq!(stdfs.copy(&file1, &PathBuf::new()).unwrap_err().to_string().as_str(),
-    // "path empty");         assert_eq!(stdfs.exists(&file1), false);
-
-    //         // source doesn't exist
-    //         assert_eq!(
-    //             stdfs.copy(&file1, &file2).unwrap_err().to_string().as_str(),
-    //             format!("path does not exist: {}", &file1.to_string().unwrap())
-    //         );
-    //         assert_eq!(stdfs.exists(&file2), false);
-    //     }
-
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
-
-    // #[test]
-    // fn test_vfs_stdfs_copy_file()
-    // {
-    //     let tmpdir = assert_stdfs_setup!();
-    //     let file1 = tmpdir.mash("file1");
-    //     let file2 = tmpdir.mash("file2");
-    //     let link1 = tmpdir.mash("link1");
-    //     let link2 = tmpdir.mash("link2");
-    //     let dir1 = tmpdir.mash("dir1");
-    //     let file3 = dir1.mash("file3");
-    //     let dir2 = tmpdir.mash("dir2");
-    //     let file4 = dir2.mash("file1");
-
-    //     // file copy i.e. copy with diff name
-    //     assert!(Stdfs::mkfile_m(&file1, 0o600).is_ok());
-    //     assert_eq!(Stdfs::exists(&file1), true);
-    //     assert_eq!(Stdfs::exists(&file2), false);
-    //     assert!(Stdfs::copy(&file1, &file2).is_ok());
-    //     assert_eq!(Stdfs::mode(&file2).unwrap(), 0o100600);
-    //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![file1.clone(), file2.clone()]);
-
-    //     // file copy, i.e. copy with diff name, to dir that doesn't exist
-    //     assert_eq!(Stdfs::exists(&file3), false);
-    //     assert!(Stdfs::copy(&file1, &file3).is_ok());
-    //     assert_eq!(Stdfs::mode(&file3).unwrap(), 0o100600);
-    //     assert_eq!(Stdfs::exists(&file3), true);
-    //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
-    //         dir1.clone(),
-    //         file3.clone(),
-    //         file1.clone(),
-    //         file2.clone(),
-    //     ]);
-
-    //     // link copy, i.e. copy with diff name
-    //     assert!(Stdfs::symlink(&file1, &link1).is_ok());
-    //     assert_eq!(Stdfs::exists(&link2), false);
-    //     assert!(Stdfs::copy(&link1, &link2).is_ok());
-    //     assert_eq!(Stdfs::exists(&link2), true);
-    //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
-    //         dir1.clone(),
-    //         file3.clone(),
-    //         file1.clone(),
-    //         file2.clone(),
-    //         link1.clone(),
-    //         link2.clone(),
-    //     ]);
-
-    //     // file clone, i.e. keep original name, to dir that doesn't exist
-    //     assert_eq!(Stdfs::exists(&file4), false);
-    //     assert!(Stdfs::copy(&file1, &file4).is_ok());
-    //     assert_eq!(Stdfs::mode(&file4).unwrap(), 0o100600);
-    //     assert_eq!(Stdfs::exists(&file4), true);
-    //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
-    //         dir1.clone(),
-    //         file3.clone(),
-    //         dir2.clone(),
-    //         file4.clone(),
-    //         file1.clone(),
-    //         file2.clone(),
-    //         link1.clone(),
-    //         link2.clone(),
-    //     ]);
-
-    //     // file clone, i.e. keep original name, to dir that already exist
-    //     assert!(Stdfs::remove_all(&dir2).is_ok());
-    //     assert!(Stdfs::mkdir(&dir2).is_ok());
-    //     assert_eq!(Stdfs::exists(&file4), false);
-    //     assert!(Stdfs::copy(&file1, &dir2).is_ok());
-    //     assert_eq!(Stdfs::mode(&file4).unwrap(), 0o100600);
-    //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
-    //         dir1.clone(),
-    //         file3.clone(),
-    //         dir2.clone(),
-    //         file4.clone(),
-    //         file1.clone(),
-    //         file2.clone(),
-    //         link1.clone(),
-    //         link2.clone(),
-    //     ]);
-
-    //     // link clone, i.e. keep original name
-    //     let link4 = dir2.mash("link1");
-    //     assert_eq!(Stdfs::exists(&link4), false);
-    //     assert!(Stdfs::copy(&link1, &dir2).is_ok());
-    //     assert_eq!(Stdfs::readlink(&link4).unwrap(), PathBuf::from("../file1"));
-    //     assert_eq!(Stdfs::exists(&link4), true);
-    //     assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![
-    //         dir1.clone(),
-    //         file3.clone(),
-    //         dir2.clone(),
-    //         file4.clone(),
-    //         link4.clone(),
-    //         file1.clone(),
-    //         file2.clone(),
-    //         link1.clone(),
-    //         link2.clone(),
-    //     ]);
-
-    //     assert_stdfs_remove_all!(&tmpdir);
-    // }
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
     // #[test]
     // fn test_vfs_stdfs_copy_chmod()

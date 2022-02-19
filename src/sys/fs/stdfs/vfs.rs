@@ -90,6 +90,107 @@ impl Stdfs
         Ok(path_buf)
     }
 
+    /// Returns all dirs for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_all_dirs");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = dir1.mash("dir2");
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_iter_eq(Stdfs::all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn all_dirs<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        let src = StdfsEntry::from(path.as_ref())?;
+        if !src.is_dir() {
+            return Err(PathError::is_not_dir(src.path_buf()).into());
+        }
+        for entry in Stdfs::entries(src.path())?.min_depth(1).sort_by_name().dirs() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+        Ok(paths)
+    }
+
+    /// Returns all files for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_all_files");
+    /// let file1 = tmpdir.mash("file1");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file2 = dir1.mash("file2");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_iter_eq(Stdfs::all_files(&tmpdir).unwrap(), vec![file2, file1]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn all_files<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        let src = StdfsEntry::from(path.as_ref())?;
+        if !src.is_dir() {
+            return Err(PathError::is_not_dir(src.path_buf()).into());
+        }
+        for entry in Stdfs::entries(src.path())?.min_depth(1).sort_by_name().files() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+        Ok(paths)
+    }
+
+    /// Returns all paths for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_all_paths");
+    /// let file1 = tmpdir.mash("file1");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file2 = dir1.mash("file2");
+    /// let file3 = dir1.mash("file3");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_vfs_mkfile!(vfs, &file3);
+    /// assert_iter_eq(Stdfs::all_paths(&tmpdir).unwrap(), vec![dir1, file2, file3, file1]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn all_paths<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        let src = StdfsEntry::from(path.as_ref())?;
+        if !src.is_dir() {
+            return Err(PathError::is_not_dir(src.path_buf()).into());
+        }
+        for entry in Stdfs::entries(src.path())?.min_depth(1).sort_by_name() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+        Ok(paths)
+    }
+
     /// Opens a file in append mode
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1193,6 +1294,80 @@ impl VirtualFileSystem for Stdfs
         Stdfs::abs(path)
     }
 
+    /// Returns all dirs for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_all_dirs");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = dir1.mash("dir2");
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_iter_eq(vfs.all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn all_dirs<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        Stdfs::all_dirs(path)
+    }
+
+    /// Returns all files for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_all_files");
+    /// let file1 = tmpdir.mash("file1");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file2 = dir1.mash("file2");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_iter_eq(vfs.all_files(&tmpdir).unwrap(), vec![file2, file1]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn all_files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        Stdfs::all_files(path)
+    }
+
+    /// Returns all paths for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_all_paths");
+    /// let file1 = tmpdir.mash("file1");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file2 = dir1.mash("file2");
+    /// let file3 = dir1.mash("file3");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_vfs_mkfile!(vfs, &file3);
+    /// assert_iter_eq(vfs.all_paths(&tmpdir).unwrap(), vec![dir1, file2, file3, file1]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn all_paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        Stdfs::all_paths(path)
+    }
+
     /// Opens a file in append mode
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1995,6 +2170,50 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_all_dirs()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = dir1.mash("dir2");
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_iter_eq(vfs.all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_all_files()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file1 = tmpdir.mash("file1");
+        let dir1 = tmpdir.mash("dir1");
+        let file2 = dir1.mash("file2");
+
+        // abs error
+        assert_eq!(vfs.paths("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
+
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+        assert_iter_eq(vfs.all_files(&tmpdir).unwrap(), vec![file2, file1]);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_all_paths()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = dir1.mash("dir2");
+
+        // abs error
+        assert_eq!(vfs.paths("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
+
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_iter_eq(vfs.all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_append()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -2421,7 +2640,7 @@ mod tests
         let file1 = tmpdir.mash("file1");
 
         // abs error
-        assert_eq!(Stdfs::paths("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
+        assert_eq!(vfs.paths("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
 
         assert_vfs_mkdir_p!(vfs, &dir1);
         assert_vfs_mkdir_p!(vfs, &dir2);

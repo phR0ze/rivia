@@ -617,6 +617,107 @@ impl VirtualFileSystem for Memfs
         self._abs(&self.read_guard(), path)
     }
 
+    /// Returns all dirs for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir2 = dir1.mash("dir2");
+    /// assert_vfs_mkdir_p!(vfs, &dir2);
+    /// assert_iter_eq(vfs.all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// ```
+    fn all_dirs<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        if !self.is_dir(&path) {
+            return Err(PathError::is_not_dir(&path).into());
+        }
+        for entry in self.entries(path)?.min_depth(1).sort_by_name().dirs() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+
+        Ok(paths)
+    }
+
+    /// Returns all files for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let file1 = tmpdir.mash("file1");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file2 = dir1.mash("file2");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_iter_eq(vfs.all_files(&tmpdir).unwrap(), vec![file2, file1]);
+    /// ```
+    fn all_files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        if !self.is_dir(&path) {
+            return Err(PathError::is_not_dir(&path).into());
+        }
+        for entry in self.entries(path)?.min_depth(1).sort_by_name().files() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+
+        Ok(paths)
+    }
+
+    /// Returns all paths for the given path recursively
+    ///
+    /// * Results are sorted by filename, are distict and don't include the given path
+    /// * Handles path expansion and absolute path resolution
+    /// * Paths are returned in absolute form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let tmpdir = vfs.root().mash("tmpdir");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = dir1.mash("file2");
+    /// let file3 = dir1.mash("file3");
+    /// assert_vfs_mkdir_p!(vfs, &dir1);
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert_vfs_mkfile!(vfs, &file2);
+    /// assert_vfs_mkfile!(vfs, &file3);
+    /// assert_iter_eq(vfs.all_paths(&tmpdir).unwrap(), vec![dir1, file2, file3, file1]);
+    /// ```
+    fn all_paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
+    {
+        let mut paths: Vec<PathBuf> = vec![];
+        if !self.is_dir(&path) {
+            return Err(PathError::is_not_dir(&path).into());
+        }
+        for entry in self.entries(path)?.min_depth(1).sort_by_name() {
+            let entry = entry?;
+            paths.push(entry.path_buf());
+        }
+
+        Ok(paths)
+    }
+
     /// Opens a file in append mode
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1692,6 +1793,51 @@ mod tests
         f.write_all(b" this is a test").unwrap();
         f.flush().unwrap();
         assert_vfs_read_all!(vfs, &file, "foobar123 this is a test".to_string());
+    }
+
+    #[test]
+    fn test_memfs_all_dirs()
+    {
+        let vfs = Memfs::new();
+        let tmpdir = vfs.root().mash("tmpdir");
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = dir1.mash("dir2");
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert_iter_eq(vfs.all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    }
+
+    #[test]
+    fn test_memfs_all_files()
+    {
+        let vfs = Memfs::new();
+        let tmpdir = vfs.root().mash("tmpdir");
+        let file1 = tmpdir.mash("file1");
+        let dir1 = tmpdir.mash("dir1");
+        let file2 = dir1.mash("file2");
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+        assert_iter_eq(vfs.all_files(&tmpdir).unwrap(), vec![file2, file1]);
+    }
+
+    #[test]
+    fn test_memfs_all_paths()
+    {
+        let vfs = Memfs::new();
+        let tmpdir = vfs.root().mash("tmpdir");
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = tmpdir.mash("file1");
+        let file2 = dir1.mash("file2");
+        let file3 = dir1.mash("file3");
+
+        // abs error
+        assert_eq!(vfs.all_paths("").unwrap_err().to_string(), PathError::is_not_dir("").to_string());
+
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkfile!(vfs, &file2);
+        assert_vfs_mkfile!(vfs, &file3);
+        assert_iter_eq(vfs.all_paths(&tmpdir).unwrap(), vec![dir1, file2, file3, file1]);
     }
 
     #[test]
