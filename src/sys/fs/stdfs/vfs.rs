@@ -234,6 +234,62 @@ impl Stdfs
         Ok(())
     }
 
+    // Execute copy with the given [`Copy`] option
+    fn _copy(cp: sys::CopyInner) -> RvResult<()>
+    {
+        // Resolve abs paths
+        let src_root = Stdfs::abs(&cp.src)?;
+        let dst_root = Stdfs::abs(&cp.dst)?;
+
+        // Detect source is destination
+        if src_root == dst_root {
+            return Ok(());
+        }
+
+        // Determine the given modes
+        let dir_mode = match cp.mode {
+            Some(x) if cp.cdirs || (!cp.cfiles && !cp.cdirs) => Some(x),
+            _ => None,
+        };
+        let file_mode = match cp.mode {
+            Some(x) if cp.cfiles || (!cp.cfiles && !cp.cdirs) => Some(x),
+            _ => None,
+        };
+
+        // Copy into requires a pre-existing destination directory
+        let copy_into = Stdfs::is_dir(&dst_root);
+
+        // Iterate over the target entries and copy
+        for entry in Stdfs::entries(&src_root)?.follow(cp.follow) {
+            let src = entry?;
+
+            // Set destination path based on source path
+            let dst_path = if copy_into {
+                dst_root.mash(src.path().trim_prefix(src_root.dir()?))
+            } else {
+                dst_root.mash(src.path().trim_prefix(&src_root))
+            };
+
+            // Recreate links if were not following them
+            if !cp.follow && src.is_symlink() {
+                Stdfs::symlink(dst_path, src.alt())?;
+            } else {
+                if src.is_dir() {
+                    Stdfs::mkdir_m(&dst_path, dir_mode.unwrap_or(src.mode()))?;
+                } else {
+                    fs::copy(&src.path(), &dst_path)?;
+
+                    // Optionally set new mode
+                    if let Some(mode) = file_mode {
+                        fs::set_permissions(&dst_path, fs::Permissions::from_mode(mode))?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Opens a file in write-only mode
     ///
     /// * Creates a file if it does not exist or truncates it if it does
@@ -566,20 +622,17 @@ impl Stdfs
     /// ```
     pub fn mkdir_m<T: AsRef<Path>>(path: T, mode: u32) -> RvResult<PathBuf>
     {
-        let path = Stdfs::abs(path)?;
+        let abs = Stdfs::abs(path)?;
 
-        // For each directory created apply the same permission given
-        let path_str = path.to_string()?;
-        let mut dir = PathBuf::from("/");
-        let mut components = path_str.split('/').rev().collect::<Vec<&str>>();
-        while !components.is_empty() {
-            dir = dir.mash(components.pop().unwrap());
-            if !dir.exists() {
-                fs::create_dir(&dir)?;
-                fs::set_permissions(&dir, fs::Permissions::from_mode(mode))?;
+        let mut path = PathBuf::new();
+        for component in abs.components() {
+            path.push(component);
+            if !path.exists() {
+                fs::create_dir(&path)?;
+                fs::set_permissions(&path, fs::Permissions::from_mode(mode))?;
             }
         }
-        Ok(path)
+        Ok(abs)
     }
 
     /// Creates the given directory and any parent directories needed
@@ -830,10 +883,10 @@ impl Stdfs
         Ok(fs::read_link(Stdfs::abs(path)?)?)
     }
 
-    /// Returns the absolute path for the given link target. Handles path expansion for
-    /// the given link. Useful for determining the absolute path of source relative to the
-    /// link rather than cwd.
-    //
+    /// Returns the absolute path of the target the link points to
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
     /// ### Examples
     /// ```
     /// use rivia::prelude::*;
@@ -1608,6 +1661,27 @@ impl VirtualFileSystem for Stdfs
         Stdfs::readlink(link)
     }
 
+    /// Returns the absolute path of the target the link points to
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_readlink_abs");
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
+    /// assert_eq!(&Stdfs::mkfile(&file1).unwrap(), &file1);
+    /// assert_eq!(&Stdfs::symlink(&link1, &file1).unwrap(), &link1);
+    /// assert_eq!(Stdfs::readlink_abs(&link1).unwrap(), file1);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn readlink_abs<T: AsRef<Path>>(&self, link: T) -> RvResult<PathBuf>
+    {
+        Stdfs::readlink_abs(link)
+    }
+
     /// Removes the given empty directory or file
     ///
     /// * Handles path expansion and absolute path resolution
@@ -2271,7 +2345,24 @@ mod tests
 
         assert_vfs_mkfile!(vfs, &file);
         assert_vfs_symlink!(vfs, &link, &file);
-        assert_vfs_readlink!(vfs, &link, &file);
+        assert_vfs_readlink!(vfs, &link, PathBuf::from("file"));
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_readlink_abs()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+        let link = tmpdir.mash("link");
+
+        // Doesn't exist error
+        assert_eq!(vfs.readlink_abs("").unwrap_err().to_string(), PathError::Empty.to_string());
+
+        assert_vfs_mkfile!(vfs, &file);
+        assert_vfs_symlink!(vfs, &link, &file);
+        assert_vfs_readlink_abs!(vfs, &link, &file);
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

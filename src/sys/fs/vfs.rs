@@ -113,6 +113,50 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod>;
 
+    // /// Copies src to dst recursively
+    // ///
+    // /// * `dst` will be copied into if it is an existing directory
+    // /// * `dst` will be a copy of the src if it doesn't exist
+    // /// * Creates destination directories as needed
+    // /// * Handles environment variable expansion
+    // /// * Handles relative path resolution for `.` and `..`
+    // /// * Doesn't follow links
+    // ///
+    // /// ### Examples
+    // /// ```
+    // /// use rivia::prelude::*;
+    // ///
+    // /// let vfs = Vfs::memfs();
+    // /// let file1 = vfs.root().mash("file1");
+    // /// let file2 = vfs.root().mash("file2");
+    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    // /// assert!(vfs.copy(&file1, &file2).is_ok());
+    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    // /// ```
+    // fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>;
+
+    // /// Creates a new [`Copy`] for use with the builder pattern
+    // ///
+    // /// * `dst` will be copied into if it is an existing directory
+    // /// * `dst` will be a copy of the src if it doesn't exist
+    // /// * Handles environment variable expansion
+    // /// * Handles relative path resolution for `.` and `..`
+    // /// * Options for recursion, mode setting and following links
+    // /// * Execute by calling `exec`
+    // ///
+    // /// ### Examples
+    // /// ```
+    // /// use rivia::prelude::*;
+    // ///
+    // /// let vfs = Vfs::memfs();
+    // /// let file1 = vfs.root().mash("file1");
+    // /// let file2 = vfs.root().mash("file2");
+    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    // /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
+    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    // /// ```
+    // fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copy>;
+
     /// Opens a file in write-only mode
     ///
     /// * Creates a file if it does not exist or truncates it if it does
@@ -194,6 +238,8 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     fn entries<T: AsRef<Path>>(&self, path: T) -> RvResult<Entries>;
 
     /// Return a virtual filesystem entry for the given path
+    ///
+    /// * Handles converting path to absolute form
     ///
     /// ### Examples
     /// ```
@@ -484,13 +530,32 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
+    /// let dir = vfs.root().mash("dir");
+    /// let link = dir.mash("link");
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert_vfs_readlink!(vfs, &link, PathBuf::from("..").mash("file"));
+    /// ```
+    fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
+
+    /// Returns the absolute path of the target the link points to
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
     /// let file = vfs.root().mash("file");
     /// let link = vfs.root().mash("link");
     /// assert_vfs_mkfile!(vfs, &file);
     /// assert_vfs_symlink!(vfs, &link, &file);
-    /// assert_vfs_readlink!(vfs, &link, &file);
+    /// assert_vfs_readlink_abs!(vfs, &link, &file);
     /// ```
-    fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
+    fn readlink_abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>;
 
     /// Removes the given empty directory or file
     ///
@@ -587,7 +652,7 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// let link = vfs.root().mash("link");
     /// assert_vfs_mkfile!(vfs, &file);
     /// assert_vfs_symlink!(vfs, &link, &file);
-    /// assert_vfs_readlink!(vfs, &link, &file);
+    /// assert_vfs_readlink_abs!(vfs, &link, &file);
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>;
 
@@ -784,6 +849,50 @@ impl VirtualFileSystem for Vfs
         }
     }
 
+    // /// Copies src to dst recursively
+    // ///
+    // /// * `dst` will be copied into if it is an existing directory
+    // /// * `dst` will be a copy of the src if it doesn't exist
+    // /// * Creates destination directories as needed
+    // /// * Handles environment variable expansion
+    // /// * Handles relative path resolution for `.` and `..`
+    // /// * Doesn't follow links
+    // ///
+    // /// ### Examples
+    // /// ```
+    // /// use rivia::prelude::*;
+    // ///
+    // /// let vfs = Vfs::memfs();
+    // /// let file1 = vfs.root().mash("file1");
+    // /// let file2 = vfs.root().mash("file2");
+    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    // /// assert!(vfs.copy(&file1, &file2).is_ok());
+    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    // /// ```
+    // fn copy<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>;
+
+    // /// Creates a new [`Copy`] for use with the builder pattern
+    // ///
+    // /// * `dst` will be copied into if it is an existing directory
+    // /// * `dst` will be a copy of the src if it doesn't exist
+    // /// * Handles environment variable expansion
+    // /// * Handles relative path resolution for `.` and `..`
+    // /// * Options for recursion, mode setting and following links
+    // /// * Execute by calling `exec`
+    // ///
+    // /// ### Examples
+    // /// ```
+    // /// use rivia::prelude::*;
+    // ///
+    // /// let vfs = Vfs::memfs();
+    // /// let file1 = vfs.root().mash("file1");
+    // /// let file2 = vfs.root().mash("file2");
+    // /// assert_vfs_write_all!(vfs, &file1, "this is a test");
+    // /// assert!(vfs.copy_b(&file1, &file2).unwrap().exec().is_ok());
+    // /// assert_eq!(vfs.read_all(&file2).unwrap(), "this is a test");
+    // /// ```
+    // fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copy>;
+
     /// Opens a file in write-only mode
     ///
     /// * Creates a file if it does not exist or truncates it if it does
@@ -889,6 +998,8 @@ impl VirtualFileSystem for Vfs
     }
 
     /// Return a virtual filesystem entry for the given path
+    ///
+    /// * Handles converting path to absolute form
     ///
     /// ### Examples
     /// ```
@@ -1275,17 +1386,42 @@ impl VirtualFileSystem for Vfs
     /// use rivia::prelude::*;
     ///
     /// let vfs = Vfs::memfs();
+    /// let dir = vfs.root().mash("dir");
+    /// let link = dir.mash("link");
     /// let file = vfs.root().mash("file");
-    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
     /// assert_vfs_mkfile!(vfs, &file);
     /// assert_vfs_symlink!(vfs, &link, &file);
-    /// assert_vfs_readlink!(vfs, &link, &file);
+    /// assert_vfs_readlink!(vfs, &link, PathBuf::from("..").mash("file"));
     /// ```
     fn readlink<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
     {
         match self {
             Vfs::Stdfs(x) => x.readlink(path),
             Vfs::Memfs(x) => x.readlink(path),
+        }
+    }
+
+    /// Returns the absolute path of the target the link points to
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert_vfs_readlink_abs!(vfs, &link, &file);
+    /// ```
+    fn readlink_abs<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.readlink_abs(path),
+            Vfs::Memfs(x) => x.readlink_abs(path),
         }
     }
 
@@ -1408,7 +1544,7 @@ impl VirtualFileSystem for Vfs
     /// let link = vfs.root().mash("link");
     /// assert_vfs_mkfile!(vfs, &file);
     /// assert_vfs_symlink!(vfs, &link, &file);
-    /// assert_vfs_readlink!(vfs, &link, &file);
+    /// assert_vfs_readlink_abs!(vfs, &link, &file);
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
     {

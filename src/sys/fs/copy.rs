@@ -22,13 +22,20 @@ use crate::{
 /// ```
 pub struct Copy
 {
-    pub(crate) src: PathBuf,                             // source file
-    pub(crate) dst: PathBuf,                             // destination path
-    pub(crate) mode: Option<u32>,                        // mode to use
-    pub(crate) cdirs: bool,                              // chmod only dirs when true
-    pub(crate) cfiles: bool,                             // chmod only files when true
-    pub(crate) follow: bool,                             // follow links when copying files
-    pub(crate) exec: Box<dyn Fn(&Copy) -> RvResult<()>>, // vfs backend to use
+    pub(crate) cp: CopyInner,
+    pub(crate) exec: Box<dyn Fn(CopyInner) -> RvResult<()>>, // vfs backend to use
+}
+
+// Internal clonable type used to encapsulate just the values
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CopyInner
+{
+    pub(crate) src: PathBuf,      // source file
+    pub(crate) dst: PathBuf,      // destination path
+    pub(crate) mode: Option<u32>, // mode to use
+    pub(crate) cdirs: bool,       // chmod only dirs when true
+    pub(crate) cfiles: bool,      // chmod only files when true
+    pub(crate) follow: bool,      // follow links when copying files
 }
 
 impl Copy
@@ -56,9 +63,9 @@ impl Copy
     /// ```
     pub fn chmod_all(mut self, mode: u32) -> Self
     {
-        self.cdirs = false;
-        self.cfiles = false;
-        self.mode = Some(mode);
+        self.cp.cdirs = false;
+        self.cp.cfiles = false;
+        self.cp.mode = Some(mode);
         self
     }
 
@@ -86,9 +93,9 @@ impl Copy
     /// ```
     pub fn chmod_dirs(mut self, mode: u32) -> Self
     {
-        self.cdirs = true;
-        self.cfiles = false;
-        self.mode = Some(mode);
+        self.cp.cdirs = true;
+        self.cp.cfiles = false;
+        self.cp.mode = Some(mode);
         self
     }
 
@@ -116,9 +123,9 @@ impl Copy
     /// ```
     pub fn chmod_files(mut self, mode: u32) -> Self
     {
-        self.cdirs = false;
-        self.cfiles = true;
-        self.mode = Some(mode);
+        self.cp.cdirs = false;
+        self.cp.cfiles = true;
+        self.cp.mode = Some(mode);
         self
     }
 
@@ -144,7 +151,7 @@ impl Copy
     /// ```
     pub fn follow(mut self, yes: bool) -> Self
     {
-        self.follow = yes;
+        self.cp.follow = yes;
         self
     }
 
@@ -164,7 +171,7 @@ impl Copy
     /// ```
     pub fn exec(&self) -> RvResult<()>
     {
-        (self.exec)(&self)
+        (self.exec)(self.cp.clone())
     }
 }
 
