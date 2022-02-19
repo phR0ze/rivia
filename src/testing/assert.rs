@@ -308,10 +308,8 @@ macro_rules! assert_vfs_no_symlink {
             _ => panic_msg!("assert_vfs_no_symlink!", "failed to get absolute path", $path),
         };
         if $vfs.exists(&target) {
-            if !$vfs.is_symlink(&target) {
-                panic_msg!("assert_vfs_no_symlink!", "exists and is not a symlink", &target);
-            } else {
-                panic_msg!("assert_vfs_no_symlink!", "symlink still exists", &target);
+            if $vfs.is_symlink(&target) {
+                panic_msg!("assert_vfs_no_symlink!", "exists and is a symlink", &target);
             }
         }
     };
@@ -1031,8 +1029,12 @@ mod tests
         });
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("\nassert_vfs_no_symlink!: symlink still exists\n  target: {:?}\n", &link1)
+            format!("\nassert_vfs_no_symlink!: exists and is a symlink\n  target: {:?}\n", &link1)
         );
+
+        // exists and is not a symlink
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_no_symlink!(vfs, &file1);
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

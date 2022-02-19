@@ -400,7 +400,7 @@ impl Stdfs
         })
     }
 
-    // Execute copy with the given [`Copy`] option
+    // Execute copy with the given [`CopyOpts`] option
     fn _copy(cp: sys::CopyOpts) -> RvResult<()>
     {
         // Resolve abs paths
@@ -425,15 +425,16 @@ impl Stdfs
         // Copy into requires a pre-existing destination directory
         let copy_into = Stdfs::is_dir(&dst_root);
 
-        // Iterate over the target entries and copy
-        for entry in Stdfs::entries(&src_root)?.follow(cp.follow) {
+        // Iterate over source taking into account link following
+        let src_root = StdfsEntry::from(&src_root)?.follow(cp.follow);
+        for entry in Stdfs::entries(src_root.path())?.follow(cp.follow) {
             let src = entry?;
 
             // Set destination path based on source path
             let dst_path = if copy_into {
-                dst_root.mash(src.path().trim_prefix(src_root.dir()?))
+                dst_root.mash(src.path().trim_prefix(src_root.path().dir()?))
             } else {
-                dst_root.mash(src.path().trim_prefix(&src_root))
+                dst_root.mash(src.path().trim_prefix(src_root.path()))
             };
 
             // Recreate links if were not following them
@@ -444,7 +445,12 @@ impl Stdfs
                     Stdfs::mkdir_m(&dst_path, dir_mode.unwrap_or(src.mode()))?;
                 } else {
                     // Copying into a directory might require creating it first
-                    Stdfs::mkdir_m(&dst_path.dir()?, dir_mode.unwrap_or(src.mode()))?;
+                    if !Stdfs::exists(&dst_path.dir()?) {
+                        Stdfs::mkdir_m(&dst_path.dir()?, match dir_mode {
+                            Some(x) => x,
+                            None => StdfsEntry::from(src.path().dir()?)?.mode(),
+                        })?;
+                    }
 
                     // Copy over the file/link
                     fs::copy(&src.path(), &dst_path)?;

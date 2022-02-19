@@ -390,7 +390,7 @@ impl Memfs
         }
     }
 
-    // Execute copy with the given [`Copy`] option
+    // Execute copy with the given [`CopyOpts`] option
     fn _copy(&self, guard: &mut MemfsGuard, cp: sys::CopyOpts) -> RvResult<()>
     {
         // Resolve abs paths
@@ -415,15 +415,16 @@ impl Memfs
         // Copy into requires a pre-existing destination directory
         let copy_into = self._is_dir(&guard, &dst_root);
 
-        // Iterate over the target entries and copy
-        for entry in self._entries(&guard, &src_root)?.follow(cp.follow) {
+        // Iterate over source taking into account link following
+        let src_root = self._clone_entry(&guard, src_root)?.follow(cp.follow);
+        for entry in self._entries(&guard, src_root.path())?.follow(cp.follow) {
             let src = entry?;
 
             // Set destination path based on source path
             let dst_path = if copy_into {
-                dst_root.mash(src.path().trim_prefix(src_root.dir()?))
+                dst_root.mash(src.path().trim_prefix(src_root.path().dir()?))
             } else {
-                dst_root.mash(src.path().trim_prefix(&src_root))
+                dst_root.mash(src.path().trim_prefix(src_root.path()))
             };
 
             // Recreate links if were not following them
@@ -439,7 +440,12 @@ impl Memfs
                     self._mkdir_m(guard, &dst_path, dir_mode.or(Some(src.mode())))?;
                 } else {
                     // Copying into a directory might require creating it first
-                    self._mkdir_m(guard, &dst_path.dir()?, dir_mode.or(Some(src.mode())))?;
+                    if !guard.contains_entry(&dst_path.dir()?) {
+                        self._mkdir_m(guard, &dst_path.dir()?, match dir_mode {
+                            Some(x) => Some(x),
+                            None => Some(self._clone_entry(guard, src.path().dir()?)?.mode()),
+                        })?;
+                    }
 
                     // Clone the src entry and override its paths
                     let mut dst = src.clone();
