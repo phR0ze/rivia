@@ -13,7 +13,8 @@ use crate::{
     core::*,
     errors::*,
     sys::{
-        self, Chmod, Copy, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VfsEntry, VirtualFileSystem,
+        self, Chmod, ChmodOpts, Copy, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VfsEntry,
+        VirtualFileSystem,
     },
 };
 
@@ -268,7 +269,7 @@ impl Memfs
     }
 
     // Execute chmod with the given [`Mode`] options
-    fn _chmod(&self, mode: Mode) -> RvResult<()>
+    fn _chmod(&self, mode: ChmodOpts) -> RvResult<()>
     {
         // Using `contents_first` to yield directories last so that revoking permissions happen to
         // directories as the last thing when completing the traversal, else we'll lock
@@ -390,7 +391,7 @@ impl Memfs
     }
 
     // Execute copy with the given [`Copy`] option
-    fn _copy(&self, guard: &mut MemfsGuard, cp: sys::CopyInner) -> RvResult<()>
+    fn _copy(&self, guard: &mut MemfsGuard, cp: sys::CopyOpts) -> RvResult<()>
     {
         // Resolve abs paths
         let src_root = self._abs(&guard, &cp.src)?;
@@ -617,14 +618,14 @@ impl Memfs
     {
         // Construct the copy closure callback
         let vfs = self.clone();
-        let exec_func = move |cp: sys::CopyInner| -> RvResult<()> {
+        let exec_func = move |cp: sys::CopyOpts| -> RvResult<()> {
             let mut guard = vfs.write_guard();
             vfs._copy(&mut guard, cp)
         };
 
         // Return the new Copy builder
         Ok(Copy {
-            cp: sys::CopyInner {
+            opts: sys::CopyOpts {
                 src: src.as_ref().to_owned(),
                 dst: dst.as_ref().to_owned(),
                 mode: Default::default(),
@@ -785,11 +786,11 @@ impl VirtualFileSystem for Memfs
 
         // Construct the chmod closure callback
         let vfs = self.clone();
-        let exec_func = move |mode: Mode| -> RvResult<()> { vfs._chmod(mode) };
+        let exec_func = move |mode: ChmodOpts| -> RvResult<()> { vfs._chmod(mode) };
 
         // Return the new Chmod builder
         Ok(Chmod {
-            mode: Mode {
+            opts: ChmodOpts {
                 path,
                 dirs: 0,
                 files: 0,

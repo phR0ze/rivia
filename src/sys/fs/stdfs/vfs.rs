@@ -15,7 +15,9 @@ use super::{StdfsEntry, StdfsEntryIter};
 use crate::{
     core::*,
     errors::*,
-    sys::{self, Chmod, Entries, Entry, EntryIter, Mode, PathExt, ReadSeek, Vfs, VfsEntry, VirtualFileSystem},
+    sys::{
+        self, Chmod, ChmodOpts, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VfsEntry, VirtualFileSystem,
+    },
 };
 
 /// Provides a wrapper around the `std::fs` module as a [`VirtualFileSystem`] backend implementation
@@ -174,7 +176,7 @@ impl Stdfs
     pub fn chmod_b<T: AsRef<Path>>(path: T) -> RvResult<Chmod>
     {
         Ok(Chmod {
-            mode: Mode {
+            opts: ChmodOpts {
                 path: Stdfs::abs(path)?,
                 dirs: 0,
                 files: 0,
@@ -187,7 +189,7 @@ impl Stdfs
     }
 
     // Execute chmod with the given [`Mode`] options
-    fn _chmod(mode: Mode) -> RvResult<()>
+    fn _chmod(mode: ChmodOpts) -> RvResult<()>
     {
         // Using `contents_first` to yield directories last so that revoking permissions happen to
         // directories as the last thing when completing the traversal, else we'll lock
@@ -235,7 +237,7 @@ impl Stdfs
     }
 
     // Execute copy with the given [`Copy`] option
-    fn _copy(cp: sys::CopyInner) -> RvResult<()>
+    fn _copy(cp: sys::CopyOpts) -> RvResult<()>
     {
         // Resolve abs paths
         let src_root = Stdfs::abs(&cp.src)?;

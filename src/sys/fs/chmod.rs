@@ -47,13 +47,16 @@ use crate::{
 /// ```
 pub struct Chmod
 {
-    pub(crate) mode: Mode,
-    pub(crate) exec: Box<dyn Fn(Mode) -> RvResult<()>>, // vfs backend to use
+    // Chmod separates the provider implementation from the options allowing for sharing options between different
+    // vfs providers. This is possible by registering a callback `exec` that calls into the provider
+    // implementation passing it the clonable inner options type.
+    pub(crate) opts: ChmodOpts,
+    pub(crate) exec: Box<dyn Fn(ChmodOpts) -> RvResult<()>>, // vfs backend to use
 }
 
-// Internal type used to encapsulate just the mode options
+// Internal type used to encapsulate just the chmod options
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Mode
+pub(crate) struct ChmodOpts
 {
     pub(crate) path: PathBuf,   // path to chmod
     pub(crate) dirs: u32,       // mode to use for dirs
@@ -86,8 +89,8 @@ impl Chmod
     /// ```
     pub fn all(mut self, mode: u32) -> Self
     {
-        self.mode.dirs = mode;
-        self.mode.files = mode;
+        self.opts.dirs = mode;
+        self.opts.files = mode;
         self
     }
 
@@ -112,7 +115,7 @@ impl Chmod
     /// ```
     pub fn dirs(mut self, mode: u32) -> Self
     {
-        self.mode.dirs = mode;
+        self.opts.dirs = mode;
         self
     }
 
@@ -137,7 +140,7 @@ impl Chmod
     /// ```
     pub fn files(mut self, mode: u32) -> Self
     {
-        self.mode.files = mode;
+        self.opts.files = mode;
         self
     }
 
@@ -160,7 +163,7 @@ impl Chmod
     /// ```
     pub fn follow(mut self) -> Self
     {
-        self.mode.follow = true;
+        self.opts.follow = true;
         self
     }
 
@@ -181,13 +184,13 @@ impl Chmod
     /// ```
     pub fn readonly(mut self) -> Self
     {
-        self.mode.sym = "f:a+r,f:a-wx".to_string();
+        self.opts.sym = "f:a+r,f:a-wx".to_string();
         self
     }
 
     /// Follow paths recursively
     ///
-    /// Default: true
+    /// * Default: true
     ///
     /// ### Examples
     /// ```
@@ -204,13 +207,13 @@ impl Chmod
     /// ```
     pub fn recurse(mut self) -> Self
     {
-        self.mode.recursive = true;
+        self.opts.recursive = true;
         self
     }
 
     /// Don't follow paths recursively
     ///
-    /// Default: true
+    /// * Default: true
     ///
     /// ### Examples
     /// ```
@@ -227,7 +230,7 @@ impl Chmod
     /// ```
     pub fn no_recurse(mut self) -> Self
     {
-        self.mode.recursive = false;
+        self.opts.recursive = false;
         self
     }
 
@@ -248,7 +251,7 @@ impl Chmod
     /// ```
     pub fn secure(mut self) -> Self
     {
-        self.mode.sym = "a:go-rwx".to_string();
+        self.opts.sym = "a:go-rwx".to_string();
         self
     }
 
@@ -280,7 +283,7 @@ impl Chmod
     /// ```
     pub fn sym(mut self, symbolic: &str) -> Self
     {
-        self.mode.sym = symbolic.to_owned();
+        self.opts.sym = symbolic.to_owned();
         self
     }
 
@@ -302,7 +305,7 @@ impl Chmod
     /// ```
     pub fn exec(&self) -> RvResult<()>
     {
-        (self.exec)(self.mode.clone())
+        (self.exec)(self.opts.clone())
     }
 }
 
