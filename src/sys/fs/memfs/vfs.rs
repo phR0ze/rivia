@@ -591,6 +591,21 @@ impl Memfs
 
         Ok(link)
     }
+
+    /// Returns the user ID of the owner of this file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// assert_eq!(vfs.uid(vfs.root()).unwrap(), 0);
+    /// ```
+    pub fn uid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        // Ok(fs::metadata(Stdfs::abs(path)?)?.uid())
+        Ok(0)
+    }
 }
 
 impl fmt::Display for Memfs

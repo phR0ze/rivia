@@ -47,14 +47,12 @@ use crate::{
 /// ```
 pub struct Chmod
 {
-    // Chmod separates the provider implementation from the options allowing for sharing options between different
-    // vfs providers. This is possible by registering a callback `exec` that calls into the provider
-    // implementation passing it the clonable inner options type.
     pub(crate) opts: ChmodOpts,
-    pub(crate) exec: Box<dyn Fn(ChmodOpts) -> RvResult<()>>, // vfs backend to use
+    pub(crate) exec: Box<dyn Fn(ChmodOpts) -> RvResult<()>>, // provider callback
 }
 
-// Internal type used to encapsulate just the chmod options
+// Internal type used to encapsulate just the options. This separates the provider implementation
+// from the options allowing for sharing options between different vfs providers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ChmodOpts
 {

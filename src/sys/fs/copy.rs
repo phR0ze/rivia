@@ -20,10 +20,11 @@ use crate::errors::RvResult;
 pub struct Copier
 {
     pub(crate) opts: CopyOpts,
-    pub(crate) exec: Box<dyn Fn(CopyOpts) -> RvResult<()>>, // vfs backend to use
+    pub(crate) exec: Box<dyn Fn(CopyOpts) -> RvResult<()>>, // provider callback
 }
 
-// Internal clonable type used to encapsulate just the values
+// Internal type used to encapsulate just the options. This separates the provider implementation
+// from the options allowing for sharing options between different vfs providers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CopyOpts
 {
