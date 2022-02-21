@@ -110,7 +110,7 @@ impl Stdfs
     pub fn all_dirs<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
     {
         let mut paths: Vec<PathBuf> = vec![];
-        let src = StdfsEntry::from(path.as_ref())?;
+        let src = StdfsEntry::from(path)?;
         if !src.is_dir() {
             return Err(PathError::is_not_dir(src.path_buf()).into());
         }
@@ -144,7 +144,7 @@ impl Stdfs
     pub fn all_files<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
     {
         let mut paths: Vec<PathBuf> = vec![];
-        let src = StdfsEntry::from(path.as_ref())?;
+        let src = StdfsEntry::from(path)?;
         if !src.is_dir() {
             return Err(PathError::is_not_dir(src.path_buf()).into());
         }
@@ -180,7 +180,7 @@ impl Stdfs
     pub fn all_paths<T: AsRef<Path>>(path: T) -> RvResult<Vec<PathBuf>>
     {
         let mut paths: Vec<PathBuf> = vec![];
-        let src = StdfsEntry::from(path.as_ref())?;
+        let src = StdfsEntry::from(path)?;
         if !src.is_dir() {
             return Err(PathError::is_not_dir(src.path_buf()).into());
         }
@@ -594,7 +594,7 @@ impl Stdfs
     /// ```
     pub fn entry<T: AsRef<Path>>(path: T) -> RvResult<VfsEntry>
     {
-        Ok(StdfsEntry::from(path.as_ref())?.upcast())
+        Ok(StdfsEntry::from(path)?.upcast())
     }
 
     /// Return a EntryIter function
@@ -781,7 +781,7 @@ impl Stdfs
     /// ```
     pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool
     {
-        match StdfsEntry::from(path.as_ref()) {
+        match StdfsEntry::from(path) {
             Ok(x) => x.is_symlink(),
             _ => false,
         }
@@ -811,7 +811,7 @@ impl Stdfs
     /// ```
     pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool
     {
-        match StdfsEntry::from(path.as_ref()) {
+        match StdfsEntry::from(path) {
             Ok(x) => x.is_symlink_dir(),
             _ => false,
         }
@@ -841,7 +841,7 @@ impl Stdfs
     /// ```
     pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool
     {
-        match StdfsEntry::from(path.as_ref()) {
+        match StdfsEntry::from(path) {
             Ok(x) => x.is_symlink_file(),
             _ => false,
         }
@@ -992,6 +992,39 @@ impl Stdfs
         Ok(meta.permissions().mode())
     }
 
+    /// Move a file or directory
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Always moves `src` into `dst` if `dst` is an existing directory
+    /// * Replaces destination files if they exist
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist when the source doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_move_p");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(Stdfs::move_p(&file1, &file2).is_ok());
+    /// assert_vfs_no_exists!(vfs, &file1);
+    /// assert_vfs_exists!(vfs, &file2);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> RvResult<()>
+    {
+        let src_path = Stdfs::abs(src)?;
+        let dst_root = Stdfs::abs(dst)?;
+        let copy_into = Stdfs::is_dir(&dst_root);
+
+        let dst_path = if copy_into { dst_root.mash(src_path.base()?) } else { dst_root.clone() };
+        fs::rename(src_path, dst_path)?;
+        Ok(())
+    }
+
     /// Attempts to open a file in readonly mode
     ///
     /// * Provides a handle to a Read + Seek implementation
@@ -1084,7 +1117,7 @@ impl Stdfs
     /// ```
     pub fn read_all<T: AsRef<Path>>(path: T) -> RvResult<String>
     {
-        let path = Stdfs::abs(path.as_ref())?;
+        let path = Stdfs::abs(path)?;
 
         // Validate the target file
         if let Ok(meta) = fs::symlink_metadata(&path) {
@@ -1140,7 +1173,7 @@ impl Stdfs
     /// ```
     pub fn readlink_abs<T: AsRef<Path>>(link: T) -> RvResult<PathBuf>
     {
-        Ok(StdfsEntry::from(link.as_ref())?.alt_buf())
+        Ok(StdfsEntry::from(link)?.alt_buf())
     }
 
     /// Removes the given empty directory or file
@@ -1265,7 +1298,7 @@ impl Stdfs
         let target = target.as_ref().to_owned();
 
         // Ensure link is rooted properly
-        let link = Stdfs::abs(link.as_ref())?;
+        let link = Stdfs::abs(link)?;
 
         // If target is not rooted then it is already relative to the link thus mashing the link's directory
         // to the target and cleaning it will given an absolute path.
@@ -1985,6 +2018,33 @@ impl VirtualFileSystem for Stdfs
     fn mode<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
     {
         Stdfs::mode(path)
+    }
+
+    /// Move a file or directory
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Always moves `src` into `dst` if `dst` is an existing directory
+    /// * Replaces destination files if they exist
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist when the source doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_move_p");
+    /// let file1 = tmpdir.mash("file1");
+    /// let file2 = tmpdir.mash("file2");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(Stdfs::move_p(&file1, &file2).is_ok());
+    /// assert_vfs_no_exists!(vfs, &file1);
+    /// assert_vfs_exists!(vfs, &file2);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn move_p<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>
+    {
+        Stdfs::move_p(src, dst)
     }
 
     /// Open a Read + Seek handle to the indicated file

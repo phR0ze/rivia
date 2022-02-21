@@ -573,6 +573,31 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn mode<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>;
 
+    /// Move a file or directory
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Always moves `src` into `dst` if `dst` is an existing directory
+    /// * Replaces destination files if they exist
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist when the source doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = vfs.root().mash("file");
+    /// let dirfile = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.move_p(&file, &dir).is_ok());
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_is_file!(vfs, &dirfile);
+    /// ```
+    fn move_p<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>;
+
     /// Attempts to open a file in readonly mode
     ///
     /// * Provides a handle to a Read + Seek implementation
@@ -1569,6 +1594,37 @@ impl VirtualFileSystem for Vfs
         }
     }
 
+    /// Move a file or directory
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Always moves `src` into `dst` if `dst` is an existing directory
+    /// * Replaces destination files if they exist
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist when the source doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = vfs.root().mash("file");
+    /// let dirfile = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.move_p(&file, &dir).is_ok());
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_is_file!(vfs, &dirfile);
+    /// ```
+    fn move_p<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.move_p(src, dst),
+            Vfs::Memfs(x) => x.move_p(src, dst),
+        }
+    }
+
     /// Attempts to open a file in readonly mode
     ///
     /// * Provides a handle to a Read + Seek implementation
@@ -1930,6 +1986,63 @@ mod tests
         assert_vfs_mkfile!(vfs, &file1);
         assert_vfs_mkfile!(vfs, &file2);
         assert_iter_eq(vfs.files(&tmpdir).unwrap(), vec![file1, file2]);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_vfs_move_p()
+    {
+        test_move_p(assert_vfs_setup!(Vfs::memfs()));
+        test_move_p(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_move_p((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+        let dir1 = tmpdir.mash("dir1");
+        let dir1file2 = dir1.mash("file2");
+        let dir2 = tmpdir.mash("dir2");
+        let dir3 = tmpdir.mash("dir3");
+        let dir2dir1 = dir2.mash("dir1");
+        let dir2dir1file2 = dir2dir1.mash("file2");
+        let dir3 = tmpdir.mash("dir3");
+        let dir3dir2 = dir3.mash("dir2");
+        let dir3dir2dir1 = dir3dir2.mash("dir1");
+        let dir3dir2dir1file2 = dir3dir2dir1.mash("file2");
+
+        // move file1 to file2 in the same dir
+        assert_vfs_write_all!(vfs, &file1, "file1");
+        assert_vfs_exists!(vfs, &file1);
+        assert_vfs_no_exists!(vfs, &file2);
+        assert!(vfs.move_p(&file1, &file2).is_ok());
+        assert_vfs_read_all!(vfs, &file2, "file1");
+        assert_vfs_no_exists!(vfs, &file1);
+
+        // move file2 into dir1
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert!(vfs.move_p(&file2, &dir1).is_ok());
+        assert_vfs_no_exists!(vfs, &file2);
+        assert_vfs_read_all!(vfs, &dir1file2, "file1");
+
+        // move dir1 to dir2
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert!(vfs.move_p(&dir1, &dir2).is_ok());
+        assert_vfs_no_exists!(vfs, &dir1);
+        assert_vfs_exists!(vfs, &dir2);
+        assert_vfs_exists!(vfs, &dir2dir1);
+        assert_vfs_read_all!(vfs, &dir2dir1file2, "file1");
+
+        // move dir2 into dir3
+        assert_vfs_mkdir_p!(vfs, &dir3);
+        assert!(vfs.move_p(&dir2, &dir3).is_ok());
+        assert_vfs_no_exists!(vfs, &dir1);
+        assert_vfs_no_exists!(vfs, &dir2);
+        assert_vfs_exists!(vfs, &dir3);
+        assert_vfs_exists!(vfs, &dir3dir2);
+        assert_vfs_exists!(vfs, &dir3dir2dir1);
+        assert_vfs_exists!(vfs, &dir3dir2dir1);
+        assert_vfs_read_all!(vfs, &dir3dir2dir1file2, "file1");
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

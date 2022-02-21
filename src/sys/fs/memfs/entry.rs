@@ -177,6 +177,7 @@ impl MemfsEntry
     }
 
     /// Convert the given VfsEntry to a MemfsEntry or fail
+    #[allow(dead_code)]
     pub(crate) fn downcast(vfs: VfsEntry) -> RvResult<MemfsEntry>
     {
         match vfs {
