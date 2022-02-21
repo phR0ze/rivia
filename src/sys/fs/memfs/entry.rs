@@ -155,7 +155,7 @@ impl MemfsEntry
     /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
     /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
     /// entry's path
-    pub(crate) fn add<T: Into<String>>(&mut self, entry: T) -> RvResult<()>
+    pub(crate) fn add<T: Into<String>>(&mut self, entry: T) -> RvResult<bool>
     {
         let name = entry.into();
 
@@ -164,19 +164,16 @@ impl MemfsEntry
             return Err(PathError::is_not_dir(&self.path).into());
         }
 
-        // Insert the new entry or error out if already exists
+        // Insert the new entry returning success
         if let Some(ref mut files) = self.files {
-            if !files.insert(name.clone()) {
-                let path = self.path.mash(name);
-                return Err(PathError::exists_already(path).into());
-            }
+            return Ok(files.insert(name.clone()));
         } else {
             let mut files = HashSet::new();
             files.insert(name);
             self.files = Some(files);
         }
 
-        Ok(())
+        Ok(true)
     }
 
     /// Convert the given VfsEntry to a MemfsEntry or fail

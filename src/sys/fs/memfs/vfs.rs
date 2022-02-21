@@ -92,17 +92,19 @@ impl<'a> MemfsGuard<'a>
             x.files.insert(path, file);
         }
     }
-    pub(crate) fn remove_entry(&mut self, path: &Path)
+    pub(crate) fn remove_entry(&mut self, path: &Path) -> Option<MemfsEntry>
     {
         if let MemfsGuard::Write(x) = self {
-            x.entries.remove(path);
+            return x.entries.remove(path);
         }
+        None
     }
-    pub(crate) fn remove_file(&mut self, path: &Path)
+    pub(crate) fn remove_file(&mut self, path: &Path) -> Option<MemfsFile>
     {
         if let MemfsGuard::Write(x) = self {
-            x.files.remove(path);
+            return x.files.remove(path);
         }
+        None
     }
     pub(crate) fn root(&self) -> PathBuf
     {
@@ -261,7 +263,9 @@ impl Memfs
 
             // Update the parent directory
             if let Some(parent) = guard.get_entry_mut(&dir) {
-                parent.add(path.base()?)?;
+                if !parent.add(path.base()?)? {
+                    return Err(PathError::exists_already(path).into());
+                }
             }
         }
 
@@ -576,6 +580,72 @@ impl Memfs
         self._add(guard, entry_opts.new())?;
 
         Ok(link)
+    }
+
+    /// Move a file or directory
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Always moves `src` into `dst` if `dst` is an existing directory
+    /// * Replaces destination files if they exist
+    ///
+    /// ### Errors
+    /// * PathError::DoesNotExist when the source doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = vfs.root().mash("file");
+    /// let dirfile = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert!(vfs.move_p(&file, &dir).is_ok());
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_is_file!(vfs, &dirfile);
+    /// ```
+    pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>
+    {
+        let mut guard = self.write_guard();
+        let src_root = self._abs(&guard, src)?;
+        let dst_root = self._abs(&guard, dst)?;
+        let copy_into = self._is_dir(&guard, &dst_root);
+
+        for (src_path, _) in self._clone_entries(&guard, &src_root)? {
+            // Filter out cloned entries that may have been pulled in by links
+            if src_path.has_prefix(&src_root) {
+                // Set destination path based on source path
+                let dst_path = if copy_into {
+                    dst_root.mash(src_path.trim_prefix(src_root.dir()?))
+                } else {
+                    dst_root.mash(src_path.trim_prefix(&src_root))
+                };
+
+                // 1. Remove the entry from its old parent
+                if let Some(parent) = guard.get_entry_mut(&src_path.dir()?) {
+                    parent.remove(src_path.base()?)?;
+                }
+
+                // 2. Add the entry to its new parent
+                if let Some(parent) = guard.get_entry_mut(&dst_path.dir()?) {
+                    parent.add(dst_path.base()?)?;
+                }
+
+                // 3. Move the associated file if found
+                if let Some(mut dst_file) = guard.remove_file(&src_path) {
+                    dst_file.path = Some(dst_path.clone());
+                    guard.insert_file(dst_path.clone(), dst_file);
+                }
+
+                // 4. Move the entry to its new dst_path
+                if let Some(mut dst_entry) = guard.remove_entry(&src_path) {
+                    dst_entry.path = dst_path.clone();
+                    guard.insert_entry(dst_path.clone(), dst_entry);
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -2461,6 +2531,54 @@ mod tests
         assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
         assert!(vfs.chmod(&file, 0o555).is_ok());
         assert_eq!(vfs.mode(&file).unwrap(), 0o100555);
+    }
+
+    #[test]
+    fn test_memfs_move_p()
+    {
+        let vfs = Memfs::new();
+        let file1 = vfs.root().mash("file1");
+        let file2 = vfs.root().mash("file2");
+        let dir1 = vfs.root().mash("dir1");
+        let dir2 = vfs.root().mash("dir2");
+        let dir3 = vfs.root().mash("dir3");
+
+        // move file1 to file2 in the same dir
+        assert_vfs_write_all!(vfs, &file1, "file1");
+        assert_vfs_exists!(vfs, &file1);
+        assert_vfs_no_exists!(vfs, &file2);
+        assert!(vfs.move_p(&file1, &file2).is_ok());
+        assert_vfs_read_all!(vfs, &file2, "file1");
+        assert_vfs_no_exists!(vfs, &file1);
+
+        // move file2 into dir1
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert!(vfs.move_p(&file2, &dir1).is_ok());
+        assert_vfs_no_exists!(vfs, &file2);
+        assert_vfs_read_all!(vfs, dir1.mash("file2"), "file1");
+        let entries = vfs._clone_entries(&vfs.read_guard(), &dir1).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[&dir1].path(), &dir1);
+        assert_eq!(entries[&dir1.mash("file2")].path(), dir1.mash("file2"));
+
+        // move dir1 to dir2
+        assert_vfs_mkdir_p!(vfs, &dir2);
+        assert!(vfs.move_p(&dir1, &dir2).is_ok());
+        assert_vfs_no_exists!(vfs, &dir1);
+        assert_vfs_exists!(vfs, &dir2);
+        assert_vfs_exists!(vfs, dir2.mash("dir1"));
+        assert_vfs_read_all!(vfs, dir2.mash("dir1").mash("file2"), "file1");
+
+        // move dir2 into dir3
+        assert_vfs_mkdir_p!(vfs, &dir3);
+        assert!(vfs.move_p(&dir2, &dir3).is_ok());
+        assert_vfs_no_exists!(vfs, &dir1);
+        assert_vfs_no_exists!(vfs, &dir2);
+        assert_vfs_exists!(vfs, &dir3);
+        assert_vfs_exists!(vfs, dir3.mash("dir2"));
+        assert_vfs_exists!(vfs, dir3.mash("dir2").mash("dir1"));
+        assert_vfs_exists!(vfs, dir3.mash("dir2").mash("dir1").mash("file2"));
+        assert_vfs_read_all!(vfs, dir3.mash("dir2").mash("dir1").mash("file2"), "file1");
     }
 
     #[test]

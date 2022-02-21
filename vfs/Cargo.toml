@@ -1,6 +1,6 @@
 [package]
 name = "rivia-vfs"
-version = "0.0.129"
+version = "0.0.130"
 edition = "2021"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
