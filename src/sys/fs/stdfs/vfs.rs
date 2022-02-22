@@ -1673,6 +1673,48 @@ impl VirtualFileSystem for Stdfs
         Stdfs::chmod_b(path)
     }
 
+    /// Change the ownership of the path recursivly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Use `chown_b` for more options
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chown");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// let (uid, gid) = Stdfs::owner(&file1).unwrap();
+    /// assert!(Stdfs::chown(&file1, uid, gid).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn chown<T: AsRef<Path>>(&self, path: T, uid: u32, gid: u32) -> RvResult<()>
+    {
+        Stdfs::chown(path, uid, gid)
+    }
+
+    /// Creates new [`Chown`] for use with the builder pattern
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chown_b");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// let (uid, gid) = Stdfs::owner(&file1).unwrap();
+    /// assert!(Stdfs::chown_b(&file1).unwrap().owner(uid, gid).exec().is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn chown_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chown>
+    {
+        Stdfs::chown_b(path)
+    }
+
     /// Copies src to dst recursively
     ///
     /// * `dst` will be copied into if it is an existing directory

@@ -251,6 +251,17 @@ impl MemfsEntry
         // Set the new mode
         self.mode = opts.mode;
     }
+
+    /// Set the owner
+    pub(crate) fn set_owner(&mut self, uid: Option<u32>, gid: Option<u32>)
+    {
+        if let Some(uid) = uid {
+            self.uid = uid;
+        }
+        if let Some(gid) = gid {
+            self.gid = gid;
+        }
+    }
 }
 
 impl Entry for MemfsEntry

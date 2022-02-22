@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use super::Chown;
 use crate::{
     errors::*,
     sys::{Chmod, Copier, Entries, Memfs, Stdfs, VfsEntry},
@@ -177,6 +178,40 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
     /// ```
     fn chmod_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chmod>;
+
+    /// Change the ownership of the path recursivly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Use `chown_b` for more options
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown(&file1, 5, 7).is_ok());
+    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// ```
+    fn chown<T: AsRef<Path>>(&self, path: T, uid: u32, gid: u32) -> RvResult<()>;
+
+    /// Creates new [`Chown`] for use with the builder pattern
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 7).exec().is_ok());
+    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// ```
+    fn chown_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chown>;
 
     /// Copies src to dst recursively
     ///
@@ -1109,6 +1144,52 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.chmod_b(path),
             Vfs::Memfs(x) => x.chmod_b(path),
+        }
+    }
+
+    /// Change the ownership of the path recursivly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Use `chown_b` for more options
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown(&file1, 5, 7).is_ok());
+    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// ```
+    fn chown<T: AsRef<Path>>(&self, path: T, uid: u32, gid: u32) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.chown(path, uid, gid),
+            Vfs::Memfs(x) => x.chown(path, uid, gid),
+        }
+    }
+
+    /// Creates new [`Chown`] for use with the builder pattern
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 7).exec().is_ok());
+    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// ```
+    fn chown_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chown>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.chown_b(path),
+            Vfs::Memfs(x) => x.chown_b(path),
         }
     }
 

@@ -13,8 +13,8 @@ use crate::{
     core::*,
     errors::*,
     sys::{
-        self, Chmod, ChmodOpts, Copier, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VfsEntry,
-        VirtualFileSystem,
+        self, Chmod, ChmodOpts, Chown, ChownOpts, Copier, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs,
+        VfsEntry, VirtualFileSystem,
     },
 };
 
@@ -282,7 +282,7 @@ impl Memfs
         Ok(path)
     }
 
-    // Execute chmod with the given [`Mode`] options
+    // Execute chmod with the given options
     fn _chmod(&self, opts: ChmodOpts) -> RvResult<()>
     {
         // Using `contents_first` to yield directories last so that revoking permissions happen to
@@ -331,6 +331,23 @@ impl Memfs
                 if let Some(entry) = guard.get_entry_mut(src.path()) {
                     entry.set_mode(Some(m2));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    // Execute chown with the given options
+    fn _chown(&self, opts: ChownOpts) -> RvResult<()>
+    {
+        // Get entries separately to avoid a context collisions
+        let max_depth = if opts.recursive { std::usize::MAX } else { 0 };
+        let entries = self.entries(&opts.path)?.max_depth(max_depth).follow(opts.follow);
+
+        let mut guard = self.write_guard();
+        for entry in entries {
+            let src = entry?;
+            if let Some(entry) = guard.get_entry_mut(src.path()) {
+                entry.set_owner(opts.uid, opts.gid);
             }
         }
         Ok(())
@@ -853,6 +870,61 @@ impl VirtualFileSystem for Memfs
                 follow: false,
                 recursive: true,
                 sym: "".to_string(),
+            },
+            exec: Box::new(exec_func),
+        })
+    }
+
+    /// Change the ownership of the path recursivly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Use `chown_b` for more options
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown(&file1, 5, 7).is_ok());
+    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// ```
+    fn chown<T: AsRef<Path>>(&self, path: T, uid: u32, gid: u32) -> RvResult<()>
+    {
+        self.chown_b(path)?.owner(uid, gid).exec()
+    }
+
+    /// Creates new [`Chown`] for use with the builder pattern
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 7).exec().is_ok());
+    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// ```
+    fn chown_b<T: AsRef<Path>>(&self, path: T) -> RvResult<Chown>
+    {
+        let path = self.abs(path)?;
+
+        // Construct the closure callback
+        let vfs = self.clone();
+        let exec_func = move |opts: ChownOpts| -> RvResult<()> { vfs._chown(opts) };
+
+        Ok(Chown {
+            opts: ChownOpts {
+                path,
+                uid: None,
+                gid: None,
+                follow: false,
+                recursive: true,
             },
             exec: Box::new(exec_func),
         })
