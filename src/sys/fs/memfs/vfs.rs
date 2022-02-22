@@ -1541,6 +1541,27 @@ impl VirtualFileSystem for Memfs
         Ok(Box::new(self._clone_file(&self.read_guard(), &path)?))
     }
 
+    /// Returns the (user ID, group ID) of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.owner(vfs.root()).unwrap(), (1000, 1000));
+    /// ```
+    fn owner<T: AsRef<Path>>(&self, path: T) -> RvResult<(u32, u32)>
+    {
+        let guard = self.read_guard();
+        let abs = self._abs(&guard, path)?;
+        match guard.get_entry(&abs) {
+            Some(entry) => Ok((entry.uid, entry.gid)),
+            None => return Err(PathError::does_not_exist(abs).into()),
+        }
+    }
+
     /// Returns all paths for the given path, sorted by name
     ///
     /// * Handles path expansion and absolute path resolution

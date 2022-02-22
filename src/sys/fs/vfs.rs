@@ -634,6 +634,19 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>;
 
+    /// Returns the (user ID, group ID) of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.owner(vfs.root()).unwrap(), (1000, 1000));
+    /// ```
+    fn owner<T: AsRef<Path>>(&self, path: T) -> RvResult<(u32, u32)>;
+
     /// Returns all paths for the given path, sorted by name
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1694,6 +1707,25 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.open(path),
             Vfs::Memfs(x) => x.open(path),
+        }
+    }
+
+    /// Returns the (user ID, group ID) of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.owner(vfs.root()).unwrap(), (1000, 1000));
+    /// ```
+    fn owner<T: AsRef<Path>>(&self, path: T) -> RvResult<(u32, u32)>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.owner(path),
+            Vfs::Memfs(x) => x.owner(path),
         }
     }
 

@@ -344,17 +344,19 @@ impl Stdfs
     /// * Use `chown_b` for more options
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use rivia::prelude::*;
     ///
-    /// //let file1 = tmpdir.mash("file1");
-    /// //assert_vfs_mkfile!(vfs, &file1);
-    /// //assert!(Stdfs::chown(&file1, user::getuid(), user::getgid()).is_ok());
-    /// //assert_stdfs_remove_all!(&tmpdir);
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chown");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// let (uid, gid) = Stdfs::owner(&file1).unwrap();
+    /// assert!(Stdfs::chown(&file1, uid, gid).is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
     pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> RvResult<()>
     {
-        Stdfs::chown_b(path, uid, gid)?.exec()
+        Stdfs::chown_b(path)?.owner(uid, gid).exec()
     }
 
     /// Creates new [`Chown`] for use with the builder pattern
@@ -363,24 +365,23 @@ impl Stdfs
     /// * Provides options for recursion, following links, narrowing in on file types etc...
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use rivia::prelude::*;
     ///
-    /// //let file1 = tmpdir.mash("file1");
-    /// //assert_stdfs_mkfile!(&file1);
-    /// //assert!(Stdfs::chmod_p(&file1).unwrap().mode(0o644).exec().is_ok());
-    /// //assert_eq!(file1.mode().unwrap(), 0o100644);
-    /// //assert!(Stdfs::chmod_p(&file1).unwrap().mode(0o555).exec().is_ok());
-    /// //assert_eq!(file1.mode().unwrap(), 0o100555);
-    /// //assert_stdfs_remove_all!(&tmpdir);
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chown_b");
+    /// let file1 = tmpdir.mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// let (uid, gid) = Stdfs::owner(&file1).unwrap();
+    /// assert!(Stdfs::chown_b(&file1).unwrap().owner(uid, gid).exec().is_ok());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
     /// ```
-    pub fn chown_b<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> RvResult<Chown>
+    pub fn chown_b<T: AsRef<Path>>(path: T) -> RvResult<Chown>
     {
         Ok(Chown {
             opts: ChownOpts {
                 path: Stdfs::abs(path)?,
-                uid,
-                gid,
+                uid: None,
+                gid: None,
                 follow: false,
                 recursive: true,
             },
@@ -394,9 +395,9 @@ impl Stdfs
         let max_depth = if opts.recursive { std::usize::MAX } else { 0 };
         for entry in Stdfs::entries(&opts.path)?.max_depth(max_depth).follow(opts.follow) {
             let src = entry?;
-            let uid = nix::unistd::Uid::from_raw(opts.uid);
-            let gid = nix::unistd::Gid::from_raw(opts.gid);
-            nix::unistd::chown(src.path(), Some(uid), Some(gid))?;
+            let uid = opts.uid.map(|x| nix::unistd::Uid::from_raw(x));
+            let gid = opts.gid.map(|x| nix::unistd::Gid::from_raw(x));
+            nix::unistd::chown(src.path(), uid, gid)?;
         }
         Ok(())
     }
@@ -1141,6 +1142,23 @@ impl Stdfs
 
         // Return the file handle
         Ok(Box::new(File::open(&path)?))
+    }
+
+    /// Returns the (user ID, group ID) of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::stdfs();
+    /// assert_eq!(Stdfs::owner(vfs.root()).unwrap(), (0, 0));
+    /// ```
+    pub fn owner<T: AsRef<Path>>(path: T) -> RvResult<(u32, u32)>
+    {
+        let meta = fs::metadata(Stdfs::abs(path)?)?;
+        Ok((meta.uid(), meta.gid()))
     }
 
     /// Returns all paths for the given path, sorted by name
@@ -2182,6 +2200,22 @@ impl VirtualFileSystem for Stdfs
     fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
     {
         Stdfs::open(path)
+    }
+
+    /// Returns the (user ID, group ID) of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::stdfs();
+    /// assert_eq!(vfs.owner(vfs.root()).unwrap(), (0, 0));
+    /// ```
+    fn owner<T: AsRef<Path>>(&self, path: T) -> RvResult<(u32, u32)>
+    {
+        Stdfs::owner(path)
     }
 
     /// Returns all paths for the given path, sorted by name

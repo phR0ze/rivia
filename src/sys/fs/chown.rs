@@ -28,15 +28,43 @@ pub struct Chown
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ChownOpts
 {
-    pub(crate) path: PathBuf,   // path to chown
-    pub(crate) uid: u32,        // uid to use
-    pub(crate) gid: u32,        // uid to use
-    pub(crate) follow: bool,    // follow links
-    pub(crate) recursive: bool, // chown recursiveily
+    pub(crate) path: PathBuf,    // path to chown
+    pub(crate) uid: Option<u32>, // uid to use
+    pub(crate) gid: Option<u32>, // uid to use
+    pub(crate) follow: bool,     // follow links
+    pub(crate) recursive: bool,  // chown recursiveily
 }
 
 impl Chown
 {
+    /// Set user id to use for ownership for the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// ```
+    pub fn uid(mut self, uid: u32) -> Self
+    {
+        self.opts.uid = Some(uid);
+        self
+    }
+
+    /// Set group id to use for ownership for the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// ```
+    pub fn gid(mut self, gid: u32) -> Self
+    {
+        self.opts.gid = Some(gid);
+        self
+    }
+
     /// Set user id and group id to use for ownership for the given path
     ///
     /// ### Examples
@@ -44,24 +72,11 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
-    /// let dir1 = vfs.root().mash("dir1");
-    /// let dir1file1 = dir1.mash("dir1file1");
-    /// let link1 = vfs.root().mash("link1");
-    /// assert_vfs_mkdir_p!(vfs, &dir1);
-    /// assert_vfs_mkfile!(vfs, &dir1file1);
-    /// assert_vfs_symlink!(vfs, &link1, &dir1);
-    /// //let uid = user::getuid();
-    /// //let gid = user::getgid();
-    /// //assert!(vfs.chown_b(&link1, uid, gid).unwrap().set(uid, gid).exec().is_ok());
-    /// //assert_eq!(vfs.uid(&dir1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1).unwrap(), gid);
-    /// //assert_eq!(vfs.uid(&dir1file1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1file1).unwrap(), gid);
     /// ```
-    pub fn set(mut self, uid: u32, gid: u32) -> Self
+    pub fn owner(mut self, uid: u32, gid: u32) -> Self
     {
-        self.opts.uid = uid;
-        self.opts.gid = gid;
+        self.opts.uid = Some(uid);
+        self.opts.gid = Some(gid);
         self
     }
 
@@ -74,19 +89,6 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
-    /// let dir1 = vfs.root().mash("dir1");
-    /// let dir1file1 = dir1.mash("dir1file1");
-    /// let link1 = vfs.root().mash("link1");
-    /// //assert_vfs_mkdir_p!(vfs, &dir1);
-    /// //assert_vfs_mkfile!(vfs, &dir1file1);
-    /// //assert_vfs_symlink!(vfs, &link1, &dir1);
-    /// //let uid = user::getuid();
-    /// //let gid = user::getgid();
-    /// //assert!(vfs.chown_b(&link1, uid, gid).unwrap().exec().is_ok());
-    /// //assert_eq!(vfs.uid(&dir1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1).unwrap(), gid);
-    /// //assert_eq!(vfs.uid(&dir1file1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1file1).unwrap(), gid);
     /// ```
     pub fn follow(mut self) -> Self
     {
@@ -103,19 +105,6 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
-    /// let dir1 = vfs.root().mash("dir1");
-    /// let dir1file1 = dir1.mash("dir1file1");
-    /// let link1 = vfs.root().mash("link1");
-    /// //assert_vfs_mkdir_p!(vfs, &dir1);
-    /// //assert_vfs_mkfile!(vfs, &dir1file1);
-    /// //assert_vfs_symlink!(vfs, &link1, &dir1);
-    /// //let uid = user::getuid();
-    /// //let gid = user::getgid();
-    /// //assert!(vfs.chown_b(&link1, uid, gid).unwrap().exec().is_ok());
-    /// //assert_eq!(vfs.uid(&dir1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1).unwrap(), gid);
-    /// //assert_eq!(vfs.uid(&dir1file1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1file1).unwrap(), gid);
     /// ```
     pub fn recurse(mut self, yes: bool) -> Self
     {
@@ -131,19 +120,6 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
-    /// let dir1 = vfs.root().mash("dir1");
-    /// let dir1file1 = dir1.mash("dir1file1");
-    /// let link1 = vfs.root().mash("link1");
-    /// //assert_vfs_mkdir_p!(vfs, &dir1);
-    /// //assert_vfs_mkfile!(vfs, &dir1file1);
-    /// //assert_vfs_symlink!(vfs, &link1, &dir1);
-    /// //let uid = user::getuid();
-    /// //let gid = user::getgid();
-    /// //assert!(vfs.chown_b(&link1, uid, gid).unwrap().exec().is_ok());
-    /// //assert_eq!(vfs.uid(&dir1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1).unwrap(), gid);
-    /// //assert_eq!(vfs.uid(&dir1file1).unwrap(), uid);
-    /// //assert_eq!(vfs.gid(&dir1file1).unwrap(), gid);
     /// ```
     pub fn exec(&self) -> RvResult<()>
     {
