@@ -74,9 +74,9 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
-    /// let dir1 = tmpdir.mash("dir1");
+    /// let dir1 = vfs.root().mash("dir1");
     /// let dir1file1 = dir1.mash("dir1file1");
-    /// let link1 = tmpdir.mash("link1");
+    /// let link1 = vfs.root().mash("link1");
     /// //assert_vfs_mkdir_p!(vfs, &dir1);
     /// //assert_vfs_mkfile!(vfs, &dir1file1);
     /// //assert_vfs_symlink!(vfs, &link1, &dir1);

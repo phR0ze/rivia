@@ -353,6 +353,19 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>;
 
+    /// Returns the group ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.gid(vfs.root()).unwrap(), 1000);
+    /// ```
+    fn gid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>;
+
     /// Returns true if the given path exists and is readonly
     ///
     /// * Handles path expansion and absolute path resolution
@@ -797,6 +810,29 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>;
 
+    /// Returns the user ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.uid(vfs.root()).unwrap(), 1000);
+    /// ```
+    fn uid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>;
+
+    /// Up cast the trait type to the enum wrapper
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new().upcast();
+    /// ```
+    fn upcast(self) -> Vfs;
+
     /// Write the given data to to the target file
     ///
     /// * Handles path expansion and absolute path resolution
@@ -819,16 +855,6 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert_vfs_read_all!(vfs, &file, "foobar 1");
     /// ```
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>;
-
-    /// Up cast the trait type to the enum wrapper
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Memfs::new().upcast();
-    /// ```
-    fn upcast(self) -> Vfs;
 }
 
 /// Provides an ergonomic encapsulation of the underlying [`VirtualFileSystem`] backend
@@ -1299,6 +1325,23 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.files(path),
             Vfs::Memfs(x) => x.files(path),
+        }
+    }
+
+    /// Returns the group ID of the owner of this file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.gid(vfs.root()).unwrap(), 1000);
+    /// ```
+    fn gid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.gid(path),
+            Vfs::Memfs(x) => x.gid(path),
         }
     }
 
@@ -1881,6 +1924,23 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.symlink(link, target),
             Vfs::Memfs(x) => x.symlink(link, target),
+        }
+    }
+
+    /// Returns the user ID of the owner of this file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// assert_eq!(vfs.uid(vfs.root()).unwrap(), 1000);
+    /// ```
+    fn uid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.uid(path),
+            Vfs::Memfs(x) => x.uid(path),
         }
     }
 

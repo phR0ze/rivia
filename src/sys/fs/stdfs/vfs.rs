@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::Write,
-    os::unix::{self, fs::PermissionsExt},
+    os::unix::{self, fs::MetadataExt, fs::PermissionsExt},
     path::{Component, Path, PathBuf},
     time::SystemTime,
 };
@@ -16,8 +16,8 @@ use crate::{
     core::*,
     errors::*,
     sys::{
-        self, Chmod, ChmodOpts, Copier, CopyOpts, Entries, Entry, EntryIter, PathExt, ReadSeek, Vfs, VfsEntry,
-        VirtualFileSystem,
+        self, Chmod, ChmodOpts, Chown, ChownOpts, Copier, CopyOpts, Entries, Entry, EntryIter, PathExt, ReadSeek,
+        Vfs, VfsEntry, VirtualFileSystem,
     },
 };
 
@@ -291,15 +291,15 @@ impl Stdfs
     }
 
     // Execute chmod with the given [`Mode`] options
-    fn _chmod(mode: ChmodOpts) -> RvResult<()>
+    fn _chmod(opts: ChmodOpts) -> RvResult<()>
     {
         // Using `contents_first` to yield directories last so that revoking permissions happen to
         // directories as the last thing when completing the traversal, else we'll lock
         // ourselves out.
-        let mut entries = Stdfs::entries(&mode.path)?.contents_first();
+        let mut entries = Stdfs::entries(&opts.path)?.contents_first();
 
         // Set the `max_depth` based on recursion
-        entries = entries.max_depth(match mode.recursive {
+        entries = entries.max_depth(match opts.recursive {
             true => std::usize::MAX,
             false => 0,
         });
@@ -307,8 +307,8 @@ impl Stdfs
         // Using `dirs_first` and `pre_op` options here to grant addative permissions as a
         // pre-traversal operation to allow for the possible addition of permissions that would allow
         // directory traversal that otherwise wouldn't be allowed.
-        let m = mode.clone();
-        entries = entries.follow(mode.follow).dirs_first().pre_op(move |x| {
+        let m = opts.clone();
+        entries = entries.follow(opts.follow).dirs_first().pre_op(move |x| {
             let m1 = sys::mode(x, m.dirs, &m.sym)?;
             if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
                 fs::set_permissions(x.path(), fs::Permissions::from_mode(m1))?;
@@ -322,19 +322,82 @@ impl Stdfs
 
             // Compute mode based on octal and symbolic values
             let m2 = if src.is_dir() {
-                sys::mode(&src, mode.dirs, &mode.sym)?
+                sys::mode(&src, opts.dirs, &opts.sym)?
             } else if src.is_file() {
-                sys::mode(&src, mode.files, &mode.sym)?
+                sys::mode(&src, opts.files, &opts.sym)?
             } else {
                 0
             };
 
             // Apply permission to entry if set
-            if (!src.is_symlink() || mode.follow) && m2 != src.mode() && m2 != 0 {
+            if (!src.is_symlink() || opts.follow) && m2 != src.mode() && m2 != 0 {
                 fs::set_permissions(src.path(), fs::Permissions::from_mode(m2))?;
             }
         }
 
+        Ok(())
+    }
+
+    /// Change the ownership of the path recursivly
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Use `chown_b` for more options
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use rivia::prelude::*;
+    ///
+    /// //let file1 = tmpdir.mash("file1");
+    /// //assert_vfs_mkfile!(vfs, &file1);
+    /// //assert!(Stdfs::chown(&file1, user::getuid(), user::getgid()).is_ok());
+    /// //assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> RvResult<()>
+    {
+        Stdfs::chown_b(path, uid, gid)?.exec()
+    }
+
+    /// Creates new [`Chown`] for use with the builder pattern
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Provides options for recursion, following links, narrowing in on file types etc...
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use rivia::prelude::*;
+    ///
+    /// //let file1 = tmpdir.mash("file1");
+    /// //assert_stdfs_mkfile!(&file1);
+    /// //assert!(Stdfs::chmod_p(&file1).unwrap().mode(0o644).exec().is_ok());
+    /// //assert_eq!(file1.mode().unwrap(), 0o100644);
+    /// //assert!(Stdfs::chmod_p(&file1).unwrap().mode(0o555).exec().is_ok());
+    /// //assert_eq!(file1.mode().unwrap(), 0o100555);
+    /// //assert_stdfs_remove_all!(&tmpdir);
+    /// ```
+    pub fn chown_b<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> RvResult<Chown>
+    {
+        Ok(Chown {
+            opts: ChownOpts {
+                path: Stdfs::abs(path)?,
+                uid,
+                gid,
+                follow: false,
+                recursive: true,
+            },
+            exec: Box::new(Stdfs::_chown),
+        })
+    }
+
+    // Execute chown with the given [`Chown`] options
+    fn _chown(opts: ChownOpts) -> RvResult<()>
+    {
+        let max_depth = if opts.recursive { std::usize::MAX } else { 0 };
+        for entry in Stdfs::entries(&opts.path)?.max_depth(max_depth).follow(opts.follow) {
+            let src = entry?;
+            let uid = nix::unistd::Uid::from_raw(opts.uid);
+            let gid = nix::unistd::Gid::from_raw(opts.gid);
+            nix::unistd::chown(src.path(), Some(uid), Some(gid))?;
+        }
         Ok(())
     }
 
@@ -641,6 +704,22 @@ impl Stdfs
             paths.push(entry.path_buf());
         }
         Ok(paths)
+    }
+
+    /// Returns the group ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::stdfs();
+    /// assert_eq!(Stdfs::gid(vfs.root()).unwrap(), 0);
+    /// ```
+    pub fn gid<T: AsRef<Path>>(path: T) -> RvResult<u32>
+    {
+        Ok(fs::metadata(Stdfs::abs(path)?)?.gid())
     }
 
     /// Returns true if the `path` exists
@@ -1325,6 +1404,22 @@ impl Stdfs
         Ok(())
     }
 
+    /// Returns the user ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::stdfs();
+    /// assert_eq!(Stdfs::uid(vfs.root()).unwrap(), 0);
+    /// ```
+    pub fn uid<T: AsRef<Path>>(path: T) -> RvResult<u32>
+    {
+        Ok(fs::metadata(Stdfs::abs(path)?)?.uid())
+    }
+
     /// Write the given data to to the target file
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1757,6 +1852,22 @@ impl VirtualFileSystem for Stdfs
     fn files<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>
     {
         Stdfs::files(path)
+    }
+
+    /// Returns the group ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::stdfs();
+    /// assert_eq!(Stdfs::gid(vfs.root()).unwrap(), 0);
+    /// ```
+    fn gid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        Stdfs::gid(path)
     }
 
     /// Returns true if the given path exists and is readonly
@@ -2262,6 +2373,22 @@ impl VirtualFileSystem for Stdfs
     fn symlink<T: AsRef<Path>, U: AsRef<Path>>(&self, link: T, target: U) -> RvResult<PathBuf>
     {
         Stdfs::symlink(link, target)
+    }
+
+    /// Returns the user ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::stdfs();
+    /// assert_eq!(Stdfs::uid(vfs.root()).unwrap(), 0);
+    /// ```
+    fn uid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        Stdfs::uid(path)
     }
 
     /// Write the given data to to the target file

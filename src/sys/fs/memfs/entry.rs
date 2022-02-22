@@ -22,6 +22,8 @@ pub(crate) struct MemfsEntryOpts
     file: bool,    // is this entry a file
     link: bool,    // is this entry a link
     mode: u32,     // permission mode of the entry
+    gid: u32,      // group id of the entry
+    uid: u32,      // user id of the entry
 }
 
 impl MemfsEntryOpts
@@ -41,6 +43,8 @@ impl MemfsEntryOpts
             file: opts.file,
             link: opts.link,
             mode: opts.mode,
+            gid: opts.gid,
+            uid: opts.uid,
             follow: false,
             cached: false,
         }
@@ -60,6 +64,12 @@ impl MemfsEntryOpts
         self.dir = false;
         let mode = if self.mode == 0 { None } else { Some(self.mode) };
         self.mode(mode)
+    }
+
+    pub(crate) fn gid(mut self, gid: u32) -> Self
+    {
+        self.gid = gid;
+        self
     }
 
     // Options allow for being a file/dir and link
@@ -102,6 +112,12 @@ impl MemfsEntryOpts
         };
         self
     }
+
+    pub(crate) fn uid(mut self, uid: u32) -> Self
+    {
+        self.uid = uid;
+        self
+    }
 }
 
 /// Provides a Vfs backend [`Entry`] implementation for Memfs
@@ -126,6 +142,8 @@ pub struct MemfsEntry
     pub(crate) file: bool,                     // is this entry a file
     pub(crate) link: bool,                     // is this entry a link
     pub(crate) mode: u32,                      // permission mode of the entry
+    pub(crate) uid: u32,                       // user id of entry
+    pub(crate) gid: u32,                       // group id of entry
     pub(crate) follow: bool,                   // tracks if the path and alt have been switched
     pub(crate) cached: bool,                   // tracks if properties have been cached
     pub(crate) files: Option<HashSet<String>>, // file or directory names
@@ -146,6 +164,8 @@ impl MemfsEntry
             file: false,
             link: false,
             mode: 0,
+            gid: 1000,
+            uid: 1000,
         }
     }
 
@@ -223,6 +243,8 @@ impl MemfsEntry
             file: self.file,
             link: self.link,
             mode: self.mode,
+            gid: self.gid,
+            uid: self.uid,
         }
         .mode(mode);
 
@@ -497,6 +519,8 @@ impl Clone for MemfsEntry
             file: self.file,
             link: self.link,
             mode: self.mode,
+            gid: self.gid,
+            uid: self.uid,
             follow: self.follow,
             cached: self.cached,
             files: self.files.clone(),
@@ -561,6 +585,21 @@ mod tests
     use crate::prelude::*;
 
     #[test]
+    fn test_uid()
+    {
+        // Default
+        let mut entry = MemfsEntry::opts("").new();
+        assert_eq!(entry.gid, 1000);
+        assert_eq!(entry.uid, 1000);
+
+        // Set gid and uid
+        entry.gid = 5;
+        entry.uid = 7;
+        assert_eq!(entry.gid, 5);
+        assert_eq!(entry.uid, 7);
+    }
+
+    #[test]
     fn test_follow()
     {
         let memfs = Memfs::new();
@@ -579,7 +618,7 @@ mod tests
     }
 
     #[test]
-    fn test_entry_new_file()
+    fn test_file()
     {
         let vfs = Memfs::new();
         let path = vfs.root().mash("file");
@@ -598,7 +637,7 @@ mod tests
     }
 
     #[test]
-    fn test_entry_new_dir()
+    fn test_dir()
     {
         let vfs = Memfs::new();
         let path = vfs.root().mash("dir");

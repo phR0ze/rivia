@@ -283,15 +283,15 @@ impl Memfs
     }
 
     // Execute chmod with the given [`Mode`] options
-    fn _chmod(&self, mode: ChmodOpts) -> RvResult<()>
+    fn _chmod(&self, opts: ChmodOpts) -> RvResult<()>
     {
         // Using `contents_first` to yield directories last so that revoking permissions happen to
         // directories as the last thing when completing the traversal, else we'll lock
         // ourselves out.
-        let mut entries = self.entries(&mode.path)?.contents_first();
+        let mut entries = self.entries(&opts.path)?.contents_first();
 
         // Set the `max_depth` based on recursion
-        entries = entries.max_depth(match mode.recursive {
+        entries = entries.max_depth(match opts.recursive {
             true => std::usize::MAX,
             false => 0,
         });
@@ -299,9 +299,9 @@ impl Memfs
         // Using `dirs_first` and `pre_op` options here to grant addative permissions as a
         // pre-traversal operation to allow for the possible addition of permissions that would allow
         // directory traversal that otherwise wouldn't be allowed.
-        let m = mode.clone();
+        let m = opts.clone();
         let vfs = self.clone();
-        entries = entries.follow(mode.follow).dirs_first().pre_op(move |x| {
+        entries = entries.follow(opts.follow).dirs_first().pre_op(move |x| {
             let m1 = sys::mode(x, m.dirs, &m.sym)?;
             if (!x.is_symlink() || m.follow) && x.is_dir() && !sys::revoking_mode(x.mode(), m1) && x.mode() != m1 {
                 let mut guard = vfs.write_guard();
@@ -318,15 +318,15 @@ impl Memfs
 
             // Compute mode based on octal and symbolic values
             let m2 = if src.is_dir() {
-                sys::mode(&src, mode.dirs, &mode.sym)?
+                sys::mode(&src, opts.dirs, &opts.sym)?
             } else if src.is_file() {
-                sys::mode(&src, mode.files, &mode.sym)?
+                sys::mode(&src, opts.files, &opts.sym)?
             } else {
                 0
             };
 
             // Apply permission to entry if set
-            if (!src.is_symlink() || mode.follow) && m2 != src.mode() && m2 != 0 {
+            if (!src.is_symlink() || opts.follow) && m2 != src.mode() && m2 != 0 {
                 let mut guard = self.write_guard();
                 if let Some(entry) = guard.get_entry_mut(src.path()) {
                     entry.set_mode(Some(m2));
@@ -590,21 +590,6 @@ impl Memfs
         self._add(guard, entry_opts.new())?;
 
         Ok(link)
-    }
-
-    /// Returns the user ID of the owner of this file
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Memfs::new();
-    /// assert_eq!(vfs.uid(vfs.root()).unwrap(), 0);
-    /// ```
-    pub fn uid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
-    {
-        // Ok(fs::metadata(Stdfs::abs(path)?)?.uid())
-        Ok(0)
     }
 }
 
@@ -1126,6 +1111,27 @@ impl VirtualFileSystem for Memfs
             paths.push(entry.path_buf());
         }
         Ok(paths)
+    }
+
+    /// Returns the group ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// assert_eq!(vfs.gid(vfs.root()).unwrap(), 1000);
+    /// ```
+    fn gid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        let guard = self.read_guard();
+        let abs = self._abs(&guard, path)?;
+        match guard.get_entry(&abs) {
+            Some(entry) => Ok(entry.gid),
+            None => return Err(PathError::does_not_exist(abs).into()),
+        }
     }
 
     /// Returns true if the given path exists and is readonly
@@ -1868,6 +1874,27 @@ impl VirtualFileSystem for Memfs
         Ok(())
     }
 
+    /// Returns the user ID of the owner of this file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Memfs::new();
+    /// assert_eq!(vfs.uid(vfs.root()).unwrap(), 1000);
+    /// ```
+    fn uid<T: AsRef<Path>>(&self, path: T) -> RvResult<u32>
+    {
+        let guard = self.read_guard();
+        let abs = self._abs(&guard, path)?;
+        match guard.get_entry(&abs) {
+            Some(entry) => Ok(entry.uid),
+            None => return Err(PathError::does_not_exist(abs).into()),
+        }
+    }
+
     /// Up cast the trait type to the enum wrapper
     ///
     /// ### Examples
@@ -1892,14 +1919,14 @@ mod tests
     use crate::prelude::*;
 
     #[test]
-    fn test_memfs_debug()
+    fn test_debug()
     {
         let memfs = Memfs::new();
         assert_eq!(format!("{}", &memfs), format!("{}", &memfs));
     }
 
     #[test]
-    fn test_memfs_abs()
+    fn test_abs()
     {
         let memfs = Memfs::new();
         memfs.mkdir_p("foo").unwrap();
@@ -1948,7 +1975,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_append()
+    fn test_append()
     {
         let vfs = Memfs::new();
         let file = vfs.root().mash("file");
@@ -1975,7 +2002,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_all_dirs()
+    fn test_all_dirs()
     {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
@@ -1986,7 +2013,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_all_files()
+    fn test_all_files()
     {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
@@ -2000,7 +2027,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_all_paths()
+    fn test_all_paths()
     {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
@@ -2020,7 +2047,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_chmod()
+    fn test_chmod()
     {
         let vfs = Vfs::memfs();
         let file = vfs.root().mash("file");
@@ -2037,7 +2064,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_chmod_b()
+    fn test_chmod_b()
     {
         let vfs = Vfs::memfs();
         let dir = vfs.root().mash("dir");
@@ -2058,7 +2085,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_clone_entries()
+    fn test_clone_entries()
     {
         let vfs = Memfs::new();
         let link1 = vfs.root().mash("link1");
@@ -2104,7 +2131,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_copy_b()
+    fn test_copy_b()
     {
         let vfs = Memfs::new();
         let file1 = vfs.root().mash("file1");
@@ -2236,7 +2263,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_create()
+    fn test_create()
     {
         let vfs = Vfs::memfs();
         let file = vfs.root().mash("file");
@@ -2263,7 +2290,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_cwd()
+    fn test_cwd()
     {
         let memfs = Memfs::new();
         assert_eq!(memfs.cwd().unwrap(), memfs.root());
@@ -2273,7 +2300,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_dirs()
+    fn test_dirs()
     {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
@@ -2291,7 +2318,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_entries()
+    fn test_entries()
     {
         let memfs = Memfs::new();
         let dir1 = memfs.root().mash("dir1");
@@ -2312,7 +2339,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_entry()
+    fn test_entry()
     {
         let vfs = Memfs::new();
         let file = vfs.root().mash("file");
@@ -2325,7 +2352,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_entry_iter()
+    fn test_entry_iter()
     {
         let vfs = Memfs::new();
         let file = vfs.root().mash("file");
@@ -2337,7 +2364,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_exists()
+    fn test_exists()
     {
         let memfs = Memfs::new();
         let dir1 = memfs.root().mash("dir1");
@@ -2354,7 +2381,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_files()
+    fn test_files()
     {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
@@ -2372,7 +2399,18 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_is_exec()
+    fn test_gid_uid()
+    {
+        let vfs = Memfs::new();
+        let dir = vfs.root().mash("dir");
+        let file = vfs.root().mash("file");
+
+        assert_vfs_mkdir_p!(vfs, &dir);
+        assert_vfs_mkfile!(vfs, &file);
+    }
+
+    #[test]
+    fn test_is_exec()
     {
         let vfs = Vfs::memfs();
         let file = vfs.root().mash("file");
@@ -2387,7 +2425,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_is_dir()
+    fn test_is_dir()
     {
         let memfs = Memfs::new();
         let dir1 = memfs.root().mash("dir1");
@@ -2404,7 +2442,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_is_file()
+    fn test_is_file()
     {
         let memfs = Memfs::new();
         let file = memfs.root().mash("file");
@@ -2421,7 +2459,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_is_readonly()
+    fn test_is_readonly()
     {
         let vfs = Vfs::memfs();
         let file = vfs.root().mash("file");
@@ -2437,7 +2475,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_is_symlink()
+    fn test_is_symlink()
     {
         let memfs = Memfs::new();
         let file = memfs.root().mash("file");
@@ -2455,7 +2493,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_mkdir_m()
+    fn test_mkdir_m()
     {
         let vfs = Vfs::memfs();
         let dir = vfs.root().mash("dir");
@@ -2468,7 +2506,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_mkdir_p()
+    fn test_mkdir_p()
     {
         let memfs = Memfs::new();
         let dir = memfs.root().mash("dir");
@@ -2490,7 +2528,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_mkdir_p_multi_threaded()
+    fn test_mkdir_p_multi_threaded()
     {
         let memfs1 = Arc::new(Memfs::new());
         let memfs2 = memfs1.clone();
@@ -2508,7 +2546,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_mkfile()
+    fn test_mkfile()
     {
         let memfs = Memfs::new();
         let dir1 = memfs.root().mash("dir1");
@@ -2540,7 +2578,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_mkfile_m()
+    fn test_mkfile_m()
     {
         let vfs = Vfs::memfs();
         let file = vfs.root().mash("file");
@@ -2553,7 +2591,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_mode()
+    fn test_mode()
     {
         let vfs = Vfs::memfs();
         let file = vfs.root().mash("file");
@@ -2568,7 +2606,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_move_p()
+    fn test_move_p()
     {
         let vfs = Memfs::new();
         let file1 = vfs.root().mash("file1");
@@ -2662,7 +2700,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_open()
+    fn test_open()
     {
         let vfs = Vfs::memfs();
         let file = vfs.root().mash("file");
@@ -2680,7 +2718,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_paths()
+    fn test_paths()
     {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
@@ -2698,7 +2736,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_read_all()
+    fn test_read_all()
     {
         let memfs = Memfs::new();
         let file = memfs.root().mash("file");
@@ -2720,7 +2758,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_readlink()
+    fn test_readlink()
     {
         let vfs = Vfs::memfs();
         let dir = vfs.root().mash("dir");
@@ -2737,7 +2775,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_readlink_abs()
+    fn test_readlink_abs()
     {
         let vfs = Vfs::memfs();
         let dir = vfs.root().mash("dir");
@@ -2754,7 +2792,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_remove()
+    fn test_remove()
     {
         let vfs = Vfs::memfs();
         let dir1 = vfs.root().mash("dir1");
@@ -2780,7 +2818,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_remove_all()
+    fn test_remove_all()
     {
         let vfs = Vfs::memfs();
         let dir = vfs.root().mash("dir");
@@ -2795,7 +2833,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_symlink()
+    fn test_symlink()
     {
         let vfs = Memfs::new().upcast();
         let dir1 = vfs.root().mash("dir1");
@@ -2847,7 +2885,7 @@ mod tests
     }
 
     #[test]
-    fn test_memfs_write_all()
+    fn test_write_all()
     {
         let vfs = Vfs::memfs();
         let dir = vfs.root().mash("dir");
