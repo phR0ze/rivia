@@ -44,6 +44,11 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown_b(&file1).unwrap().uid(5).exec().is_ok());
+    /// assert_eq!(vfs.uid(&file1).unwrap(), 5);
+    /// assert_eq!(vfs.gid(&file1).unwrap(), 1000);
     /// ```
     pub fn uid(mut self, uid: u32) -> Self
     {
@@ -58,6 +63,11 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown_b(&file1).unwrap().gid(5).exec().is_ok());
+    /// assert_eq!(vfs.uid(&file1).unwrap(), 1000);
+    /// assert_eq!(vfs.gid(&file1).unwrap(), 5);
     /// ```
     pub fn gid(mut self, gid: u32) -> Self
     {
@@ -72,6 +82,11 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 5).exec().is_ok());
+    /// assert_eq!(vfs.uid(&file1).unwrap(), 5);
+    /// assert_eq!(vfs.gid(&file1).unwrap(), 5);
     /// ```
     pub fn owner(mut self, uid: u32, gid: u32) -> Self
     {
@@ -89,6 +104,15 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
+    /// let file = vfs.root().mash("file");
+    /// let link = vfs.root().mash("link");
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_vfs_symlink!(vfs, &link, &file);
+    /// assert_eq!(vfs.uid(&file).unwrap(), 1000);
+    /// assert_eq!(vfs.uid(&link).unwrap(), 1000);
+    /// assert!(vfs.chown_b(&link).unwrap().uid(5).follow().exec().is_ok());
+    /// assert_eq!(vfs.uid(&file).unwrap(), 5);
+    /// assert_eq!(vfs.uid(&link).unwrap(), 1000);
     /// ```
     pub fn follow(mut self) -> Self
     {
@@ -105,6 +129,15 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
+    /// let dir = vfs.root().mash("dir");
+    /// let file = dir.mash("file");
+    /// assert_vfs_mkdir_p!(vfs, &dir);
+    /// assert_vfs_mkfile!(vfs, &file);
+    /// assert_eq!(vfs.uid(&file).unwrap(), 1000);
+    /// assert_eq!(vfs.uid(&dir).unwrap(), 1000);
+    /// assert!(vfs.chown_b(&dir).unwrap().uid(5).recurse(false).exec().is_ok());
+    /// assert_eq!(vfs.uid(&dir).unwrap(), 5);
+    /// assert_eq!(vfs.uid(&file).unwrap(), 1000);
     /// ```
     pub fn recurse(mut self, yes: bool) -> Self
     {
@@ -120,6 +153,9 @@ impl Chown
     /// use rivia::prelude::*;
     ///
     /// let vfs = Memfs::new();
+    /// let file1 = vfs.root().mash("file1");
+    /// assert_vfs_mkfile!(vfs, &file1);
+    /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 5).exec().is_ok());
     /// ```
     pub fn exec(&self) -> RvResult<()>
     {
@@ -127,70 +163,70 @@ impl Chown
     }
 }
 
-// // Unit tests
-// // -------------------------------------------------------------------------------------------------
-// #[cfg(test)]
-// mod tests
-// {
-//     use crate::prelude::*;
-//     assert_vfs_setup_func!();
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests
+{
+    use crate::prelude::*;
 
-//     #[test]
-//     fn test_vfs_vfs_chown()
-//     {
-//         let vfs.root() = assert_vfs_setup!();
-//         let dir1 = vfs.root().mash("dir1");
-//         let file1 = vfs.root().mash("file1");
-//         let dir1file1 = dir1.mash("dir1file1");
+    #[test]
+    fn test_vfs_chown()
+    {
+        test_chown(assert_vfs_setup!(Vfs::memfs()));
+        test_chown(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_chown((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = tmpdir.mash("file1");
+        let dir1file1 = dir1.mash("dir1file1");
 
-//         assert_eq!(vfs::mkfile(&file1).unwrap(), file1);
-//         assert_eq!(vfs::mkdir(&dir1).unwrap(), dir1);
-//         assert_eq!(vfs::mkfile(&dir1file1).unwrap(), dir1file1);
-//         let uid = user::getuid();
-//         let gid = user::getgid();
+        assert_vfs_mkfile!(vfs, &file1);
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &dir1file1);
+        let (uid, gid) = vfs.owner(&file1).unwrap();
 
-//         // chown single file
-//         assert_eq!(vfs::uid(&file1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&file1).unwrap(), gid);
-//         assert!(vfs::chown(&file1, uid, gid).is_ok());
-//         assert_eq!(vfs::uid(&file1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&file1).unwrap(), gid);
+        // chown single file
+        assert!(vfs.chown(&file1, uid, gid).is_ok());
+        assert_eq!(vfs.uid(&file1).unwrap(), uid);
+        assert_eq!(vfs.gid(&file1).unwrap(), gid);
 
-//         // recurse
-//         assert!(vfs::chown(&dir1, uid, gid).is_ok());
-//         assert_eq!(vfs::uid(&dir1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&dir1).unwrap(), gid);
-//         assert_eq!(vfs::uid(&dir1file1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&dir1file1).unwrap(), gid);
-//     }
+        // recurse
+        assert!(vfs.chown(&dir1, uid, gid).is_ok());
+        assert_eq!(vfs.owner(&dir1).unwrap(), (uid, gid));
+        assert_eq!(vfs.owner(&dir1file1).unwrap(), (uid, gid));
 
-//     #[test]
-//     fn test_vfs_vfs_chown_follow()
-//     {
-//         let vfs.root() = assert_vfs_setup!();
-//         let dir1 = vfs.root().mash("dir1");
-//         let dir1file1 = dir1.mash("dir1file1");
-//         let link1 = vfs.root().mash("link1");
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
-//         assert_eq!(vfs::mkdir(&dir1).unwrap(), dir1);
-//         assert_eq!(vfs::mkfile(&dir1file1).unwrap(), dir1file1);
-//         assert_eq!(vfs::symlink(&dir1, &link1).unwrap(), link1);
+    #[test]
+    fn test_vfs_chown_follow()
+    {
+        test_chown_follow(assert_vfs_setup!(Vfs::memfs()));
+        test_chown_follow(assert_vfs_setup!(Vfs::stdfs()));
+    }
+    fn test_chown_follow((vfs, tmpdir): (Vfs, PathBuf))
+    {
+        let dir1 = tmpdir.mash("dir1");
+        let dir1file1 = dir1.mash("dir1file1");
+        let link1 = tmpdir.mash("link1");
 
-//         let uid = user::getuid();
-//         let gid = user::getgid();
+        assert_vfs_mkdir_p!(vfs, &dir1);
+        assert_vfs_mkfile!(vfs, &dir1file1);
+        assert_vfs_symlink!(vfs, &link1, &dir1);
+        let (uid, gid) = vfs.owner(&dir1file1).unwrap();
 
-//         // no follow
-//         assert!(vfs::chown_b(&link1, uid, gid).unwrap().exec().is_ok());
-//         assert_eq!(vfs::uid(&dir1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&dir1).unwrap(), gid);
-//         assert_eq!(vfs::uid(&dir1file1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&dir1file1).unwrap(), gid);
+        // no follow
+        assert!(vfs.chown_b(&link1).unwrap().owner(uid, gid).exec().is_ok());
+        assert_eq!(vfs.owner(&dir1).unwrap(), (uid, gid));
+        assert_eq!(vfs.owner(&dir1file1).unwrap(), (uid, gid));
 
-//         // follow
-//         assert!(vfs::chown_b(&link1, uid, gid).unwrap().exec().is_ok());
-//         assert_eq!(vfs::uid(&dir1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&dir1).unwrap(), gid);
-//         assert_eq!(vfs::uid(&dir1file1).unwrap(), uid);
-//         assert_eq!(vfs::gid(&dir1file1).unwrap(), gid);
-//     }
-// }
+        // follow
+        assert!(vfs.chown_b(&link1).unwrap().owner(uid, gid).exec().is_ok());
+        assert_eq!(vfs.owner(&dir1).unwrap(), (uid, gid));
+        assert_eq!(vfs.owner(&dir1file1).unwrap(), (uid, gid));
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+}

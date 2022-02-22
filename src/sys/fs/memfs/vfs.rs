@@ -884,7 +884,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new();
+    /// let vfs = Vfs::memfs();
     /// let file1 = vfs.root().mash("file1");
     /// assert_vfs_mkfile!(vfs, &file1);
     /// assert!(vfs.chown(&file1, 5, 7).is_ok());
@@ -904,7 +904,7 @@ impl VirtualFileSystem for Memfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Memfs::new();
+    /// let vfs = Vfs::memfs();
     /// let file1 = vfs.root().mash("file1");
     /// assert_vfs_mkfile!(vfs, &file1);
     /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 7).exec().is_ok());

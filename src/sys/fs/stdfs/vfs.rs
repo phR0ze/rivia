@@ -1682,7 +1682,7 @@ impl VirtualFileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chown");
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_chown");
     /// let file1 = tmpdir.mash("file1");
     /// assert_vfs_mkfile!(vfs, &file1);
     /// let (uid, gid) = Stdfs::owner(&file1).unwrap();
@@ -1703,7 +1703,7 @@ impl VirtualFileSystem for Stdfs
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_chown_b");
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_chown_b");
     /// let file1 = tmpdir.mash("file1");
     /// assert_vfs_mkfile!(vfs, &file1);
     /// let (uid, gid) = Stdfs::owner(&file1).unwrap();
