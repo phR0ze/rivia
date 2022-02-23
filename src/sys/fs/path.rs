@@ -356,6 +356,29 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf
     path.components().collect::<PathBuf>()
 }
 
+/// Parse unix shell pathing e.g. $PATH, $XDG_DATA_DIRS or $XDG_CONFIG_DIRS
+///
+/// * Splits a given colon delimited value into a list
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let paths = vec![PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
+/// assert_iter_eq(sys::parse_paths("/foo1:/foo2/bar").unwrap(), paths);
+/// ```
+pub fn parse_paths<T: AsRef<str>>(value: T) -> RvResult<Vec<PathBuf>>
+{
+    let mut paths: Vec<PathBuf> = vec![];
+    for dir in value.as_ref().split(':') {
+        // Ignoring - Unix shell semantics: path element "" means "."
+        if dir != "" {
+            paths.push(PathBuf::from(dir));
+        }
+    }
+    Ok(paths)
+}
+
 /// Returns the `Path` relative to the given `base` path
 ///
 /// Think what is the path navigation required to get from `base` to `path`. Every path used should

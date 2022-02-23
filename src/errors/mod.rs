@@ -14,6 +14,7 @@ mod core;
 mod iter;
 mod path;
 mod string;
+mod user;
 mod vfs;
 
 use std::{error::Error as StdError, fmt, io, time::SystemTimeError};
@@ -21,6 +22,7 @@ use std::{error::Error as StdError, fmt, io, time::SystemTimeError};
 pub use iter::*;
 pub use path::*;
 pub use string::*;
+pub use user::*;
 pub use vfs::*;
 
 pub use self::core::*;
@@ -52,6 +54,9 @@ pub enum RvError
 
     /// A system time error
     SystemTime(SystemTimeError),
+
+    /// A user errro
+    User(UserError),
 
     /// An internal Utf8 error
     Utf8(std::str::Utf8Error),
@@ -104,6 +109,7 @@ impl fmt::Display for RvError
             RvError::Path(ref err) => write!(f, "{}", err),
             RvError::String(ref err) => write!(f, "{}", err),
             RvError::SystemTime(ref err) => write!(f, "{}", err),
+            RvError::User(ref err) => write!(f, "{}", err),
             RvError::Utf8(ref err) => write!(f, "{}", err),
             RvError::Var(ref err) => write!(f, "{}", err),
             RvError::Vfs(ref err) => write!(f, "{}", err),
@@ -123,6 +129,7 @@ impl AsRef<dyn StdError> for RvError
             RvError::Path(ref err) => err,
             RvError::String(ref err) => err,
             RvError::SystemTime(ref err) => err,
+            RvError::User(ref err) => err,
             RvError::Utf8(ref err) => err,
             RvError::Var(ref err) => err,
             RvError::Vfs(ref err) => err,
@@ -142,6 +149,7 @@ impl AsMut<dyn StdError> for RvError
             RvError::Path(ref mut err) => err,
             RvError::String(ref mut err) => err,
             RvError::SystemTime(ref mut err) => err,
+            RvError::User(ref mut err) => err,
             RvError::Utf8(ref mut err) => err,
             RvError::Var(ref mut err) => err,
             RvError::Vfs(ref mut err) => err,
@@ -202,6 +210,14 @@ impl From<SystemTimeError> for RvError
     fn from(err: SystemTimeError) -> RvError
     {
         RvError::SystemTime(err)
+    }
+}
+
+impl From<UserError> for RvError
+{
+    fn from(err: UserError) -> RvError
+    {
+        RvError::User(err)
     }
 }
 

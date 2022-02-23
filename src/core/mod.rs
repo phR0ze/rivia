@@ -7,11 +7,13 @@
 #[macro_use]
 mod result;
 
+mod defer;
 mod iter;
 mod option;
 mod peekable;
 mod string;
 
+pub use defer::*;
 pub use iter::*;
 pub use option::*;
 pub use peekable::*;
@@ -122,6 +124,32 @@ macro_rules! cfgblock {
     // Handle more than one item recursively
     (#[$attr:meta] $($tail:item)*) => {
         $(cfgblock!{#[$attr] $tail})*
+    };
+}
+
+/// Ensure the given closure is executed once the surrounding scope closes
+///
+/// * Triggered despite panics
+/// * Inspired by Golang's `defer`, Java's finally and Ruby's `ensure`
+///
+/// ### Examples
+/// ```
+/// use rivia::prelude::*;
+///
+/// let vfs = Vfs::memfs();
+/// let file = vfs.root().mash("file");
+/// assert_vfs_mkfile!(vfs, &file);
+///
+/// // Create a scope that will trigger defer's destructor
+/// {
+///     defer!(vfs.remove(&file).unwrap());
+/// }
+/// assert_vfs_no_exists!(vfs, &file);
+/// ```
+#[macro_export]
+macro_rules! defer {
+    ($($tokens:tt)*) => {
+        let _defer = defer(|| { $($tokens)* });
     };
 }
 
