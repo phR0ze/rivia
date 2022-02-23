@@ -6,4 +6,8 @@
 //! ```
 mod fs;
 
+// Export contents of modules into sys
 pub use fs::*;
+
+// Export directly
+pub mod user;
