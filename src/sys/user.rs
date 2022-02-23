@@ -8,10 +8,7 @@
 //!
 //! assert!(user::home_dir().is_ok());
 //! ```
-use std::{
-    env, iter,
-    path::{self, PathBuf},
-};
+use std::{env, path::PathBuf};
 
 use nix::unistd::{Gid, Uid};
 
@@ -466,7 +463,7 @@ pub fn setegid(egid: u32) -> RvResult<()>
     Ok(())
 }
 
-/// Raise root priviledgess for user with root masked off from `sudo_down`
+/// Raise root privileges for user with root masked off from `sudo_down`
 ///
 /// * Returns an error if not allowed
 ///
@@ -546,73 +543,60 @@ mod tests
         assert_eq!(home_dir.to_path_buf(), user::home_dir().unwrap().dir().unwrap());
     }
 
-    //     #[test]
-    //     fn test_user_libc() {
-    //         assert!(user::sudo_down().is_ok());
-    //         assert!(user::drop_sudo().is_ok());
-    //         assert!(user::getuid() != 0);
-    //         assert!(user::getgid() != 0);
-    //         assert!(user::geteuid() != 0);
-    //         assert!(user::getegid() != 0);
-    //         assert_eq!(user::getrids(user::getuid(), user::getgid()), (user::getuid(),
-    // user::getgid()));         assert_eq!(user::is_root(), false);
-    //         assert!(user::from_uid(user::getuid()).is_ok());
-    //         assert_ne!(user::name().unwrap(), "");
-    //         assert!(user::current().is_ok());
-    //         assert_eq!(user::current().unwrap().is_root(), false);
-    //         // assert!(user::sudo().is_err());
-    //         // assert!(user::setegid(user::getegid()).is_ok());
-    //         // assert!(user::setgid(user::getgid()).is_ok());
-    //         // assert!(user::seteuid(user::geteuid()).is_ok());
+    #[test]
+    fn test_user_ids()
+    {
+        assert!(user::sudo_down().is_ok());
+        assert!(user::drop_sudo().is_ok());
+        assert!(user::getuid() != 0);
+        assert!(user::getgid() != 0);
+        assert!(user::geteuid() != 0);
+        assert!(user::getegid() != 0);
+        assert_eq!(user::getrids(user::getuid(), user::getgid()), (user::getuid(), user::getgid()));
+        assert_eq!(user::is_root(), false);
+        assert!(user::from_uid(user::getuid()).is_ok());
+        assert_ne!(user::name().unwrap(), "");
+        assert!(user::current().is_ok());
+        assert_eq!(user::current().unwrap().is_root(), false);
+        // assert!(user::sudo().is_err());
+        // assert!(user::setegid(user::getegid()).is_ok());
+        // assert!(user::setgid(user::getgid()).is_ok());
+        // assert!(user::seteuid(user::geteuid()).is_ok());
 
-    //         if !user::is_root() {
-    //             return;
-    //         }
-    //         let tmpdir = assert_stdfs_setup!();
-    //         let file1 = tmpdir.mash("file1");
-    //         // let file2 = tmpdir.mash("file2");
+        // if !user::is_root() {
+        //     return;
+        // }
+        // let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        // let file1 = tmpdir.mash("file1");
+        // // let file2 = tmpdir.mash("file2");
 
-    //         // Create a file with the current user
-    //         assert_stdfs_mkfile!(&file1);
-    //         assert_stdfs_exists!(&file1);
-    //         assert_ne!(Stdfs::uid(&file1).unwrap(), 0);
-    //         assert_ne!(Stdfs::gid(&file1).unwrap(), 0);
-    //         assert_stdfs_remove_all!(&tmpdir);
+        // // Create a file with the current user
+        // assert_vfs_mkfile!(vfs, &file1);
+        // assert_vfs_exists!(vfs, &file1);
+        // assert_ne!(Stdfs::uid(&file1).unwrap(), 0);
+        // assert_ne!(Stdfs::gid(&file1).unwrap(), 0);
+        // assert_vfs_remove_all!(vfs, &tmpdir);
 
-    //         // Now escalate via sudo
-    //         // assert!(exec::sudo().is_ok());
-    //         // assert_eq!(user::getuid(), 0);
-    //         // assert_eq!(user::getgid(), 0);
-    //         // assert_eq!(user::is_root(), true);
-    //         // assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
+        // // Now escalate via sudo
+        // // assert!(exec::sudo().is_ok());
+        // // assert_eq!(user::getuid(), 0);
+        // // assert_eq!(user::getgid(), 0);
+        // // assert_eq!(user::is_root(), true);
+        // // assert_eq!(Stdfs::mkfile(&file1).unwrap(), file1);
 
-    //         assert_stdfs_remove_all!(&tmpdir);
-    //     }
+        // assert_vfs_remove_all!(vfs, &tmpdir);
+    }
 
-    //     #[test]
-    //     fn test_user_dirs() {
-    //         assert!(user::home_dir().is_ok());
-    //         assert!(user::config_dir().is_ok());
-    //         assert!(user::cache_dir().is_ok());
-    //         assert!(user::data_dir().is_ok());
-    //         user::runtime_dir();
-    //         assert!(user::data_dirs().is_ok());
-    //         assert!(user::config_dirs().is_ok());
-    //         assert!(user::path_dirs().is_ok());
-
-    //         let tmpdir = user::temp_dir("test_user_dirs").unwrap();
-    //         assert_eq!(tmpdir.exists(), true);
-    //         {
-    //             let _defer = defer(|| sys::remove_all(&tmpdir).unwrap());
-    //         }
-    //         assert_eq!(tmpdir.exists(), false);
-    //     }
-
-    //     #[test]
-    //     fn test_temp_dir() {
-    //         let tmpdir = user::temp_dir("foo").unwrap();
-    //         assert_eq!(tmpdir.exists(), true);
-    //         assert!(sys::remove_all(&tmpdir).is_ok());
-    //         assert_eq!(tmpdir.exists(), false);
-    //     }
+    #[test]
+    fn test_user_dirs()
+    {
+        assert!(user::home_dir().is_ok());
+        assert!(user::config_dir().is_ok());
+        assert!(user::cache_dir().is_ok());
+        assert!(user::data_dir().is_ok());
+        user::runtime_dir();
+        assert!(user::sys_data_dirs().is_ok());
+        assert!(user::sys_config_dir().is_ok());
+        assert!(user::path_dirs().is_ok());
+    }
 }

@@ -66,12 +66,6 @@ impl MemfsEntryOpts
         self.mode(mode)
     }
 
-    pub(crate) fn gid(mut self, gid: u32) -> Self
-    {
-        self.gid = gid;
-        self
-    }
-
     // Options allow for being a file/dir and link
     pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> RvResult<Self>
     {
@@ -110,12 +104,6 @@ impl MemfsEntryOpts
         } else {
             mode
         };
-        self
-    }
-
-    pub(crate) fn uid(mut self, uid: u32) -> Self
-    {
-        self.uid = uid;
         self
     }
 }
