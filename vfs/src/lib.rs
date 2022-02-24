@@ -105,7 +105,7 @@ pub fn set_memfs() -> RvResult<()>
 /// Switch the current vfs provider to Stdfs
 ///
 /// ### Examples
-/// ```
+/// ```ignore
 /// use rivia_vfs::prelude::*;
 ///
 /// assert!(vfs::set_stdfs().is_ok());

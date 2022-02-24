@@ -515,8 +515,8 @@ mod tests
     #[test]
     fn test_assert_mkdir_m()
     {
-        assert!(vfs::set_memfs().is_ok());
-        let dir1 = vfs::root().mash("dir1");
+        let tmpdir = assert_memfs_setup!();
+        let dir1 = tmpdir.mash("dir1");
         assert_no_dir!(&dir1);
         assert_mkdir_m!(&dir1, 0o40777);
         assert_eq!(vfs::mode(&dir1).unwrap(), 0o40777);

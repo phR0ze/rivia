@@ -2176,7 +2176,6 @@ mod tests
         let dir1 = tmpdir.mash("dir1");
         let dir1file2 = dir1.mash("file2");
         let dir2 = tmpdir.mash("dir2");
-        let dir3 = tmpdir.mash("dir3");
         let dir2dir1 = dir2.mash("dir1");
         let dir2dir1file2 = dir2dir1.mash("file2");
         let dir3 = tmpdir.mash("dir3");

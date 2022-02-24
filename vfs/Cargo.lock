@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "rivia"
-version = "0.0.139"
+version = "0.0.140"
 dependencies = [
  "itertools",
  "lazy_static",
@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "rivia-vfs"
-version = "0.0.139"
+version = "0.0.140"
 dependencies = [
  "lazy_static",
  "rivia",
