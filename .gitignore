@@ -5,5 +5,6 @@ tests/temp/
 vfs/tests/temp/
 bin/
 vfs/bin/
+vfs/Cargo.lock
 Cargo.lock
 tarpaulin-report.html
