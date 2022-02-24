@@ -1,10 +1,10 @@
 /// Setup Vfs testing components
 ///
-/// This provides an abstraction over FileSystem implementations such that we can easily switch out
-/// a Memfs backend for a Stdfs backend without modifying the testing algorithms. Vfs tests will
-/// default to using the `testing::TEST_TEMP_DIR` as the root of testing and create a new directory
-/// inside that using the derived fully qualified function name or given function name when it can't
-/// be derived.
+/// This provides an abstraction over VirtualFileSystem implementations such that we can easily
+/// switch out a Memfs backend for a Stdfs backend without modifying the testing algorithms. Vfs
+/// tests will default to using the `testing::TEST_TEMP_DIR` as the root of testing and create a new
+/// directory inside that using the derived fully qualified function name or given function name
+/// when it can't be derived.
 ///
 /// ### Warning
 /// Since doc tests always have a default function name of `rust_out::main` its required to override

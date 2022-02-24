@@ -83,8 +83,8 @@ pub mod prelude
         core::*,
         errors::*,
         sys::{
-            self, user, Chmod, Chown, Copier, EntriesIter, Entry, Memfs, MemfsEntry, PathExt, ReadSeek, Stdfs,
-            StdfsEntry, Vfs, VfsEntry, VirtualFileSystem,
+            self, user, Chmod, Chown, Copier, Entries, EntriesIter, Entry, Memfs, MemfsEntry, PathExt, ReadSeek,
+            Stdfs, StdfsEntry, Vfs, VfsEntry, VirtualFileSystem,
         },
         testing,
     };
