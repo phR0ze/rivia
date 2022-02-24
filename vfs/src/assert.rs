@@ -1,3 +1,6 @@
+#[allow(unused_imports)]
+use super::prelude::*;
+
 /// Setup Vfs testing components
 ///
 /// This provides an abstraction over VirtualFileSystem implementations such that we can easily
@@ -19,18 +22,18 @@
 /// use rivia_vfs::prelude::*;
 ///
 /// let tmpdir = assert_memfs_setup!("unique_func_name");
-/// assert_remove_all!(vfs, &tmpdir);
+/// assert_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
 macro_rules! assert_memfs_setup {
     ($func:expr) => {{
         assert!(vfs::set_memfs().is_ok());
-        let (_, tmpdir) = assert_vfs_setup!(crate::VFS.read().unwrap().clone(), $func);
+        let (_, tmpdir) = assert_vfs_setup!(vfs::VFS.read().unwrap().clone(), $func);
         tmpdir
     }};
     () => {{
         assert!(vfs::set_memfs().is_ok());
-        let (_, tmpdir) = assert_vfs_setup!(crate::VFS.read().unwrap().clone());
+        let (_, tmpdir) = assert_vfs_setup!(vfs::VFS.read().unwrap().clone());
         tmpdir
     }};
 }
@@ -56,18 +59,18 @@ macro_rules! assert_memfs_setup {
 /// use rivia_vfs::prelude::*;
 ///
 /// let tmpdir = assert_stdfs_setup!("unique_func_name");
-/// assert_remove_all!(vfs, &tmpdir);
+/// assert_remove_all!(&tmpdir);
 /// ```
 #[macro_export]
 macro_rules! assert_stdfs_setup {
     ($func:expr) => {{
         assert!(vfs::set_stdfs().is_ok());
-        let (_, tmpdir) = assert_vfs_setup!(crate::VFS.read().unwrap().clone(), $func);
+        let (_, tmpdir) = assert_vfs_setup!(vfs::VFS.read().unwrap().clone(), $func);
         tmpdir
     }};
     () => {{
         assert!(vfs::set_stdfs().is_ok());
-        let (_, tmpdir) = assert_vfs_setup!(crate::VFS.read().unwrap().clone());
+        let (_, tmpdir) = assert_vfs_setup!(vfs::VFS.read().unwrap().clone());
         tmpdir
     }};
 }
@@ -87,7 +90,7 @@ macro_rules! assert_stdfs_setup {
 #[macro_export]
 macro_rules! assert_copyfile {
     ($from:expr, $to:expr) => {
-        assert_vfs_copyfile!(crate::VFS.read().unwrap().clone(), $from, $to)
+        assert_vfs_copyfile!(vfs::VFS.read().unwrap().clone(), $from, $to)
     };
 }
 
@@ -103,7 +106,7 @@ macro_rules! assert_copyfile {
 #[macro_export]
 macro_rules! assert_exists {
     ($path:expr) => {
-        assert_vfs_exists!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_exists!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -119,7 +122,7 @@ macro_rules! assert_exists {
 #[macro_export]
 macro_rules! assert_no_exists {
     ($path:expr) => {
-        assert_vfs_no_exists!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_no_exists!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -137,7 +140,7 @@ macro_rules! assert_no_exists {
 #[macro_export]
 macro_rules! assert_is_dir {
     ($path:expr) => {
-        assert_vfs_is_dir!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_is_dir!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -155,7 +158,7 @@ macro_rules! assert_is_dir {
 #[macro_export]
 macro_rules! assert_no_dir {
     ($path:expr) => {
-        assert_vfs_no_dir!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_no_dir!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -173,7 +176,7 @@ macro_rules! assert_no_dir {
 #[macro_export]
 macro_rules! assert_is_file {
     ($path:expr) => {
-        assert_vfs_is_file!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_is_file!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -189,7 +192,7 @@ macro_rules! assert_is_file {
 #[macro_export]
 macro_rules! assert_no_file {
     ($path:expr) => {
-        assert_vfs_no_file!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_no_file!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -207,7 +210,7 @@ macro_rules! assert_no_file {
 #[macro_export]
 macro_rules! assert_is_symlink {
     ($path:expr) => {
-        assert_vfs_is_symlink!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_is_symlink!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -223,7 +226,7 @@ macro_rules! assert_is_symlink {
 #[macro_export]
 macro_rules! assert_no_symlink {
     ($path:expr) => {
-        assert_vfs_no_symlink!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_no_symlink!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -241,7 +244,7 @@ macro_rules! assert_no_symlink {
 #[macro_export]
 macro_rules! assert_mkdir_m {
     ($path:expr, $mode:expr) => {
-        assert_vfs_mkdir_m!(crate::VFS.read().unwrap().clone(), $path, $mode)
+        assert_vfs_mkdir_m!(vfs::VFS.read().unwrap().clone(), $path, $mode)
     };
 }
 
@@ -259,7 +262,7 @@ macro_rules! assert_mkdir_m {
 #[macro_export]
 macro_rules! assert_mkdir_p {
     ($path:expr) => {
-        assert_vfs_mkdir_p!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_mkdir_p!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -277,7 +280,7 @@ macro_rules! assert_mkdir_p {
 #[macro_export]
 macro_rules! assert_mkfile {
     ($path:expr) => {
-        assert_vfs_mkfile!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_mkfile!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -295,7 +298,7 @@ macro_rules! assert_mkfile {
 #[macro_export]
 macro_rules! assert_read_all {
     ($path:expr, $data:expr) => {
-        assert_vfs_read_all!(crate::VFS.read().unwrap().clone(), $path, $data)
+        assert_vfs_read_all!(vfs::VFS.read().unwrap().clone(), $path, $data)
     };
 }
 
@@ -313,7 +316,7 @@ macro_rules! assert_read_all {
 #[macro_export]
 macro_rules! assert_readlink {
     ($path:expr, $target:expr) => {
-        assert_vfs_readlink!(crate::VFS.read().unwrap().clone(), $path, $target)
+        assert_vfs_readlink!(vfs::VFS.read().unwrap().clone(), $path, $target)
     };
 }
 
@@ -326,12 +329,12 @@ macro_rules! assert_readlink {
 /// assert!(vfs::set_memfs().is_ok());
 /// assert_mkfile!("file");
 /// assert_symlink!("link", "file");
-/// assert_readlink_abs!("link", vfs.root().mash("file"));
+/// assert_readlink_abs!("link", vfs::root().mash("file"));
 /// ```
 #[macro_export]
 macro_rules! assert_readlink_abs {
     ($path:expr, $data:expr) => {
-        assert_vfs_readlink_abs!(crate::VFS.read().unwrap().clone(), $path, $data)
+        assert_vfs_readlink_abs!(vfs::VFS.read().unwrap().clone(), $path, $data)
     };
 }
 
@@ -354,7 +357,7 @@ macro_rules! assert_readlink_abs {
 #[macro_export]
 macro_rules! assert_remove {
     ($path:expr) => {
-        assert_vfs_remove!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_remove!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -377,7 +380,7 @@ macro_rules! assert_remove {
 #[macro_export]
 macro_rules! assert_remove_all {
     ($path:expr) => {
-        assert_vfs_remove_all!(crate::VFS.read().unwrap().clone(), $path)
+        assert_vfs_remove_all!(vfs::VFS.read().unwrap().clone(), $path)
     };
 }
 
@@ -395,7 +398,7 @@ macro_rules! assert_remove_all {
 #[macro_export]
 macro_rules! assert_symlink {
     ($link:expr, $target:expr) => {
-        assert_vfs_symlink!(crate::VFS.read().unwrap().clone(), $link, $target)
+        assert_vfs_symlink!(vfs::VFS.read().unwrap().clone(), $link, $target)
     };
 }
 
@@ -413,7 +416,7 @@ macro_rules! assert_symlink {
 #[macro_export]
 macro_rules! assert_write_all {
     ($path:expr, $data:expr) => {
-        assert_vfs_write_all!(crate::VFS.read().unwrap().clone(), $path, $data)
+        assert_vfs_write_all!(vfs::VFS.read().unwrap().clone(), $path, $data)
     };
 }
 
@@ -424,11 +427,20 @@ mod tests
 {
     use crate::prelude::*;
 
+    #[allow(dead_code)]
+    fn dump_memfs()
+    {
+        if let Vfs::Memfs(ref x) = **vfs::VFS.read().unwrap() {
+            println!("{}", x);
+        }
+    }
+
     #[test]
-    fn test_setup()
+    fn test_assert_setup()
     {
         let tmpdir = assert_memfs_setup!();
-        let expected = vfs::root().mash(testing::TEST_TEMP_DIR).mash("rivia_vfs::assert::tests::test_setup");
+        let expected =
+            vfs::root().mash(testing::TEST_TEMP_DIR).mash("rivia_vfs::assert::tests::test_assert_setup");
         assert_eq!(&tmpdir, &expected);
         assert_exists!(&expected);
 

@@ -36,10 +36,10 @@ pub mod prelude
     pub use crate::assert::*;
     // Export macros by name
     pub use crate::{
-        assert_exists, assert_is_dir, assert_is_file, assert_is_symlink, assert_memfs_setup, assert_mkdir_m,
-        assert_mkdir_p, assert_mkfile, assert_no_dir, assert_no_exists, assert_no_file, assert_no_symlink,
-        assert_read_all, assert_readlink, assert_readlink_abs, assert_remove, assert_remove_all,
-        assert_stdfs_setup, assert_symlink, assert_write_all,
+        assert_copyfile, assert_exists, assert_is_dir, assert_is_file, assert_is_symlink, assert_memfs_setup,
+        assert_mkdir_m, assert_mkdir_p, assert_mkfile, assert_no_dir, assert_no_exists, assert_no_file,
+        assert_no_symlink, assert_read_all, assert_readlink, assert_readlink_abs, assert_remove,
+        assert_remove_all, assert_stdfs_setup, assert_symlink, assert_write_all,
     };
 
     // Nest global vfs functions for ergonomics
@@ -82,7 +82,9 @@ pub fn set(vfs: Vfs) -> RvResult<()>
     Ok(())
 }
 
-/// Switch the current vfs provider to Memfs
+/// Switch the current vfs provider to Memfs if not already
+///
+/// * Use `set` to simply replace the vfs provider without checks
 ///
 /// ### Examples
 /// ```
@@ -92,17 +94,21 @@ pub fn set(vfs: Vfs) -> RvResult<()>
 /// ```
 pub fn set_memfs() -> RvResult<()>
 {
-    {
-        // Skip set if not needed
-        let guard = VFS.read().unwrap();
-        if let Vfs::Memfs(ref _vfs) = &**guard {
-            return Ok(());
-        }
+    // Take lock for whole context to avoid collisions
+    let mut guard = VFS.write().unwrap();
+
+    // Only set if needed
+    match &**guard {
+        Vfs::Memfs(ref _vfs) => (),
+        _ => *guard = Arc::new(Vfs::memfs()),
     }
-    set(Vfs::memfs())
+
+    Ok(())
 }
 
-/// Switch the current vfs provider to Stdfs
+/// Switch the current vfs provider to Stdfs if not already
+///
+/// * Use `set` to simply replace the vfs provider without checks
 ///
 /// ### Examples
 /// ```ignore
@@ -112,14 +118,16 @@ pub fn set_memfs() -> RvResult<()>
 /// ```
 pub fn set_stdfs() -> RvResult<()>
 {
-    {
-        // Skip set if not needed
-        let guard = VFS.read().unwrap();
-        if let Vfs::Stdfs(ref _vfs) = &**guard {
-            return Ok(());
-        }
+    // Take lock for whole context to avoid collisions
+    let mut guard = VFS.write().unwrap();
+
+    // Only set if needed
+    match &**guard {
+        Vfs::Stdfs(ref _vfs) => (),
+        _ => *guard = Arc::new(Vfs::memfs()),
     }
-    set(Vfs::stdfs())
+
+    Ok(())
 }
 
 /// Return the path in an absolute clean form
