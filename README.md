@@ -1,4 +1,9 @@
 # rivia
+[![license-badge](https://img.shields.io/crates/l/rivia.svg)](https://opensource.org/licenses/MIT)
+[![build](https://github.com/phR0ze/rivia/workflows/build/badge.svg?branch=main)](https://github.com/phR0ze/rivia/actions)
+[![codecov](https://codecov.io/gh/phR0ze/rivia/branch/main/graph/badge.svg?token=DDWE2PFXNZ)](https://codecov.io/gh/phR0ze/rivia)
+[![crates.io](https://img.shields.io/crates/v/rivia.svg)](https://crates.io/crates/rivia)
+[![Minimum rustc](https://img.shields.io/badge/rustc-1.30+-lightgray.svg)](https://github.com/phR0ze/rivia#rustc-requirements)
 
 ***Rust utilities to reduce code verbosity***
 
