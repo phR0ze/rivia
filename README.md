@@ -13,14 +13,14 @@ applications. As such the crate is broken into top level modules grouped by logi
 ***rivia*** is a rewrite of ***fungus*** with a focus on reducing dependencies and/or shifting
 them into optional separate crates.
 
+### Disclaimer
 ***rivia*** comes with absolutely no guarantees or support of any kind. It is to be used at
-your own risk.  Any damages, issues, losses or problems caused by the use of ***rivia*** are
-strictly the responsiblity of the user and not the developer/creator of ***rivia***.
+your own risk.  Any damages, issues, losses or problems caused by the use of rivia are
+strictly the responsiblity of the user and not the developer/creator of rivia.
 
-### Features by category <a name="features-by-category"/></a>
-
-* **User Management** - ***XDG Support***, ***User ID mangement***
-* **Virtual FileSystem** - ***Path extensions***, ***VFS Support***
+### Features by category
+* **User Management** - *XDG Support*, *User ID mangement*
+* **FileSystem** - *Path extensions*, *Virtual FileSystem*
 
 ### Quick links
 * [Usage](#usage)
@@ -35,13 +35,13 @@ strictly the responsiblity of the user and not the developer/creator of ***rivia
 * [Backlog](#backlog)
 * [Changelog](#changelog)
 
-# Usage <a name="usage"/></a>
+# Usage
 
-#### Requires rustc >= 1.30 <a name="rustc-requirements"/></a>
+#### Rustc requirements
 This minimum rustc requirement is driven by the enhancements made to [Rust's `std::error::Error`
 handling improvements](https://doc.rust-lang.org/std/error/trait.Error.html#method.source)
 
-# Contribute <a name="Contribute"/></a>
+# Contribute
 Pull requests are always welcome. However understand that they will be evaluated purely on whether
 or not the change fits with my goals/ideals for the project.
 
@@ -53,9 +53,9 @@ or not the change fits with my goals/ideals for the project.
 * ***Speed*** - provide ergonomic functions similar to rapid development languages
 * ***Comfort*** - use naming and concepts in similar ways to popular languages
 
-## Dev Environment <a name="dev-environment"/></a>
+## Dev Environment
 
-### Automatic version <a name="automatic-version"/></a>
+### Automatic version
 Enable the git hooks to have the version automatically incremented on commits
 
 ```bash
@@ -63,16 +63,16 @@ cd ~/Projects/rivia
 git config core.hooksPath .githooks
 ```
 
-## Testing <a name="testing"/></a>
+## Testing
 
-### Host dependencies <a name="host-dependencies"/></a>
+### Host dependencies
 Due to the low level nature of some of the funtionality that `rivia` provides testing requires a few
 dependencies in the host system where the tests are being run.
 
 * `sudo`
 * `touch`
 
-### Test in container <a name="test-in-container"/></a>
+### Test in container
 Build the test container using the code in `examples/cli.rs`
 
 **Build container**:
@@ -90,19 +90,19 @@ $ docker run --rm rivia-test:latest
 $ docker run --rm -it rivia-test:latest bash
 ```
 
-# License <a name="license"/></a>
+# License
 This project is licensed under either of:
  * MIT license [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
  * Apache License, Version 2.0 [LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0
 
-## Contribution <a name="contribution"/></a>
+## Contribution
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
 this project by you, shall be dual licensed as above, without any additional terms or conditions.
 
 ---
 
-# Backlog <a name="backlog"/></a>
+# Backlog
 
-# Changelog <a name="changelog"/></a>
+# Changelog
 * VFS Memfs
 * VFS Stdfs
