@@ -15,7 +15,7 @@ strictly the responsiblity of the user and not the developer/creator of ***rivia
 ### Features by category <a name="features-by-category"/></a>
 
 * **User Management** - ***XDG Support***, ***User ID mangement***
-* **File System** - ***Path extensions***, ***VFS Support***
+* **Virtual FileSystem** - ***Path extensions***, ***VFS Support***
 
 ### Quick links
 * [Usage](#usage)
@@ -97,7 +97,7 @@ this project by you, shall be dual licensed as above, without any additional ter
 ---
 
 # Backlog <a name="backlog"/></a>
-* MemFS
-* Write Edit builder
 
 # Changelog <a name="changelog"/></a>
+* VFS Memfs
+* VFS Stdfs
