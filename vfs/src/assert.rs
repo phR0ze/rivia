@@ -1,7 +1,42 @@
 #[allow(unused_imports)]
 use super::prelude::*;
 
-/// Setup Vfs testing components
+/// Setup Vfs testing components using the current provider is
+///
+/// This provides an abstraction over VirtualFileSystem implementations such that we can easily
+/// switch out a Memfs backend for a Stdfs backend without modifying the testing algorithms. Vfs
+/// tests will default to using the `testing::TEST_TEMP_DIR` as the root of testing and create a new
+/// directory inside that using the derived fully qualified function name or given function name
+/// when it can't be derived.
+///
+/// ### Warning
+/// Since doc tests always have a default function name of `rust_out::main` its required to override
+/// the `func_name` param to get a unique directory to work with in the Stdfs case as you won't get
+/// a unique directory created to work from and could cause testing collisions.
+///
+/// ### Returns
+/// * `tmpdir` - the temp directory that was created for the test function to work in
+///
+/// ### Examples
+/// ```
+/// use rivia_vfs::prelude::*;
+///
+/// let tmpdir = assert_setup!("unique_func_name");
+/// assert_remove_all!(&tmpdir);
+/// ```
+#[macro_export]
+macro_rules! assert_setup {
+    ($func:expr) => {{
+        let (_, tmpdir) = assert_vfs_setup!(vfs::VFS.read().unwrap().clone(), $func);
+        tmpdir
+    }};
+    () => {{
+        let (_, tmpdir) = assert_vfs_setup!(vfs::VFS.read().unwrap().clone());
+        tmpdir
+    }};
+}
+
+/// Setup Vfs testing components with Memfs provider
 ///
 /// This provides an abstraction over VirtualFileSystem implementations such that we can easily
 /// switch out a Memfs backend for a Stdfs backend without modifying the testing algorithms. Vfs
@@ -38,7 +73,7 @@ macro_rules! assert_memfs_setup {
     }};
 }
 
-/// Setup Vfs testing components
+/// Setup Vfs testing components with Stdfs provider
 ///
 /// This provides an abstraction over VirtualFileSystem implementations such that we can easily
 /// switch out a Memfs backend for a Stdfs backend without modifying the testing algorithms. Vfs

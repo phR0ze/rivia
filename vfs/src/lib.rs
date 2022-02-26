@@ -39,7 +39,7 @@ pub mod prelude
         assert_copyfile, assert_exists, assert_is_dir, assert_is_file, assert_is_symlink, assert_memfs_setup,
         assert_mkdir_m, assert_mkdir_p, assert_mkfile, assert_no_dir, assert_no_exists, assert_no_file,
         assert_no_symlink, assert_read_all, assert_readlink, assert_readlink_abs, assert_remove,
-        assert_remove_all, assert_stdfs_setup, assert_symlink, assert_write_all,
+        assert_remove_all, assert_setup, assert_stdfs_setup, assert_symlink, assert_write_all,
     };
 
     // Nest global vfs functions for ergonomics
