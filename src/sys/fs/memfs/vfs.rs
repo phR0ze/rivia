@@ -794,6 +794,7 @@ impl VirtualFileSystem for Memfs
             // Clone the file to append to
             let mut clone = file.clone();
             clone.path = Some(path.clone());
+            // Set the filesystem callback to write out
             clone.fs = Some(self.clone());
 
             // Seek to the end for appending
@@ -802,6 +803,36 @@ impl VirtualFileSystem for Memfs
         } else {
             return Err(PathError::does_not_exist(path).into());
         }
+    }
+
+    /// Append the given data to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(vfs.append_all(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
+    /// ```
+    fn append_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
+    {
+        let mut f = self.append(path)?;
+        f.write_all(data.as_ref())?;
+        f.flush()?;
+        Ok(())
     }
 
     /// Change all file/dir permissions recursivly to `mode`
@@ -2092,6 +2123,26 @@ mod tests
         f.write_all(b" this is a test").unwrap();
         f.flush().unwrap();
         assert_vfs_read_all!(vfs, &file, "foobar123 this is a test".to_string());
+    }
+
+    #[test]
+    fn test_append_all()
+    {
+        let vfs = Memfs::new();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file
+        assert!(vfs.append_all(&file, "foobar 1").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1");
+
+        // Append again
+        assert!(vfs.append_all(&file, "foobar 2").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
     }
 
     #[test]

@@ -224,6 +224,37 @@ impl Stdfs
         Ok(Box::new(File::options().write(true).append(true).open(Stdfs::abs(path)?)?))
     }
 
+    /// Append the given data to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_append_all");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(Stdfs::append_all(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn append_all<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> RvResult<()>
+    {
+        let mut f = Stdfs::append(path)?;
+        f.write_all(data.as_ref())?;
+        f.flush()?;
+        Ok(())
+    }
+
     /// Change all file/dir permissions recursivly to `mode`
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1617,6 +1648,34 @@ impl VirtualFileSystem for Stdfs
         Stdfs::append(path)
     }
 
+    /// Append the given data to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_append_all");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(vfs.append_all(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn append_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
+    {
+        Stdfs::append_all(path, data)
+    }
+
     /// Change all file/dir permissions recursivly to `mode`
     ///
     /// * Handles path expansion and absolute path resolution
@@ -2630,6 +2689,28 @@ mod tests
         f.write_all(b" this is a test").unwrap();
         f.flush().unwrap();
         assert_vfs_read_all!(vfs, &file, "foobar123 this is a test".to_string());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_append_all()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append("") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file
+        assert!(vfs.append_all(&file, "foobar 1").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1");
+
+        // Append again
+        assert!(vfs.append_all(&file, "foobar 2").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

@@ -131,6 +131,30 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn append<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>;
 
+    /// Append the given data to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(vfs.append_all(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
+    /// ```
+    fn append_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>;
+
     /// Change all file/dir permissions recursivly to `mode`
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1084,6 +1108,36 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.append(path),
             Vfs::Memfs(x) => x.append(path),
+        }
+    }
+
+    /// Append the given data to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(vfs.append_all(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
+    /// ```
+    fn append_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.append_all(path, data),
+            Vfs::Memfs(x) => x.append_all(path, data),
         }
     }
 

@@ -453,7 +453,7 @@ macro_rules! assert_vfs_mkfile {
 ///
 /// let vfs = Vfs::memfs();
 /// assert_vfs_no_file!(vfs, "foo");
-/// assert_vfs_write_all!(vfs, "foo", b"foobar 1");
+/// assert_vfs_write_all!(vfs, "foo", "foobar 1");
 /// assert_vfs_read_all!(vfs, "foo", "foobar 1".to_string());
 /// ```
 #[macro_export]
@@ -469,7 +469,11 @@ macro_rules! assert_vfs_read_all {
         match $vfs.read_all(&target) {
             Ok(data) => {
                 if data != $data {
-                    panic_msg!("assert_vfs_read_all!", "read data doesn't equal given data", &target);
+                    panic_msg!(
+                        "assert_vfs_read_all!",
+                        format!("read data doesn't equal given data\n  read: {}\n  expected: {}", data, $data),
+                        &target
+                    );
                 }
             },
             _ => panic_msg!("assert_vfs_read_all!", "failed while reading file", &target),
@@ -1166,12 +1170,26 @@ mod tests
             result.unwrap_err().to_string(),
             format!(
                 "\nassert_vfs_read_all!: file doesn't exist or is not a file\n  target: \"{}\"\n",
-                &tmpdir.display()
+                tmpdir.display()
             )
         );
 
-        let file = tmpdir.mash("foo");
-        assert_vfs_write_all!(vfs, &file, b"foobar 1");
+        // expected data does equal read data
+        let file = tmpdir.mash("file");
+        assert_vfs_write_all!(vfs, &file, "foobar 1");
+
+        let result = testing::capture_panic(|| {
+            assert_vfs_read_all!(vfs, &file, "foobar");
+        });
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            format!(
+                "\nassert_vfs_read_all!: read data doesn't equal given data\n  read: foobar 1\n  expected: foobar\n  target: \"{}\"\n",
+                file.display()
+            )
+        );
+
+        // happy path
         assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
 
         assert_vfs_remove_all!(vfs, &tmpdir);
