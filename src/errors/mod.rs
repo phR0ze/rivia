@@ -11,6 +11,7 @@
 //! assert!(err.source().is_none());
 //! ```
 mod core;
+mod file;
 mod iter;
 mod path;
 mod string;
@@ -19,6 +20,7 @@ mod vfs;
 
 use std::{error::Error as StdError, fmt, io, time::SystemTimeError};
 
+pub use file::*;
 pub use iter::*;
 pub use path::*;
 pub use string::*;
@@ -36,6 +38,9 @@ pub enum RvError
 {
     /// Core error
     Core(CoreError),
+
+    /// File error
+    File(FileError),
 
     /// An io error
     Io(io::Error),
@@ -103,6 +108,7 @@ impl fmt::Display for RvError
     {
         match *self {
             RvError::Core(ref err) => write!(f, "{}", err),
+            RvError::File(ref err) => write!(f, "{}", err),
             RvError::Io(ref err) => write!(f, "{}", err),
             RvError::Iter(ref err) => write!(f, "{}", err),
             RvError::Nix(ref err) => write!(f, "{}", err),
@@ -123,6 +129,7 @@ impl AsRef<dyn StdError> for RvError
     {
         match *self {
             RvError::Core(ref err) => err,
+            RvError::File(ref err) => err,
             RvError::Io(ref err) => err,
             RvError::Iter(ref err) => err,
             RvError::Nix(ref err) => err,
@@ -143,6 +150,7 @@ impl AsMut<dyn StdError> for RvError
     {
         match *self {
             RvError::Core(ref mut err) => err,
+            RvError::File(ref mut err) => err,
             RvError::Io(ref mut err) => err,
             RvError::Iter(ref mut err) => err,
             RvError::Nix(ref mut err) => err,
@@ -162,6 +170,14 @@ impl From<CoreError> for RvError
     fn from(err: CoreError) -> RvError
     {
         RvError::Core(err)
+    }
+}
+
+impl From<FileError> for RvError
+{
+    fn from(err: FileError) -> RvError
+    {
+        RvError::File(err)
     }
 }
 
@@ -279,6 +295,14 @@ mod tests
         assert!(err.downcast_mut::<IterError>().is_some());
         assert!(err.source().is_none());
 
+        let mut err = RvError::from(FileError::FailedToExtractString);
+        assert_eq!("Failed to extract string from file", err.to_string());
+        assert_eq!("Failed to extract string from file", err.as_ref().to_string());
+        assert_eq!("Failed to extract string from file", err.as_mut().to_string());
+        assert!(err.downcast_ref::<FileError>().is_some());
+        assert!(err.downcast_mut::<FileError>().is_some());
+        assert!(err.source().is_none());
+
         let mut err = RvError::from(nix::errno::Errno::UnknownErrno);
         assert_eq!(err.to_string(), "UnknownErrno: Unknown errno");
         assert_eq!(err.as_ref().to_string(), "UnknownErrno: Unknown errno");
@@ -330,10 +354,10 @@ mod tests
         assert!(err.downcast_mut::<std::env::VarError>().is_some());
         assert!(err.source().is_none());
 
-        let mut err = RvError::from(VfsError::FailedToExtractString);
-        assert_eq!("Failed to extract string from file", err.to_string());
-        assert_eq!("Failed to extract string from file", err.as_ref().to_string());
-        assert_eq!("Failed to extract string from file", err.as_mut().to_string());
+        let mut err = RvError::from(VfsError::Unavailable);
+        assert_eq!("Virtual filesystem is unavailable", err.to_string());
+        assert_eq!("Virtual filesystem is unavailable", err.as_ref().to_string());
+        assert_eq!("Virtual filesystem is unavailable", err.as_mut().to_string());
         assert!(err.downcast_ref::<VfsError>().is_some());
         assert!(err.downcast_mut::<VfsError>().is_some());
         assert!(err.source().is_none());

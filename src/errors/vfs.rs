@@ -4,9 +4,6 @@ use std::{error::Error as StdError, fmt};
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum VfsError
 {
-    /// An error indicating that a regex string extraction failed.
-    FailedToExtractString,
-
     /// An error indicating that the chmod pattern is invalid
     InvalidChmod(String),
 
@@ -44,7 +41,6 @@ impl fmt::Display for VfsError
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match *self {
-            VfsError::FailedToExtractString => write!(f, "Failed to extract string from file"),
             VfsError::InvalidChmod(ref sym) => write!(f, "Invalid chmod symbols given: {}", sym),
             VfsError::InvalidChmodGroup(ref sym) => write!(f, "Invalid chmod group given: {}", sym),
             VfsError::InvalidChmodOp(ref sym) => {
@@ -88,7 +84,6 @@ mod tests
     #[test]
     fn test_vfs_errors()
     {
-        assert_eq!(VfsError::FailedToExtractString.to_string(), "Failed to extract string from file");
         assert_eq!(VfsError::InvalidChmod("foo".to_string()).to_string(), "Invalid chmod symbols given: foo");
         assert_eq!(VfsError::InvalidChmodGroup("foo".to_string()).to_string(), "Invalid chmod group given: foo");
         assert_eq!(VfsError::InvalidChmodOp("foo".to_string()).to_string(), "Invalid chmod operation given: foo");
