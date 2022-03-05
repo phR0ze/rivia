@@ -725,6 +725,25 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn read_all<T: AsRef<Path>>(&self, path: T) -> RvResult<String>;
 
+    /// Read the given file and returns it as lines in a vector
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, "1\n2");
+    /// assert_eq!(vfs.read_lines(&file).unwrap(), vec!["1".to_string(), "2".to_string()]);
+    /// ```
+    fn read_lines<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<String>>;
+
     /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
@@ -927,6 +946,29 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert_vfs_read_all!(vfs, &file, "foobar 1");
     /// ```
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>;
+
+    /// Write the given lines to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Create the file first if it doesn't exist or truncating it first if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// ```
+    fn write_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>;
 }
 
 /// Provides an ergonomic encapsulation of the underlying [`VirtualFileSystem`] backend
@@ -1889,6 +1931,31 @@ impl VirtualFileSystem for Vfs
         }
     }
 
+    /// Read the given file and returns it as lines in a vector
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, "1\n2");
+    /// assert_eq!(vfs.read_lines(&file).unwrap(), vec!["1".to_string(), "2".to_string()]);
+    /// ```
+    fn read_lines<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<String>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.read_lines(path),
+            Vfs::Memfs(x) => x.read_lines(path),
+        }
+    }
+
     /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
@@ -2137,6 +2204,35 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.write_all(path, data),
             Vfs::Memfs(x) => x.write_all(path, data),
+        }
+    }
+
+    /// Write the given lines to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Create the file first if it doesn't exist or truncating it first if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// ```
+    fn write_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.write_lines(path, lines),
+            Vfs::Memfs(x) => x.write_lines(path, lines),
         }
     }
 

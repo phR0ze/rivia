@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::Write,
+    io::{BufRead, BufReader, Write},
     os::unix::{self, fs::MetadataExt, fs::PermissionsExt},
     path::{Component, Path, PathBuf},
     time::SystemTime,
@@ -1236,6 +1236,33 @@ impl Stdfs
         }
     }
 
+    /// Read the given file and returns it as lines in a vector
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_read_lines");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_write_all!(vfs, &file, "1\n2");
+    /// assert_eq!(vfs.read_lines(&file).unwrap(), vec!["1".to_string(), "2".to_string()]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn read_lines<T: AsRef<Path>>(path: T) -> RvResult<Vec<String>>
+    {
+        let mut lines = vec![];
+        for line in BufReader::new(Stdfs::read(path)?).lines() {
+            lines.push(line?);
+        }
+        Ok(lines)
+    }
+
     /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1517,6 +1544,33 @@ impl Stdfs
         // f.sync_all() works better than f.flush()?
         f.sync_all()?;
         Ok(())
+    }
+
+    /// Write the given lines to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Create the file first if it doesn't exist or truncating it first if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_write_lines");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn write_lines<T: AsRef<Path>, U: AsRef<str>>(path: T, lines: &[U]) -> RvResult<()>
+    {
+        Stdfs::write_all(path, lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n"))
     }
 }
 
@@ -2341,6 +2395,29 @@ impl VirtualFileSystem for Stdfs
         Stdfs::read_all(path)
     }
 
+    /// Read the given file and returns it as lines in a vector
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_read_lines");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_write_all!(vfs, &file, "1\n2");
+    /// assert_eq!(vfs.read_lines(&file).unwrap(), vec!["1".to_string(), "2".to_string()]);
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn read_lines<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<String>>
+    {
+        Stdfs::read_lines(path)
+    }
+
     /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
@@ -2551,6 +2628,33 @@ impl VirtualFileSystem for Stdfs
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>
     {
         Stdfs::write_all(path, data)
+    }
+
+    /// Write the given lines to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Create the file first if it doesn't exist or truncating it first if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_write_lines");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn write_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>
+    {
+        Stdfs::write_lines(path, lines)
     }
 
     /// Up cast the trait type to the enum wrapper
@@ -3134,6 +3238,22 @@ mod tests
     }
 
     #[test]
+    fn test_stdfs_read_lines()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // Doesn't exist error
+        assert_eq!(vfs.read_lines(&file).unwrap_err().to_string(), PathError::does_not_exist(&file).to_string());
+
+        // Create the file with the given data
+        assert_vfs_write_all!(vfs, &file, "1\n2");
+        assert_eq!(vfs.read_lines(&file).unwrap(), vec!["1".to_string(), "2".to_string()]);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
     fn test_stdfs_readlink()
     {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
@@ -3285,6 +3405,37 @@ mod tests
         assert!(vfs.write_all(&file, b"foobar 1").is_ok());
         assert_vfs_is_file!(vfs, &file);
         assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_write_lines()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir = tmpdir.mash("dir");
+        let file = dir.mash("file");
+
+        // fail abs
+        assert_eq!(vfs.write_lines("", &[""]).unwrap_err().to_string(), PathError::Empty.to_string());
+
+        // parent doesn't exist
+        assert_eq!(
+            vfs.write_lines(&file, &[""]).unwrap_err().to_string(),
+            PathError::does_not_exist(&dir).to_string()
+        );
+
+        // exists but not a file
+        assert_vfs_mkdir_p!(vfs, &dir);
+        assert_eq!(
+            vfs.write_lines(&dir, &[""]).unwrap_err().to_string(),
+            PathError::is_not_file(&dir).to_string()
+        );
+
+        // happy path
+        assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
+        assert_vfs_is_file!(vfs, &file);
+        assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }

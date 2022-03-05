@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fmt,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::{Component, Path, PathBuf},
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
@@ -1690,6 +1690,32 @@ impl VirtualFileSystem for Memfs
         }
     }
 
+    /// Read the given file and returns it as lines in a vector
+    ///
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, "1\n2");
+    /// assert_eq!(vfs.read_lines(&file).unwrap(), vec!["1".to_string(), "2".to_string()]);
+    /// ```
+    fn read_lines<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<String>>
+    {
+        let mut lines = vec![];
+        for line in BufReader::new(self.read(path)?).lines() {
+            lines.push(line?);
+        }
+        Ok(lines)
+    }
+
     /// Returns the relative path of the target the link points to
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1751,6 +1777,7 @@ impl VirtualFileSystem for Memfs
             return Err(PathError::does_not_exist(path).into());
         }
     }
+
     /// Removes the given empty directory or file
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1998,6 +2025,32 @@ impl VirtualFileSystem for Memfs
         Ok(())
     }
 
+    /// Write the given lines to to the target file
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Create the file first if it doesn't exist or truncating it first if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// ```
+    fn write_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>
+    {
+        self.write_all(path, lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n"))
+    }
+
     /// Returns the user ID of the owner of this file
     ///
     /// * Handles path expansion and absolute path resolution
@@ -2193,7 +2246,7 @@ mod tests
     #[test]
     fn test_chmod()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let file = vfs.root().mash("file");
 
         // abs fails
@@ -2210,7 +2263,7 @@ mod tests
     #[test]
     fn test_chmod_b()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let dir = vfs.root().mash("dir");
         let file = dir.mash("file");
 
@@ -2529,7 +2582,7 @@ mod tests
     #[test]
     fn test_is_exec()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let file = vfs.root().mash("file");
 
         // abs fails
@@ -2578,7 +2631,7 @@ mod tests
     #[test]
     fn test_is_readonly()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let file = vfs.root().mash("file");
 
         // abs fails
@@ -2612,7 +2665,7 @@ mod tests
     #[test]
     fn test_mkdir_m()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let dir = vfs.root().mash("dir");
 
         // abs error
@@ -2697,7 +2750,7 @@ mod tests
     #[test]
     fn test_mkfile_m()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let file = vfs.root().mash("file");
 
         // abs error
@@ -2710,7 +2763,7 @@ mod tests
     #[test]
     fn test_mode()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let file = vfs.root().mash("file");
 
         // abs error
@@ -2837,7 +2890,7 @@ mod tests
     #[test]
     fn test_read()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let file = vfs.root().mash("file");
 
         // abs fails
@@ -2875,9 +2928,28 @@ mod tests
     }
 
     #[test]
+    fn test_read_lines()
+    {
+        let memfs = Memfs::new();
+        let file = memfs.root().mash("file");
+
+        // Doesn't exist error
+        assert_eq!(memfs.read_lines(&file).unwrap_err().to_string(), PathError::does_not_exist(&file).to_string());
+
+        // Isn't a file
+        let dir = memfs.root().mash("dir");
+        assert_eq!(&memfs.mkdir_p(&dir).unwrap(), &dir);
+        assert_eq!(memfs.read_lines(&dir).unwrap_err().to_string(), PathError::is_not_file(&dir).to_string());
+
+        // Create the file with the given data
+        memfs.write_all(&file, "1\n2").unwrap();
+        assert_eq!(memfs.read_lines(&file).unwrap(), vec!["1".to_string(), "2".to_string()]);
+    }
+
+    #[test]
     fn test_readlink()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let dir = vfs.root().mash("dir");
         let file = vfs.root().mash("file");
         let link = dir.mash("link");
@@ -2894,7 +2966,7 @@ mod tests
     #[test]
     fn test_readlink_abs()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let dir = vfs.root().mash("dir");
         let file = vfs.root().mash("file");
         let link = dir.mash("link");
@@ -2911,7 +2983,7 @@ mod tests
     #[test]
     fn test_remove()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let dir1 = vfs.root().mash("dir1");
         let file1 = dir1.mash("file1");
         let file2 = vfs.root().mash("file2");
@@ -2937,7 +3009,7 @@ mod tests
     #[test]
     fn test_remove_all()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let dir = vfs.root().mash("dir");
         let file = dir.mash("file");
 
@@ -3004,7 +3076,7 @@ mod tests
     #[test]
     fn test_write()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let file = vfs.root().mash("file");
 
         // abs fails
@@ -3031,7 +3103,7 @@ mod tests
     #[test]
     fn test_write_all()
     {
-        let vfs = Vfs::memfs();
+        let vfs = Memfs::new();
         let dir = vfs.root().mash("dir");
         let file = dir.mash("file");
 
@@ -3047,6 +3119,35 @@ mod tests
 
         // happy path
         assert!(vfs.write_all(&file, b"foobar 1").is_ok());
+        assert_vfs_is_file!(vfs, &file);
+        assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+    }
+
+    #[test]
+    fn test_write_lines()
+    {
+        let vfs = Memfs::new();
+        let dir = vfs.root().mash("dir");
+        let file = dir.mash("file");
+
+        // fail abs
+        assert_eq!(vfs.write_lines("", &[""]).unwrap_err().to_string(), PathError::Empty.to_string());
+
+        // parent doesn't exist
+        assert_eq!(
+            vfs.write_lines(&file, &[""]).unwrap_err().to_string(),
+            PathError::does_not_exist(&dir).to_string()
+        );
+
+        // exists but not a file
+        assert_vfs_mkdir_p!(vfs, &dir);
+        assert_eq!(
+            vfs.write_lines(&dir, &[""]).unwrap_err().to_string(),
+            PathError::is_not_file(&dir).to_string()
+        );
+
+        // happy path
+        assert!(vfs.write_lines(&file, &["foobar 1"]).is_ok());
         assert_vfs_is_file!(vfs, &file);
         assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
     }
