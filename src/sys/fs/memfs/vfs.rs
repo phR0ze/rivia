@@ -2086,7 +2086,7 @@ impl VirtualFileSystem for Memfs
         Ok(())
     }
 
-    /// Write the given lines to to the target file
+    /// Write the given lines to to the target file including final newline
     ///
     /// * Handles path expansion and absolute path resolution
     /// * Create the file first if it doesn't exist or truncating it first if it does
@@ -2105,11 +2105,15 @@ impl VirtualFileSystem for Memfs
     /// assert_vfs_no_file!(vfs, &file);
     /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
     /// assert_vfs_is_file!(vfs, &file);
-    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// assert_vfs_read_all!(vfs, &file, "1\n2\n".to_string());
     /// ```
     fn write_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>
     {
-        self.write_all(path, lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n"))
+        let lines = lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n");
+        if lines != "" {
+            self.write_all(path, lines + "\n")?;
+        }
+        Ok(())
     }
 
     /// Returns the user ID of the owner of this file
@@ -3232,24 +3236,24 @@ mod tests
         let file = dir.mash("file");
 
         // fail abs
-        assert_eq!(vfs.write_lines("", &[""]).unwrap_err().to_string(), PathError::Empty.to_string());
+        assert_eq!(vfs.write_lines("", &["foo"]).unwrap_err().to_string(), PathError::Empty.to_string());
 
         // parent doesn't exist
         assert_eq!(
-            vfs.write_lines(&file, &[""]).unwrap_err().to_string(),
+            vfs.write_lines(&file, &["foo"]).unwrap_err().to_string(),
             PathError::does_not_exist(&dir).to_string()
         );
 
         // exists but not a file
         assert_vfs_mkdir_p!(vfs, &dir);
         assert_eq!(
-            vfs.write_lines(&dir, &[""]).unwrap_err().to_string(),
+            vfs.write_lines(&dir, &["foo"]).unwrap_err().to_string(),
             PathError::is_not_file(&dir).to_string()
         );
 
         // happy path
         assert!(vfs.write_lines(&file, &["foobar 1"]).is_ok());
         assert_vfs_is_file!(vfs, &file);
-        assert_vfs_read_all!(vfs, &file, "foobar 1".to_string());
+        assert_vfs_read_all!(vfs, &file, "foobar 1\n".to_string());
     }
 }

@@ -994,7 +994,7 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn write_all<T: AsRef<Path>, U: AsRef<[u8]>>(&self, path: T, data: U) -> RvResult<()>;
 
-    /// Write the given lines to to the target file
+    /// Write the given lines to to the target file including final newline
     ///
     /// * Handles path expansion and absolute path resolution
     /// * Create the file first if it doesn't exist or truncating it first if it does
@@ -1013,7 +1013,7 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert_vfs_no_file!(vfs, &file);
     /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
     /// assert_vfs_is_file!(vfs, &file);
-    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// assert_vfs_read_all!(vfs, &file, "1\n2\n".to_string());
     /// ```
     fn write_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>;
 }
@@ -2313,7 +2313,7 @@ impl VirtualFileSystem for Vfs
         }
     }
 
-    /// Write the given lines to to the target file
+    /// Write the given lines to to the target file including final newline
     ///
     /// * Handles path expansion and absolute path resolution
     /// * Create the file first if it doesn't exist or truncating it first if it does
@@ -2332,7 +2332,7 @@ impl VirtualFileSystem for Vfs
     /// assert_vfs_no_file!(vfs, &file);
     /// assert!(vfs.write_lines(&file, &["1", "2"]).is_ok());
     /// assert_vfs_is_file!(vfs, &file);
-    /// assert_vfs_read_all!(vfs, &file, "1\n2".to_string());
+    /// assert_vfs_read_all!(vfs, &file, "1\n2\n".to_string());
     /// ```
     fn write_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>
     {
