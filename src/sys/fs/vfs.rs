@@ -121,7 +121,7 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     ///
     /// let vfs = Vfs::memfs();
     /// let file = vfs.root().mash("file");
-    /// let mut f = vfs.create(&file).unwrap();
+    /// let mut f = vfs.write(&file).unwrap();
     /// f.write_all(b"foobar").unwrap();
     /// f.flush().unwrap();
     /// let mut f = vfs.append(&file).unwrap();
@@ -280,28 +280,6 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert_vfs_read_all!(vfs, &file2, "this is a test");
     /// ```
     fn copy_b<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<Copier>;
-
-    /// Opens a file in write-only mode
-    ///
-    /// * Creates a file if it does not exist or truncates it if it does
-    ///
-    /// ### Errors
-    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
-    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
-    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Vfs::memfs();
-    /// let file = vfs.root().mash("file");
-    /// let mut f = vfs.create(&file).unwrap();
-    /// f.write_all(b"foobar").unwrap();
-    /// f.flush().unwrap();
-    /// assert_vfs_read_all!(vfs, &file, "foobar");
-    /// ```
-    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>;
 
     /// Returns the current working directory
     ///
@@ -670,29 +648,6 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// ```
     fn move_p<T: AsRef<Path>, U: AsRef<Path>>(&self, src: T, dst: U) -> RvResult<()>;
 
-    /// Attempts to open a file in readonly mode
-    ///
-    /// * Provides a handle to a Read + Seek implementation
-    /// * Handles path expansion and absolute path resolution
-    ///
-    /// ### Errors
-    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
-    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Vfs::memfs();
-    /// let file = vfs.root().mash("file");
-    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
-    /// let mut file = vfs.open(&file).unwrap();
-    /// let mut buf = String::new();
-    /// file.read_to_string(&mut buf);
-    /// assert_eq!(buf, "foobar 1".to_string());
-    /// ```
-    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>;
-
     /// Returns the (user ID, group ID) of the owner of this file
     ///
     /// * Handles path expansion and absolute path resolution
@@ -727,6 +682,29 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// assert_iter_eq(vfs.paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
     /// ```
     fn paths<T: AsRef<Path>>(&self, path: T) -> RvResult<Vec<PathBuf>>;
+
+    /// Open a file in readonly mode
+    ///
+    /// * Provides a handle to a Read + Seek implementation
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// let mut file = vfs.read(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// ```
+    fn read<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>;
 
     /// Read all data from the given file and return it as a String
     ///
@@ -904,6 +882,28 @@ pub trait VirtualFileSystem: Debug+Send+Sync+'static
     /// let vfs = Memfs::new().upcast();
     /// ```
     fn upcast(self) -> Vfs;
+
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let mut f = vfs.write(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar");
+    /// ```
+    fn write<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>;
 
     /// Write the given data to to the target file
     ///
@@ -1095,7 +1095,7 @@ impl VirtualFileSystem for Vfs
     ///
     /// let vfs = Vfs::memfs();
     /// let file = vfs.root().mash("file");
-    /// let mut f = vfs.create(&file).unwrap();
+    /// let mut f = vfs.write(&file).unwrap();
     /// f.write_all(b"foobar").unwrap();
     /// f.flush().unwrap();
     /// let mut f = vfs.append(&file).unwrap();
@@ -1300,34 +1300,6 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.copy_b(src, dst),
             Vfs::Memfs(x) => x.copy_b(src, dst),
-        }
-    }
-
-    /// Opens a file in write-only mode
-    ///
-    /// * Creates a file if it does not exist or truncates it if it does
-    ///
-    /// ### Errors
-    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
-    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
-    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Vfs::memfs();
-    /// let file = vfs.root().mash("file");
-    /// let mut f = vfs.create(&file).unwrap();
-    /// f.write_all(b"foobar").unwrap();
-    /// f.flush().unwrap();
-    /// assert_vfs_read_all!(vfs, &file, "foobar");
-    /// ```
-    fn create<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
-    {
-        match self {
-            Vfs::Stdfs(x) => x.create(path),
-            Vfs::Memfs(x) => x.create(path),
         }
     }
 
@@ -1816,35 +1788,6 @@ impl VirtualFileSystem for Vfs
         }
     }
 
-    /// Attempts to open a file in readonly mode
-    ///
-    /// * Provides a handle to a Read + Seek implementation
-    /// * Handles path expansion and absolute path resolution
-    ///
-    /// ### Errors
-    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
-    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
-    ///
-    /// ### Examples
-    /// ```
-    /// use rivia::prelude::*;
-    ///
-    /// let vfs = Vfs::memfs();
-    /// let file = vfs.root().mash("file");
-    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
-    /// let mut file = vfs.open(&file).unwrap();
-    /// let mut buf = String::new();
-    /// file.read_to_string(&mut buf);
-    /// assert_eq!(buf, "foobar 1".to_string());
-    /// ```
-    fn open<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
-    {
-        match self {
-            Vfs::Stdfs(x) => x.open(path),
-            Vfs::Memfs(x) => x.open(path),
-        }
-    }
-
     /// Returns the (user ID, group ID) of the owner of this file
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1889,6 +1832,35 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.paths(path),
             Vfs::Memfs(x) => x.paths(path),
+        }
+    }
+
+    /// Open a file in readonly mode
+    ///
+    /// * Provides a handle to a Read + Seek implementation
+    /// * Handles path expansion and absolute path resolution
+    ///
+    /// ### Errors
+    /// * PathError::IsNotFile(PathBuf) when the given path isn't a file
+    /// * PathError::DoesNotExist(PathBuf) when the given path doesn't exist
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_write_all!(vfs, &file, b"foobar 1");
+    /// let mut file = vfs.read(&file).unwrap();
+    /// let mut buf = String::new();
+    /// file.read_to_string(&mut buf);
+    /// assert_eq!(buf, "foobar 1".to_string());
+    /// ```
+    fn read<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn ReadSeek>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.read(path),
+            Vfs::Memfs(x) => x.read(path),
         }
     }
 
@@ -2108,6 +2080,34 @@ impl VirtualFileSystem for Vfs
         match self {
             Vfs::Stdfs(x) => x.uid(path),
             Vfs::Memfs(x) => x.uid(path),
+        }
+    }
+
+    /// Opens a file in write-only mode
+    ///
+    /// * Creates a file if it does not exist or truncates it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// let mut f = vfs.write(&file).unwrap();
+    /// f.write_all(b"foobar").unwrap();
+    /// f.flush().unwrap();
+    /// assert_vfs_read_all!(vfs, &file, "foobar");
+    /// ```
+    fn write<T: AsRef<Path>>(&self, path: T) -> RvResult<Box<dyn Write>>
+    {
+        match self {
+            Vfs::Stdfs(x) => x.write(path),
+            Vfs::Memfs(x) => x.write(path),
         }
     }
 
