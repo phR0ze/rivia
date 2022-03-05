@@ -835,6 +835,67 @@ impl VirtualFileSystem for Memfs
         Ok(())
     }
 
+    /// Append the given line to to the target file including a newline
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(vfs.append_line(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2\n");
+    /// ```
+    fn append_line<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, line: U) -> RvResult<()>
+    {
+        let line = line.as_ref().to_string();
+        if line != "" {
+            self.append_all(path, line + "\n")?;
+        }
+        Ok(())
+    }
+
+    /// Append the given lines to to the target file including newlines
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let vfs = Vfs::memfs();
+    /// let file = vfs.root().mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(vfs.append_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2\n");
+    /// ```
+    fn append_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>
+    {
+        let lines = lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n");
+        if lines != "" {
+            self.append_all(path, lines + "\n")?;
+        }
+        Ok(())
+    }
+
     /// Change all file/dir permissions recursivly to `mode`
     ///
     /// * Handles path expansion and absolute path resolution
@@ -2185,7 +2246,7 @@ mod tests
         let file = vfs.root().mash("file");
 
         // abs fails
-        if let Err(e) = vfs.append("") {
+        if let Err(e) = vfs.append_all("", "") {
             assert_eq!(e.to_string(), PathError::Empty.to_string());
         }
 
@@ -2196,6 +2257,46 @@ mod tests
         // Append again
         assert!(vfs.append_all(&file, "foobar 2").is_ok());
         assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
+    }
+
+    #[test]
+    fn test_append_line()
+    {
+        let vfs = Memfs::new();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append_line("", "") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file
+        assert!(vfs.append_line(&file, "foobar 1").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1\n");
+
+        // Append again
+        assert!(vfs.append_line(&file, "foobar 2").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1\nfoobar 2\n");
+    }
+
+    #[test]
+    fn test_append_lines()
+    {
+        let vfs = Memfs::new();
+        let file = vfs.root().mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append_lines("", &[""]) {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file
+        assert!(vfs.append_lines(&file, &["1", "2"]).is_ok());
+        assert_vfs_read_all!(vfs, &file, "1\n2\n");
+
+        // Append again
+        assert!(vfs.append_lines(&file, &["3"]).is_ok());
+        assert_vfs_read_all!(vfs, &file, "1\n2\n3\n");
     }
 
     #[test]

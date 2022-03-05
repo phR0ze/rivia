@@ -255,6 +255,69 @@ impl Stdfs
         Ok(())
     }
 
+    /// Append the given line to to the target file including a newline
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_append_line");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(Stdfs::append_line(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2\n");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn append_line<T: AsRef<Path>, U: AsRef<str>>(path: T, line: U) -> RvResult<()>
+    {
+        let line = line.as_ref().to_string();
+        if line != "" {
+            Stdfs::append_all(path, line + "\n")?;
+        }
+        Ok(())
+    }
+
+    /// Append the given lines to to the target file including newlines
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_append_lines");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(Stdfs::append_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2\n");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    pub fn append_lines<T: AsRef<Path>, U: AsRef<str>>(path: T, lines: &[U]) -> RvResult<()>
+    {
+        let lines = lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n");
+        if lines != "" {
+            Stdfs::append_all(path, lines + "\n")?;
+        }
+        Ok(())
+    }
+
     /// Change all file/dir permissions recursivly to `mode`
     ///
     /// * Handles path expansion and absolute path resolution
@@ -1730,6 +1793,61 @@ impl VirtualFileSystem for Stdfs
         Stdfs::append_all(path, data)
     }
 
+    /// Append the given line to to the target file including a newline
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_append_line");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert_vfs_write_all!(vfs, &file, "foobar 1");
+    /// assert!(vfs.append_line(&file, "foobar 2").is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2\n");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn append_line<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, line: U) -> RvResult<()>
+    {
+        Stdfs::append_line(path, line)
+    }
+
+    /// Append the given lines to to the target file including newlines
+    ///
+    /// * Handles path expansion and absolute path resolution
+    /// * Creates a file if it does not exist or appends to it if it does
+    ///
+    /// ### Errors
+    /// * PathError::IsNotDir(PathBuf) when the given path's parent exists but is not a directory
+    /// * PathError::DoesNotExist(PathBuf) when the given path's parent doesn't exist
+    /// * PathError::IsNotFile(PathBuf) when the given path exists but is not a file
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_method_append_lines");
+    /// let file = tmpdir.mash("file");
+    /// assert_vfs_no_file!(vfs, &file);
+    /// assert!(vfs.append_lines(&file, &["1", "2"]).is_ok());
+    /// assert_vfs_is_file!(vfs, &file);
+    /// assert_vfs_read_all!(vfs, &file, "1\n2\n");
+    /// assert_vfs_remove_all!(vfs, &tmpdir);
+    /// ```
+    fn append_lines<T: AsRef<Path>, U: AsRef<str>>(&self, path: T, lines: &[U]) -> RvResult<()>
+    {
+        Stdfs::append_lines(path, lines)
+    }
+
     /// Change all file/dir permissions recursivly to `mode`
     ///
     /// * Handles path expansion and absolute path resolution
@@ -2804,7 +2922,7 @@ mod tests
         let file = tmpdir.mash("file");
 
         // abs fails
-        if let Err(e) = vfs.append("") {
+        if let Err(e) = vfs.append_all("", "") {
             assert_eq!(e.to_string(), PathError::Empty.to_string());
         }
 
@@ -2815,6 +2933,50 @@ mod tests
         // Append again
         assert!(vfs.append_all(&file, "foobar 2").is_ok());
         assert_vfs_read_all!(vfs, &file, "foobar 1foobar 2");
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_append_line()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append_line("", "") {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file
+        assert!(vfs.append_line(&file, "foobar 1").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1\n");
+
+        // Append again
+        assert!(vfs.append_line(&file, "foobar 2").is_ok());
+        assert_vfs_read_all!(vfs, &file, "foobar 1\nfoobar 2\n");
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
+
+    #[test]
+    fn test_stdfs_append_lines()
+    {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let file = tmpdir.mash("file");
+
+        // abs fails
+        if let Err(e) = vfs.append_lines("", &[""]) {
+            assert_eq!(e.to_string(), PathError::Empty.to_string());
+        }
+
+        // Append to a new file
+        assert!(vfs.append_lines(&file, &["1", "2"]).is_ok());
+        assert_vfs_read_all!(vfs, &file, "1\n2\n");
+
+        // Append again
+        assert!(vfs.append_lines(&file, &["3"]).is_ok());
+        assert_vfs_read_all!(vfs, &file, "1\n2\n3\n");
 
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
