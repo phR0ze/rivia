@@ -22,6 +22,23 @@ pub trait StringExt
     /// ```
     fn size(&self) -> usize;
 
+    /// Convert the string into a bool
+    ///
+    /// * Returns `true` if non-empty and any value other than `0` or case insensitive `false`
+    /// * Returns `false` if empty or value is `0` or case insensitive `false`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!("foo".to_bool(), true);
+    /// assert_eq!("".to_bool(), false);
+    /// assert_eq!("0".to_bool(), false);
+    /// assert_eq!("false".to_bool(), false);
+    /// assert_eq!("FALSE".to_bool(), false);
+    /// ```
+    fn to_bool(&self) -> bool;
+
     /// Returns a new [`String`] with the given `suffix` trimmed off else the original `String`.
     ///
     /// ### Examples
@@ -40,6 +57,26 @@ impl StringExt for str
         self.chars().count()
     }
 
+    /// Convert the string into a bool
+    ///
+    /// * Returns `true` if non-empty and any value other than `0` or case insensitive `false`
+    /// * Returns `false` if empty or value is `0` or case insensitive `false`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!("foo".to_bool(), true);
+    /// assert_eq!("".to_bool(), false);
+    /// assert_eq!("0".to_bool(), false);
+    /// assert_eq!("false".to_bool(), false);
+    /// assert_eq!("FALSE".to_bool(), false);
+    /// ```
+    fn to_bool(&self) -> bool
+    {
+        self.to_string().to_bool()
+    }
+
     fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String
     {
         let target = suffix.into();
@@ -55,6 +92,31 @@ impl StringExt for String
     fn size(&self) -> usize
     {
         self.chars().count()
+    }
+
+    /// Convert the string into a bool
+    ///
+    /// * Returns `true` if non-empty and any value other than `0` or case insensitive `false`
+    /// * Returns `false` if empty or value is `0` or case insensitive `false`
+    ///
+    /// ### Examples
+    /// ```
+    /// use rivia::prelude::*;
+    ///
+    /// assert_eq!("foo".to_string().to_bool(), true);
+    /// assert_eq!("".to_string().to_bool(), false);
+    /// assert_eq!("0".to_string().to_bool(), false);
+    /// assert_eq!("false".to_string().to_bool(), false);
+    /// assert_eq!("FALSE".to_string().to_bool(), false);
+    /// ```
+    fn to_bool(&self) -> bool
+    {
+        let x = self.to_lowercase();
+        if x.is_empty() || x == "false" || x == "0" {
+            false
+        } else {
+            true
+        }
     }
 
     fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String
@@ -134,6 +196,30 @@ mod tests
         assert_eq!("foo".to_string().size(), 3);
         assert_eq!("ƒoo".to_string().len(), 4); // fancy f!
         assert_eq!("ƒoo".to_string().size(), 3); // fancy f!
+    }
+
+    #[test]
+    fn test_str_to_bool()
+    {
+        assert_eq!("foo".to_bool(), true);
+        assert_eq!("true".to_bool(), true);
+        assert_eq!("TRUE".to_bool(), true);
+        assert_eq!("".to_bool(), false);
+        assert_eq!("0".to_bool(), false);
+        assert_eq!("false".to_bool(), false);
+        assert_eq!("FALSE".to_bool(), false);
+    }
+
+    #[test]
+    fn test_string_to_bool()
+    {
+        assert_eq!("foo".to_string().to_bool(), true);
+        assert_eq!("true".to_string().to_bool(), true);
+        assert_eq!("TRUE".to_string().to_bool(), true);
+        assert_eq!("".to_string().to_bool(), false);
+        assert_eq!("0".to_string().to_bool(), false);
+        assert_eq!("false".to_string().to_bool(), false);
+        assert_eq!("FALSE".to_string().to_bool(), false);
     }
 
     #[test]
