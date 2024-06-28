@@ -290,12 +290,18 @@ pub trait VirtualFileSystem: Debug + Send + Sync + 'static {
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Vfs::memfs();
-    /// let config_dir = user::config_dir().unwrap().mash("app1/file1");
-    /// let file1 = vfs.root().mash("file1");
-    /// assert_vfs_mkfile!(vfs, &file1);
-    /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 7).exec().is_ok());
-    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// let vfs = Vfs::memfs(); // replace this with Vfs::stdfs() for the real filesystem
+    /// let dir = PathBuf::from("/etc/xdg");
+    /// vfs.mkdir_p(&dir).unwrap();
+    /// let filepath = dir.mash("rivia.toml");
+    /// vfs.write_all(&filepath, "this is a test").unwrap();
+    /// assert_eq!(vfs.config_dir("rivia.toml").unwrap().to_str().unwrap(), "/etc/xdg");
+    ///
+    /// if let Some(config_dir) = vfs.config_dir("rivia.toml") {
+    ///    let path = config_dir.mash("rivia.toml");
+    ///    let config = vfs.read_all(&path).unwrap();
+    ///    assert_eq!(config, "this is a test");
+    /// }
     /// ```
     fn config_dir<T: AsRef<str>>(&self, config: T) -> Option<PathBuf>;
 
@@ -1402,12 +1408,18 @@ impl VirtualFileSystem for Vfs {
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let vfs = Vfs::memfs();
-    /// let config_dir = user::config_dir().unwrap().mash("app1/file1");
-    /// let file1 = vfs.root().mash("file1");
-    /// assert_vfs_mkfile!(vfs, &file1);
-    /// assert!(vfs.chown_b(&file1).unwrap().owner(5, 7).exec().is_ok());
-    /// assert_eq!(vfs.owner(&file1).unwrap(), (5, 7));
+    /// let vfs = Vfs::memfs(); // replace this with Vfs::stdfs() for the real filesystem
+    /// let dir = PathBuf::from("/etc/xdg");
+    /// vfs.mkdir_p(&dir).unwrap();
+    /// let filepath = dir.mash("rivia.toml");
+    /// vfs.write_all(&filepath, "this is a test").unwrap();
+    /// assert_eq!(vfs.config_dir("rivia.toml").unwrap().to_str().unwrap(), "/etc/xdg");
+    ///
+    /// if let Some(config_dir) = vfs.config_dir("rivia.toml") {
+    ///    let path = config_dir.mash("rivia.toml");
+    ///    let config = vfs.read_all(&path).unwrap();
+    ///    assert_eq!(config, "this is a test");
+    /// }
     /// ```
     fn config_dir<T: AsRef<str>>(&self, config: T) -> Option<PathBuf> {
         match self {
