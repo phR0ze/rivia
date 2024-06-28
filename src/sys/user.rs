@@ -28,8 +28,7 @@ use crate::{
 ///
 /// assert!(user::home_dir().is_ok());
 /// ```
-pub fn home_dir() -> RvResult<PathBuf>
-{
+pub fn home_dir() -> RvResult<PathBuf> {
     sys::home_dir()
 }
 
@@ -44,8 +43,7 @@ pub fn home_dir() -> RvResult<PathBuf>
 ///
 /// assert!(user::config_dir().is_ok());
 /// ```
-pub fn config_dir() -> RvResult<PathBuf>
-{
+pub fn config_dir() -> RvResult<PathBuf> {
     Ok(match env::var("XDG_CONFIG_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".config"),
@@ -63,8 +61,7 @@ pub fn config_dir() -> RvResult<PathBuf>
 ///
 /// assert!(user::cache_dir().is_ok());
 /// ```
-pub fn cache_dir() -> RvResult<PathBuf>
-{
+pub fn cache_dir() -> RvResult<PathBuf> {
     Ok(match env::var("XDG_CACHE_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".cache"),
@@ -82,8 +79,7 @@ pub fn cache_dir() -> RvResult<PathBuf>
 ///
 /// assert!(user::data_dir().is_ok());
 /// ```
-pub fn data_dir() -> RvResult<PathBuf>
-{
+pub fn data_dir() -> RvResult<PathBuf> {
     Ok(match env::var("XDG_DATA_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".local").mash("share"),
@@ -101,8 +97,7 @@ pub fn data_dir() -> RvResult<PathBuf>
 ///
 /// assert!(user::state_dir().is_ok());
 /// ```
-pub fn state_dir() -> RvResult<PathBuf>
-{
+pub fn state_dir() -> RvResult<PathBuf> {
     Ok(match env::var("XDG_STATE_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".local").mash("state"),
@@ -125,15 +120,15 @@ pub fn state_dir() -> RvResult<PathBuf>
 ///
 /// println!("runtime directory of the current user: {:?}", user::runtime_dir());
 /// ```
-pub fn runtime_dir() -> PathBuf
-{
+pub fn runtime_dir() -> PathBuf {
     match env::var("XDG_RUNTIME_DIR") {
         Ok(x) => PathBuf::from(x),
         Err(_) => PathBuf::from("/tmp"),
     }
 }
 
-/// Returns the system data directories
+/// Returns a preferenced-ordered set of system data directories to search for data files
+/// in addition to the $XDG_DATA_HOME directory.
 ///
 /// * Defaults to [/usr/local/share, /usr/share]
 ///
@@ -143,34 +138,42 @@ pub fn runtime_dir() -> PathBuf
 ///
 /// assert!(user::sys_data_dirs().is_ok());
 /// ```
-pub fn sys_data_dirs() -> RvResult<Vec<PathBuf>>
-{
+pub fn sys_data_dirs() -> RvResult<Vec<PathBuf>> {
+    let default = vec![PathBuf::from("/usr/local/share"), PathBuf::from("/usr/share")];
     Ok(match env::var("XDG_DATA_DIRS") {
-        Ok(x) => sys::parse_paths(x)?,
-        Err(_) => vec![PathBuf::from("/usr/local/share"), PathBuf::from("/usr/share")],
+        Ok(x) => {
+            let paths = sys::parse_paths(x)?;
+            if paths.is_empty() {
+                default
+            } else {
+                paths
+            }
+        },
+        Err(_) => default,
     })
 }
 
-/// Returns the system config directory
+/// Returns a preferenced-ordered set of system configuration directories to search for configuration
+/// files in addition to the $XDG_CONFIG_HOME directory.
 ///
-/// * Defaults to /etc/xdg
+/// * Default configuration files should be installed to /etc/xdg/<appname>/filename
+/// * Defaults to [/etc/xdg]
 ///
 /// ### Examples
 /// ```
 /// use rivia::prelude::*;
 ///
-/// assert!(user::sys_config_dir().is_ok());
+/// assert!(user::sys_config_dirs().is_ok());
 /// ```
-pub fn sys_config_dir() -> RvResult<PathBuf>
-{
-    let default = PathBuf::from("/etc/xdg");
+pub fn sys_config_dirs() -> RvResult<Vec<PathBuf>> {
+    let default = vec![PathBuf::from("/etc/xdg")];
     Ok(match env::var("XDG_CONFIG_DIRS") {
         Ok(x) => {
             let paths = sys::parse_paths(x)?;
-            if paths.len() > 0 {
-                paths[0].clone()
-            } else {
+            if paths.is_empty() {
                 default
+            } else {
+                paths
             }
         },
         Err(_) => default,
@@ -185,15 +188,13 @@ pub fn sys_config_dir() -> RvResult<PathBuf>
 ///
 /// assert!(user::path_dirs().is_ok());
 /// ```
-pub fn path_dirs() -> RvResult<Vec<PathBuf>>
-{
+pub fn path_dirs() -> RvResult<Vec<PathBuf>> {
     sys::parse_paths(env::var("PATH")?)
 }
 
 /// Provides options for a specific user
 #[derive(Debug, Clone, Default)]
-pub struct User
-{
+pub struct User {
     pub uid: u32,           // user id
     pub gid: u32,           // user group id
     pub name: String,       // user name
@@ -206,8 +207,7 @@ pub struct User
     pub realshell: PathBuf, // real user shell behind sudo
 }
 
-impl User
-{
+impl User {
     /// Returns true if the user is root
     ///
     /// ### Examples
@@ -216,8 +216,7 @@ impl User
     ///
     /// assert_eq!(user::current().unwrap().is_root(), false);
     /// ```
-    pub fn is_root(&self) -> bool
-    {
+    pub fn is_root(&self) -> bool {
         self.uid == 0
     }
 }
@@ -230,8 +229,7 @@ impl User
 ///
 /// assert!(user::current().is_ok());
 /// ```
-pub fn current() -> RvResult<User>
-{
+pub fn current() -> RvResult<User> {
     let user = from_uid(getuid())?;
     Ok(user)
 }
@@ -244,8 +242,7 @@ pub fn current() -> RvResult<User>
 ///
 /// assert!(user::from_uid(user::getuid()).is_ok());
 /// ```
-pub fn from_uid(uid: u32) -> RvResult<User>
-{
+pub fn from_uid(uid: u32) -> RvResult<User> {
     if let Some(nix_user) = nix::unistd::User::from_uid(Uid::from_raw(uid))? {
         let username = nix_user.name;
         let uid = nix_user.uid.as_raw();
@@ -294,8 +291,7 @@ pub fn from_uid(uid: u32) -> RvResult<User>
 ///
 /// assert!(user::drop_sudo().is_ok());
 /// ```
-pub fn drop_sudo() -> RvResult<()>
-{
+pub fn drop_sudo() -> RvResult<()> {
     match getuid() {
         0 => {
             let (ruid, rgid) = getrids(0, 0);
@@ -313,8 +309,7 @@ pub fn drop_sudo() -> RvResult<()>
 ///
 /// assert!(user::getuid() != 0);
 /// ```
-pub fn getuid() -> u32
-{
+pub fn getuid() -> u32 {
     nix::unistd::getuid().as_raw()
 }
 
@@ -326,8 +321,7 @@ pub fn getuid() -> u32
 ///
 /// assert!(user::getgid() != 0);
 /// ```
-pub fn getgid() -> u32
-{
+pub fn getgid() -> u32 {
     nix::unistd::getgid().as_raw()
 }
 
@@ -339,8 +333,7 @@ pub fn getgid() -> u32
 ///
 /// assert!(user::geteuid() != 0);
 /// ```
-pub fn geteuid() -> u32
-{
+pub fn geteuid() -> u32 {
     nix::unistd::geteuid().as_raw()
 }
 
@@ -352,8 +345,7 @@ pub fn geteuid() -> u32
 ///
 /// assert!(user::getegid() != 0);
 /// ```
-pub fn getegid() -> u32
-{
+pub fn getegid() -> u32 {
     nix::unistd::getegid().as_raw()
 }
 
@@ -367,8 +359,7 @@ pub fn getegid() -> u32
 ///
 /// assert_eq!(user::getrids(user::getuid(), user::getgid()), (user::getuid(), user::getgid()));
 /// ```
-pub fn getrids(uid: u32, gid: u32) -> (u32, u32)
-{
+pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
     match uid {
         0 => match (env::var("SUDO_UID"), env::var("SUDO_GID")) {
             (Ok(u), Ok(g)) => match (u.parse::<u32>(), g.parse::<u32>()) {
@@ -389,8 +380,7 @@ pub fn getrids(uid: u32, gid: u32) -> (u32, u32)
 ///
 /// assert_eq!(user::is_root(), false);
 /// ```
-pub fn is_root() -> bool
-{
+pub fn is_root() -> bool {
     getuid() == 0
 }
 
@@ -402,8 +392,7 @@ pub fn is_root() -> bool
 ///
 /// println!("current user name: {:?}", user::name().unwrap());
 /// ```
-pub fn name() -> RvResult<String>
-{
+pub fn name() -> RvResult<String> {
     Ok(current()?.name)
 }
 
@@ -415,8 +404,7 @@ pub fn name() -> RvResult<String>
 ///
 /// assert!(user::setuid(user::getuid()).is_ok());
 /// ```
-pub fn setuid(uid: u32) -> RvResult<()>
-{
+pub fn setuid(uid: u32) -> RvResult<()> {
     nix::unistd::setuid(Uid::from_raw(uid))?;
     Ok(())
 }
@@ -429,8 +417,7 @@ pub fn setuid(uid: u32) -> RvResult<()>
 ///
 /// assert!(user::seteuid(user::geteuid()).is_ok());
 /// ```
-pub fn seteuid(euid: u32) -> RvResult<()>
-{
+pub fn seteuid(euid: u32) -> RvResult<()> {
     nix::unistd::seteuid(Uid::from_raw(euid))?;
     Ok(())
 }
@@ -443,8 +430,7 @@ pub fn seteuid(euid: u32) -> RvResult<()>
 ///
 /// assert!(user::setgid(user::getgid()).is_ok());
 /// ```
-pub fn setgid(gid: u32) -> RvResult<()>
-{
+pub fn setgid(gid: u32) -> RvResult<()> {
     nix::unistd::setgid(Gid::from_raw(gid))?;
     Ok(())
 }
@@ -457,8 +443,7 @@ pub fn setgid(gid: u32) -> RvResult<()>
 ///
 /// assert!(user::setegid(user::getegid()).is_ok());
 /// ```
-pub fn setegid(egid: u32) -> RvResult<()>
-{
+pub fn setegid(egid: u32) -> RvResult<()> {
     nix::unistd::setegid(Gid::from_raw(egid))?;
     Ok(())
 }
@@ -473,8 +458,7 @@ pub fn setegid(egid: u32) -> RvResult<()>
 ///
 /// user:sudo_up().unwrap();
 /// ```
-pub fn sudo_up() -> RvResult<()>
-{
+pub fn sudo_up() -> RvResult<()> {
     if is_root() {
         return Ok(());
     }
@@ -491,8 +475,7 @@ pub fn sudo_up() -> RvResult<()>
 ///
 /// assert!(user::sudo_down().is_ok());
 /// ```
-pub fn sudo_down() -> RvResult<()>
-{
+pub fn sudo_down() -> RvResult<()> {
     if !is_root() {
         return Ok(());
     }
@@ -517,8 +500,7 @@ pub fn sudo_down() -> RvResult<()>
 /// // Switch to user 1000 and drop root privileges permanantely
 /// user::switchuser(1000, 1000, 1000, 1000, 1000, 1000);
 /// ```
-pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u32) -> RvResult<()>
-{
+pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u32) -> RvResult<()> {
     // Best practice to drop the group first
     nix::unistd::setresgid(Gid::from_raw(rgid), Gid::from_raw(egid), Gid::from_raw(sgid))?;
     nix::unistd::setresuid(Uid::from_raw(ruid), Uid::from_raw(euid), Uid::from_raw(suid))?;
@@ -528,15 +510,13 @@ pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use std::{env, path::PathBuf};
 
     use crate::prelude::*;
 
     #[test]
-    fn test_user_home()
-    {
+    fn test_user_home() {
         let home_str = env::var("HOME").unwrap();
         let home_path = PathBuf::from(home_str);
         let home_dir = home_path.parent().unwrap();
@@ -544,8 +524,7 @@ mod tests
     }
 
     #[test]
-    fn test_user_ids()
-    {
+    fn test_user_ids() {
         assert!(user::sudo_down().is_ok());
         assert!(user::drop_sudo().is_ok());
         assert!(user::getuid() != 0);
@@ -588,15 +567,14 @@ mod tests
     }
 
     #[test]
-    fn test_user_dirs()
-    {
+    fn test_user_dirs() {
         assert!(user::home_dir().is_ok());
         assert!(user::config_dir().is_ok());
         assert!(user::cache_dir().is_ok());
         assert!(user::data_dir().is_ok());
         user::runtime_dir();
         assert!(user::sys_data_dirs().is_ok());
-        assert!(user::sys_config_dir().is_ok());
+        assert!(user::sys_config_dirs().is_ok());
         assert!(user::path_dirs().is_ok());
     }
 }

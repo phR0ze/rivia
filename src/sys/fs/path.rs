@@ -11,8 +11,7 @@ use crate::{core::*, errors::*};
 ///
 /// assert_eq!(sys::base("/foo/bar").unwrap(), "bar".to_string());
 /// ```
-pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
-{
+pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String> {
     path.as_ref().components().last_result()?.to_string()
 }
 
@@ -41,8 +40,7 @@ pub fn base<T: AsRef<Path>>(path: T) -> RvResult<String>
 ///
 /// assert_eq!(sys::clean("./foo/./bar"), PathBuf::from("foo/bar"));
 /// ```
-pub fn clean<T: AsRef<Path>>(path: T) -> PathBuf
-{
+pub fn clean<T: AsRef<Path>>(path: T) -> PathBuf {
     // Components already handles the following cases:
     // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
     // 2. Occurrences of . are normalized away, except if they are at the beginning of the path.
@@ -100,8 +98,7 @@ pub fn clean<T: AsRef<Path>>(path: T) -> PathBuf
 ///
 /// assert_eq!(sys::concat("/foo/bar", ".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
 /// ```
-pub fn concat<T: AsRef<Path>, U: AsRef<str>>(path: T, val: U) -> RvResult<PathBuf>
-{
+pub fn concat<T: AsRef<Path>, U: AsRef<str>>(path: T, val: U) -> RvResult<PathBuf> {
     Ok(PathBuf::from(format!("{}{}", path.as_ref().to_string()?, val.as_ref())))
 }
 
@@ -116,8 +113,7 @@ pub fn concat<T: AsRef<Path>, U: AsRef<str>>(path: T, val: U) -> RvResult<PathBu
 ///
 /// assert_eq!(sys::dir("/foo/bar").unwrap(), PathBuf::from("/foo").as_path());
 /// ```
-pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
-{
+pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     let path = path.as_ref();
     let dir = path.parent().ok_or_else(|| PathError::parent_not_found(path))?;
     Ok(dir.to_path_buf())
@@ -134,8 +130,7 @@ pub fn dir<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
 /// assert_eq!(sys::expand("$HOME/foo").unwrap(), PathBuf::from(&home).join("foo"));
 /// assert_eq!(sys::expand("${HOME}/foo").unwrap(), PathBuf::from(&home).join("foo"));
 /// ```
-pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
-{
+pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     let path = path.as_ref();
     let pathstr = path.to_string()?;
 
@@ -205,8 +200,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
 ///
 /// assert_eq!(sys::ext("foo.bar").unwrap(), "bar");
 /// ```
-pub fn ext<T: AsRef<Path>>(path: T) -> RvResult<String>
-{
+pub fn ext<T: AsRef<Path>>(path: T) -> RvResult<String> {
     match path.as_ref().extension() {
         Some(val) => val.to_string(),
         None => Err(PathError::extension_not_found(path).into()),
@@ -221,8 +215,7 @@ pub fn ext<T: AsRef<Path>>(path: T) -> RvResult<String>
 ///
 /// assert_eq!(sys::first("foo/bar").unwrap(), "foo".to_string());
 /// ```
-pub fn first<T: AsRef<Path>>(path: T) -> RvResult<String>
-{
+pub fn first<T: AsRef<Path>>(path: T) -> RvResult<String> {
     path.as_ref().components().first_result()?.to_string()
 }
 
@@ -234,8 +227,7 @@ pub fn first<T: AsRef<Path>>(path: T) -> RvResult<String>
 ///
 /// assert_eq!(sys::name("/foo/bar.foo").unwrap(), "bar");
 /// ```
-pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String>
-{
+pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String> {
     base(trim_ext(path)?)
 }
 
@@ -249,8 +241,7 @@ pub fn name<T: AsRef<Path>>(path: T) -> RvResult<String>
 /// assert_eq!(sys::has(&path, "foo"), true);
 /// assert_eq!(sys::has(&path, "/foo"), true);
 /// ```
-pub fn has<T: AsRef<Path>, U: AsRef<Path>>(path: T, val: U) -> bool
-{
+pub fn has<T: AsRef<Path>, U: AsRef<Path>>(path: T, val: U) -> bool {
     match (path.as_ref().to_string(), val.as_ref().to_string()) {
         (Ok(base), Ok(path)) => base.contains(&path),
         _ => false,
@@ -267,8 +258,7 @@ pub fn has<T: AsRef<Path>, U: AsRef<Path>>(path: T, val: U) -> bool
 /// assert_eq!(sys::has_prefix(&path, "/foo"), true);
 /// assert_eq!(sys::has_prefix(&path, "foo"), false);
 /// ```
-pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool
-{
+pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool {
     match (path.as_ref().to_string(), prefix.as_ref().to_string()) {
         (Ok(base), Ok(prefix)) => base.starts_with(&prefix),
         _ => false,
@@ -285,8 +275,7 @@ pub fn has_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> bool
 /// assert_eq!(sys::has_suffix(&path, "/bar"), true);
 /// assert_eq!(sys::has_suffix(&path, "foo"), false);
 /// ```
-pub fn has_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> bool
-{
+pub fn has_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> bool {
     match (path.as_ref().to_string(), suffix.as_ref().to_string()) {
         (Ok(base), Ok(suffix)) => base.ends_with(&suffix),
         _ => false,
@@ -304,8 +293,7 @@ pub fn has_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> bool
 ///
 /// assert!(sys::home_dir().is_ok());
 /// ```
-pub fn home_dir() -> RvResult<PathBuf>
-{
+pub fn home_dir() -> RvResult<PathBuf> {
     let home = std::env::var("HOME")?;
     let dir = PathBuf::from(home);
     Ok(dir)
@@ -319,8 +307,7 @@ pub fn home_dir() -> RvResult<PathBuf>
 ///
 /// assert_eq!(sys::is_empty(""), true);
 /// ```
-pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool
-{
+pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool {
     path.into() == PathBuf::new()
 }
 
@@ -332,14 +319,13 @@ pub fn is_empty<T: Into<PathBuf>>(path: T) -> bool
 ///
 /// assert_eq!(sys::last("foo/bar").unwrap(), "bar".to_string());
 /// ```
-pub fn last<T: AsRef<Path>>(path: T) -> RvResult<String>
-{
+pub fn last<T: AsRef<Path>>(path: T) -> RvResult<String> {
     base(path)
 }
 
 /// Returns a new owned [`PathBuf`] mashed together with the given `path`
 ///
-/// ### More closely aligns with Golang's implementation of join
+/// ### Safer implementation than `join` in that it more closely aligns with Golang's implementation
 /// * Drops the root prefix of the given `path` if it exists unlike `join`
 /// * Drops any trailing separator e.g. `/`
 ///
@@ -349,8 +335,7 @@ pub fn last<T: AsRef<Path>>(path: T) -> RvResult<String>
 ///
 /// assert_eq!(sys::mash("/foo", "/bar"), PathBuf::from("/foo/bar"));
 /// ```
-pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf
-{
+pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
     let base = trim_prefix(base, path::MAIN_SEPARATOR.to_string());
     let path = dir.as_ref().join(base);
     path.components().collect::<PathBuf>()
@@ -367,8 +352,7 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf
 /// let paths = vec![PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
 /// assert_iter_eq(sys::parse_paths("/foo1:/foo2/bar").unwrap(), paths);
 /// ```
-pub fn parse_paths<T: AsRef<str>>(value: T) -> RvResult<Vec<PathBuf>>
-{
+pub fn parse_paths<T: AsRef<str>>(value: T) -> RvResult<Vec<PathBuf>> {
     let mut paths: Vec<PathBuf> = vec![];
     for dir in value.as_ref().split(':') {
         // Ignoring - Unix shell semantics: path element "" means "."
@@ -395,8 +379,7 @@ pub fn parse_paths<T: AsRef<str>>(value: T) -> RvResult<Vec<PathBuf>>
 ///
 /// assert_eq!(sys::relative("foo/bar1", "foo/bar2").unwrap(), PathBuf::from("../bar1"));
 /// ```
-pub fn relative<T: AsRef<Path>, U: AsRef<Path>>(path: T, base: U) -> RvResult<PathBuf>
-{
+pub fn relative<T: AsRef<Path>, U: AsRef<Path>>(path: T, base: U) -> RvResult<PathBuf> {
     let path = path.as_ref();
     let base = base.as_ref();
     if path != base {
@@ -449,8 +432,7 @@ pub fn relative<T: AsRef<Path>, U: AsRef<Path>>(path: T, base: U) -> RvResult<Pa
 ///
 /// assert_eq!(sys::trim_ext("foo.exe").unwrap(), PathBuf::from("foo"));
 /// ```
-pub fn trim_ext<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
-{
+pub fn trim_ext<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
     let path = path.as_ref();
     Ok(match path.extension() {
         Some(val) => trim_suffix(path, format!(".{}", val.to_string()?)),
@@ -466,8 +448,7 @@ pub fn trim_ext<T: AsRef<Path>>(path: T) -> RvResult<PathBuf>
 ///
 /// assert_eq!(sys::trim_first("/foo"), PathBuf::from("foo"));
 /// ```
-pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf
-{
+pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf {
     path.as_ref().components().drop(1).as_path().to_path_buf()
 }
 
@@ -479,8 +460,7 @@ pub fn trim_first<T: AsRef<Path>>(path: T) -> PathBuf
 ///
 /// assert_eq!(sys::trim_last("/foo"), PathBuf::from("/"));
 /// ```
-pub fn trim_last<T: AsRef<Path>>(path: T) -> PathBuf
-{
+pub fn trim_last<T: AsRef<Path>>(path: T) -> PathBuf {
     path.as_ref().components().drop(-1).as_path().to_path_buf()
 }
 
@@ -492,8 +472,7 @@ pub fn trim_last<T: AsRef<Path>>(path: T) -> PathBuf
 ///
 /// assert_eq!(sys::trim_prefix("/foo/bar", "/foo"), PathBuf::from("/bar"));
 /// ```
-pub fn trim_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> PathBuf
-{
+pub fn trim_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> PathBuf {
     let path = path.as_ref();
     match (path.to_string(), prefix.as_ref().to_string()) {
         (Ok(base), Ok(prefix)) if base.starts_with(&prefix) => PathBuf::from(&base[prefix.size()..]),
@@ -510,8 +489,7 @@ pub fn trim_prefix<T: AsRef<Path>, U: AsRef<Path>>(path: T, prefix: U) -> PathBu
 ///
 /// assert_eq!(sys::trim_protocol("ftp://foo"), PathBuf::from("foo"));
 /// ```
-pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf
-{
+pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf {
     let path = path.as_ref();
     match path.to_string() {
         Ok(base) => match base.find("//") {
@@ -542,8 +520,7 @@ pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf
 ///
 /// assert_eq!(sys::trim_suffix("/foo/bar", "/bar"), PathBuf::from("/foo"));
 /// ```
-pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBuf
-{
+pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBuf {
     let path = path.as_ref();
     match (path.to_string(), suffix.as_ref().to_string()) {
         (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => PathBuf::from(&base[..base.size() - suffix.size()]),
@@ -552,8 +529,7 @@ pub fn trim_suffix<T: AsRef<Path>, U: AsRef<Path>>(path: T, suffix: U) -> PathBu
 }
 
 /// Defines additional pathing extension functions for [`Path`] and [`PathBuf`]
-pub trait PathExt
-{
+pub trait PathExt {
     /// Simply a wrapper for `file_name` to return the final component of the `Path`, if there is
     /// one else an error.
     ///
@@ -807,8 +783,7 @@ pub trait PathExt
 }
 
 /// Provides extension method ergonomics for all the system module helper functions for paths
-impl PathExt for Path
-{
+impl PathExt for Path {
     /// Simply a wrapper for `file_name` to return the final component of the `Path`, if there is
     /// one else an error.
     ///
@@ -818,8 +793,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo/bar").base().unwrap(), "bar".to_string());
     /// ```
-    fn base(&self) -> RvResult<String>
-    {
+    fn base(&self) -> RvResult<String> {
         base(self)
     }
 
@@ -845,8 +819,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("./foo/./bar").clean(), PathBuf::from("foo/bar"));
     /// ```
-    fn clean(&self) -> PathBuf
-    {
+    fn clean(&self) -> PathBuf {
         clean(self)
     }
 
@@ -859,8 +832,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
     /// ```
-    fn concat<T: AsRef<str>>(&self, val: T) -> RvResult<PathBuf>
-    {
+    fn concat<T: AsRef<str>>(&self, val: T) -> RvResult<PathBuf> {
         concat(self, val)
     }
 
@@ -875,8 +847,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo/bar").dir().unwrap(), PathBuf::from("/foo"));
     /// ```
-    fn dir(&self) -> RvResult<PathBuf>
-    {
+    fn dir(&self) -> RvResult<PathBuf> {
         dir(self)
     }
 
@@ -889,8 +860,7 @@ impl PathExt for Path
     /// let home = sys::home_dir().unwrap();
     /// assert_eq!(Path::new("~/foo").expand().unwrap(), PathBuf::from(&home).mash("foo"));
     /// ```
-    fn expand(&self) -> RvResult<PathBuf>
-    {
+    fn expand(&self) -> RvResult<PathBuf> {
         expand(self)
     }
 
@@ -902,8 +872,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
     /// ```
-    fn ext(&self) -> RvResult<String>
-    {
+    fn ext(&self) -> RvResult<String> {
         ext(self)
     }
     /// Returns the first path component.
@@ -914,8 +883,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("foo/bar").first().unwrap(), "foo".to_string());
     /// ```
-    fn first(&self) -> RvResult<String>
-    {
+    fn first(&self) -> RvResult<String> {
         first(self)
     }
 
@@ -927,8 +895,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(PathBuf::from("").is_empty(), true);
     /// ```
-    fn is_empty(&self) -> bool
-    {
+    fn is_empty(&self) -> bool {
         is_empty(self)
     }
 
@@ -942,8 +909,7 @@ impl PathExt for Path
     /// assert_eq!(path.has("foo"), true);
     /// assert_eq!(path.has("/foo"), true);
     /// ```
-    fn has<T: AsRef<Path>>(&self, val: T) -> bool
-    {
+    fn has<T: AsRef<Path>>(&self, val: T) -> bool {
         has(self, val)
     }
     /// Returns true if the `Path` as a String has the given prefix
@@ -956,8 +922,7 @@ impl PathExt for Path
     /// assert_eq!(path.has_prefix("/foo"), true);
     /// assert_eq!(path.has_prefix("foo"), false);
     /// ```
-    fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool
-    {
+    fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool {
         has_prefix(self, prefix)
     }
 
@@ -971,8 +936,7 @@ impl PathExt for Path
     /// assert_eq!(path.has_suffix("/bar"), true);
     /// assert_eq!(path.has_suffix("foo"), false);
     /// ```
-    fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool
-    {
+    fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool {
         has_suffix(self, suffix)
     }
 
@@ -984,15 +948,14 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("foo/bar").last().unwrap(), "bar".to_string());
     /// ```
-    fn last(&self) -> RvResult<String>
-    {
+    fn last(&self) -> RvResult<String> {
         last(self)
     }
 
-    /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
-    /// Differs from the `join` implementation in that it drops root prefix of the given `path` if
-    /// it exists and also drops any trailing '/' on the new resulting path. More closely aligns
-    /// with the Golang implementation of join.
+    /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`. This is a safer
+    /// implementation than the `join` method as it drops the root prefix of the given `path` if
+    /// it exists and also drops any trailing '/' on the new resulting path. This implementation
+    /// more closely aligns with the Golang implementation.
     ///
     /// ### Examples
     /// ```
@@ -1001,8 +964,7 @@ impl PathExt for Path
     /// assert_eq!(Path::new("/foo").mash("bar"), PathBuf::from("/foo/bar"));
     /// assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
     /// ```
-    fn mash<T: AsRef<Path>>(&self, path: T) -> PathBuf
-    {
+    fn mash<T: AsRef<Path>>(&self, path: T) -> PathBuf {
         mash(self, path)
     }
 
@@ -1014,8 +976,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo/bar.foo").name().unwrap(), "bar");
     /// ```
-    fn name(&self) -> RvResult<String>
-    {
+    fn name(&self) -> RvResult<String> {
         name(self)
     }
 
@@ -1037,8 +998,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
     /// ```
-    fn relative<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf>
-    {
+    fn relative<T: AsRef<Path>>(&self, path: T) -> RvResult<PathBuf> {
         relative(self, path)
     }
 
@@ -1050,8 +1010,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
     /// ```
-    fn trim_ext(&self) -> RvResult<PathBuf>
-    {
+    fn trim_ext(&self) -> RvResult<PathBuf> {
         trim_ext(self)
     }
 
@@ -1063,8 +1022,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo").trim_first(), PathBuf::from("foo"));
     /// ```
-    fn trim_first(&self) -> PathBuf
-    {
+    fn trim_first(&self) -> PathBuf {
         trim_first(self)
     }
 
@@ -1076,8 +1034,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo").trim_last(), PathBuf::from("/"));
     /// ```
-    fn trim_last(&self) -> PathBuf
-    {
+    fn trim_last(&self) -> PathBuf {
         trim_last(self)
     }
 
@@ -1089,8 +1046,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
     /// ```
-    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf
-    {
+    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf {
         trim_prefix(self, prefix)
     }
 
@@ -1103,8 +1059,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("ftp://foo").trim_protocol(), PathBuf::from("foo"));
     /// ```
-    fn trim_protocol(&self) -> PathBuf
-    {
+    fn trim_protocol(&self) -> PathBuf {
         trim_protocol(self)
     }
 
@@ -1116,8 +1071,7 @@ impl PathExt for Path
     ///
     /// assert_eq!(Path::new("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
     /// ```
-    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf
-    {
+    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf {
         trim_suffix(self, suffix)
     }
 }
@@ -1125,13 +1079,11 @@ impl PathExt for Path
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn test_pathext_base()
-    {
+    fn test_pathext_base() {
         assert_eq!(Path::new("").base().unwrap_err().to_string(), IterError::item_not_found().to_string());
         assert_eq!(Path::new("bar").base().unwrap(), "bar".to_string());
         assert_eq!(Path::new("/foo/bar").base().unwrap(), "bar".to_string());
@@ -1139,8 +1091,7 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_clean()
-    {
+    fn test_pathext_clean() {
         let tests = vec![
             // Root
             ("/", "/"),
@@ -1191,23 +1142,20 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_concat()
-    {
+    fn test_pathext_concat() {
         assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
         assert_eq!(PathBuf::from("bar").concat(".rs").unwrap(), PathBuf::from("bar.rs"));
     }
 
     #[test]
-    fn test_pathext_dir()
-    {
+    fn test_pathext_dir() {
         assert_eq!(Path::new("/foo/").dir().unwrap(), PathBuf::from("/").as_path(),);
         assert_eq!(Path::new("/foo/bar/").dir().unwrap(), PathBuf::from("/foo").as_path(),);
         assert_eq!(Path::new("/foo/bar").dir().unwrap(), PathBuf::from("/foo").as_path());
     }
 
     #[test]
-    fn test_pathext_expand() -> RvResult<()>
-    {
+    fn test_pathext_expand() -> RvResult<()> {
         let home = sys::home_dir()?;
 
         // Multiple home symbols should fail
@@ -1249,8 +1197,7 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_ext()
-    {
+    fn test_pathext_ext() {
         assert_eq!(
             Path::new("base").ext().unwrap_err().to_string(),
             PathError::extension_not_found("base").to_string()
@@ -1260,16 +1207,14 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_first()
-    {
+    fn test_pathext_first() {
         assert_eq!(Path::new("").first().unwrap_err().to_string(), IterError::item_not_found().to_string());
         assert_eq!(Path::new("foo").first().unwrap(), "foo".to_string());
         assert_eq!(Path::new("/foo").first().unwrap(), "/".to_string());
     }
 
     #[test]
-    fn test_pathext_has()
-    {
+    fn test_pathext_has() {
         assert_eq!(Path::new("").has(""), true);
         assert_eq!(Path::new("/foo").has("fo"), true);
         assert_eq!(Path::new("/foo/bar").has("bar"), true);
@@ -1277,32 +1222,28 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_has_prefix()
-    {
+    fn test_pathext_has_prefix() {
         assert_eq!(Path::new("").has_prefix(""), true);
         assert_eq!(Path::new("/foo").has_prefix("/fo"), true);
         assert_eq!(Path::new("/foo/bar").has_prefix("bar/"), false);
     }
 
     #[test]
-    fn test_pathext_has_suffix()
-    {
+    fn test_pathext_has_suffix() {
         assert_eq!(Path::new("").has_suffix(""), true);
         assert_eq!(Path::new("/foo").has_suffix("/fo"), false);
         assert_eq!(Path::new("/foo/bar").has_suffix("bar"), true);
     }
 
     #[test]
-    fn test_pathext_last()
-    {
+    fn test_pathext_last() {
         assert_eq!(Path::new("").last().unwrap_err().to_string(), IterError::item_not_found().to_string());
         assert_eq!(Path::new("foo").last().unwrap(), "foo".to_string());
         assert_eq!(Path::new("/foo").last().unwrap(), "foo".to_string());
     }
 
     #[test]
-    fn test_sys_home_dir()
-    {
+    fn test_sys_home_dir() {
         let home = sys::home_dir().unwrap();
         assert!(home != PathBuf::new());
         assert!(home.starts_with("/"));
@@ -1310,16 +1251,14 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_is_empty()
-    {
+    fn test_pathext_is_empty() {
         assert_eq!(Path::new("/").is_empty(), false);
         assert_eq!(Path::new("").is_empty(), true);
         assert_eq!(PathBuf::from("").is_empty(), true);
     }
 
     #[test]
-    fn test_pathext_mash()
-    {
+    fn test_pathext_mash() {
         // mashing nothing should yield no change
         assert_eq!(Path::new("").mash(""), PathBuf::from(""));
         assert_eq!(Path::new("/foo").mash(""), PathBuf::from("/foo"));
@@ -1332,8 +1271,7 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_name()
-    {
+    fn test_pathext_name() {
         assert_eq!(Path::new("").name().unwrap_err().to_string(), IterError::item_not_found().to_string());
         assert_eq!(Path::new("bar").name().unwrap(), "bar".to_string());
         assert_eq!(Path::new("/foo/bar").name().unwrap(), "bar".to_string());
@@ -1341,8 +1279,7 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_relative()
-    {
+    fn test_pathext_relative() {
         // share same directory
         assert_eq!(Path::new("bar1").relative("bar2").unwrap(), PathBuf::from("../bar1"));
         assert_eq!(Path::new("foo/bar1").relative("foo/bar2").unwrap(), PathBuf::from("../bar1"));
@@ -1368,8 +1305,7 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_trim_ext()
-    {
+    fn test_pathext_trim_ext() {
         assert_eq!(Path::new("/").trim_ext().unwrap(), PathBuf::from("/"));
         assert_eq!(Path::new("/foo").trim_ext().unwrap(), PathBuf::from("/foo"));
         assert_eq!(Path::new("/foo.bar").trim_ext().unwrap(), PathBuf::from("/foo"));
@@ -1377,24 +1313,21 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_trim_first()
-    {
+    fn test_pathext_trim_first() {
         assert_eq!(Path::new("/").trim_first(), PathBuf::from(""),);
         assert_eq!(Path::new("foo/bar").trim_first(), PathBuf::from("bar"),);
         assert_eq!(Path::new("/foo/bar").trim_first(), PathBuf::from("foo/bar"),);
     }
 
     #[test]
-    fn test_pathext_trim_last()
-    {
+    fn test_pathext_trim_last() {
         assert_eq!(Path::new("/").trim_last(), PathBuf::from(""),);
         assert_eq!(Path::new("foo/bar").trim_last(), PathBuf::from("foo"),);
         assert_eq!(Path::new("/foo/bar").trim_last(), PathBuf::from("/foo"),);
     }
 
     #[test]
-    fn test_pathext_trim_prefix()
-    {
+    fn test_pathext_trim_prefix() {
         // drop root
         assert_eq!(Path::new("/").trim_prefix("/"), PathBuf::new());
 
@@ -1407,8 +1340,7 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_trim_protocol()
-    {
+    fn test_pathext_trim_protocol() {
         // no change
         assert_eq!(Path::new("/foo").trim_protocol(), PathBuf::from("/foo"));
 
@@ -1437,8 +1369,7 @@ mod tests
     }
 
     #[test]
-    fn test_pathext_trim_suffix()
-    {
+    fn test_pathext_trim_suffix() {
         // drop root
         assert_eq!(Path::new("/").trim_suffix("/"), PathBuf::new());
 

@@ -1,5 +1,5 @@
 //! Provides a unified, simplified systems api including essential macros and extensions to fill in
-//! gaps in Rust ergonomics and reduce the amount of boiler plate code required for common tasks.
+//! gaps in Rust ergonomics to reduce the amount of boiler plate code required for common tasks.
 //! The intent is to provide this while keeping dependencies to a minimum.
 //!
 //! ## Virtual FileSystem (VFS)
@@ -60,8 +60,7 @@ pub mod sys;
 /// ```
 /// use rivia::prelude::*;
 /// ```
-pub mod prelude
-{
+pub mod prelude {
     // Re-exports
     pub use std::{
         io::{Read, Seek, SeekFrom, Write},
