@@ -1,33 +1,33 @@
 [package]
 name = "rivia"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2021"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
 description = "Rust utilities to reduce code verbosity"
 repository = "https://github.com/phR0ze/rivia"
 exclude = [
-  "docs",
-  "config",
-  "examples",
-  ".git",
-  ".githooks",
-  ".github",
-  "tests",
-  "benches",
-  "target",
-  ".vscode"
+    "docs",
+    "config",
+    "examples",
+    ".git",
+    ".githooks",
+    ".github",
+    "tests",
+    "benches",
+    "target",
+    ".vscode",
 ]
 
 # Higher the opt-level value the slower the compile time
 [profile.release]
-opt-level = 3   # Optimize for speed over size
-lto = true      # Futher assist in optimization
-debug = false   # Provide debug symbols for Witcher
-strip = true    # Remove all extra info
+opt-level = 3 # Optimize for speed over size
+lto = true    # Futher assist in optimization
+debug = false # Provide debug symbols for Witcher
+strip = true  # Remove all extra info
 
 [profile.dev]
-opt-level = 0   # Default no optimization
+opt-level = 0 # Default no optimization
 
 [dependencies]
 nix = "0.23"
