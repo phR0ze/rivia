@@ -985,8 +985,31 @@ impl VirtualFileSystem for Memfs {
     /// ```
     /// use rivia::prelude::*;
     ///
+    /// let vfs = Vfs::memfs();
+    /// let dir = PathBuf::from("/etc/xdg");
+    /// vfs.mkdir_p(&dir).unwrap();
+    /// let filepath = dir.mash("rivia.toml");
+    /// vfs.write_all(&filepath, "this is a test").unwrap();
+    /// assert_eq!(vfs.config_dir("rivia.toml").unwrap().to_str().unwrap(), "/etc/xdg");
+    ///
+    /// if let Some(config_dir) = vfs.config_dir("rivia.toml") {
+    ///    let path = config_dir.mash("rivia.toml");
+    ///    let config = vfs.read_all(&path).unwrap();
+    ///    assert_eq!(config, "this is a test");
+    /// }
     /// ```
     fn config_dir<T: AsRef<str>>(&self, config: T) -> Option<PathBuf> {
+        if let Ok(config_dir) = crate::sys::user::config_dir() {
+            if let Ok(mut config_dirs) = crate::sys::user::sys_config_dirs() {
+                config_dirs.insert(0, config_dir);
+                for config_dir in config_dirs {
+                    let path = config_dir.mash(config.as_ref());
+                    if self.exists(path) {
+                        return Some(config_dir);
+                    }
+                }
+            }
+        }
         None
     }
 
@@ -2346,6 +2369,29 @@ mod tests {
         assert_eq!(entries[&dir1].path(), &dir1);
         assert_eq!(entries[&dir2].path(), &dir2);
         assert_eq!(entries[&file3].path(), &file3);
+    }
+
+    #[test]
+    fn test_config_dir() {
+        // Single hit
+        let vfs = Memfs::new();
+        let dir = PathBuf::from("/etc/xdg");
+        assert_eq!(&vfs.mkdir_p(&dir).unwrap(), &dir);
+        let file1 = dir.mash("file1");
+        assert_vfs_write_all!(vfs, &file1, "this is a test");
+        assert_eq!(vfs.config_dir("file1").unwrap().to_str().unwrap(), "/etc/xdg");
+
+        // User's config takes priority
+        let user_config_dir = crate::sys::user::config_dir().unwrap();
+        assert_eq!(&vfs.mkdir_p(&user_config_dir).unwrap(), &user_config_dir);
+
+        // Check that the directory existing is not enough
+        assert_eq!(vfs.config_dir("file1").unwrap().to_str().unwrap(), "/etc/xdg");
+
+        // Add the file and ensure it takes priority
+        let file2 = user_config_dir.mash("file1");
+        assert_vfs_write_all!(vfs, &file2, "this is a test");
+        assert_eq!(vfs.config_dir("file1").unwrap(), user_config_dir);
     }
 
     #[test]

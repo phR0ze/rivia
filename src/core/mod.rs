@@ -17,7 +17,6 @@ pub use defer::*;
 pub use iter::*;
 pub use option::*;
 pub use peekable::*;
-pub use result::*;
 pub use string::*;
 
 /// Expands to the current function's name similar to the venerable `file!` or `line!`
@@ -41,8 +40,7 @@ macro_rules! function {
         // function's fully qualified name, which includes our target.
         // <https://doc.rust-lang.org/std/any/fn.type_name.html>
         fn _f() {}
-        fn type_of<T>(_: T) -> &'static str
-        {
+        fn type_of<T>(_: T) -> &'static str {
             std::any::type_name::<T>()
         }
 
@@ -81,8 +79,7 @@ macro_rules! function_fqn {
         // function's fully qualified name, which includes our target.
         // <https://doc.rust-lang.org/std/any/fn.type_name.html>
         fn _f() {}
-        fn type_of<T>(_: T) -> &'static str
-        {
+        fn type_of<T>(_: T) -> &'static str {
             std::any::type_name::<T>()
         }
 
@@ -179,15 +176,12 @@ macro_rules! trying {
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn test_function_fqn_macro()
-    {
-        fn indirect_fqn() -> &'static str
-        {
+    fn test_function_fqn_macro() {
+        fn indirect_fqn() -> &'static str {
             function_fqn!()
         }
         assert_eq!(function_fqn!(), "rivia::core::tests::test_function_fqn_macro");
@@ -195,10 +189,8 @@ mod tests
     }
 
     #[test]
-    fn test_function_macro()
-    {
-        fn indirect_func_name() -> &'static str
-        {
+    fn test_function_macro() {
+        fn indirect_func_name() -> &'static str {
             function!()
         }
         assert_eq!(function!(), "test_function_macro");
@@ -206,10 +198,8 @@ mod tests
     }
 
     #[test]
-    fn test_trying_macro()
-    {
-        fn trying_func<T: AsRef<Path>>(path: T) -> Option<RvResult<PathBuf>>
-        {
+    fn test_trying_macro() {
+        fn trying_func<T: AsRef<Path>>(path: T) -> Option<RvResult<PathBuf>> {
             Some(Ok(trying!(Stdfs::abs(path.as_ref()))))
         }
         assert_eq!(trying_func("").unwrap().unwrap_err().to_string(), "path empty");

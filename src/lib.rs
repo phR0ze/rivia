@@ -15,18 +15,20 @@
 //! ```
 //! use rivia::prelude::*;
 //!
-//! fn switching_vfs_backends((vfs, tmpdir): (Vfs, PathBuf))
-//! {
-//!     let dir = tmpdir.mash("dir");
-//!     let file = dir.mash("file");
-//!     assert_vfs_mkdir_p!(&vfs, &dir);
-//!     assert_vfs_mkfile!(&vfs, &file);
-//!     assert_vfs_remove!(&vfs, &file);
-//!     assert_vfs_remove_all!(&vfs, &tmpdir);
-//! }
+//! // Simply replace this line with `let vfs = Vfs::stdfs();` for the real filesystem
+//! let vfs = Vfs::memfs();
 //!
-//! switching_vfs_backends(assert_vfs_setup!(Vfs::memfs()));
-//! switching_vfs_backends(assert_vfs_setup!(Vfs::stdfs()));
+//! let dir = PathBuf::from("/etc/xdg");
+//! vfs.mkdir_p(&dir).unwrap();
+//! let filepath = dir.mash("rivia.toml");
+//! vfs.write_all(&filepath, "this is a test").unwrap();
+//! assert_eq!(vfs.config_dir("rivia.toml").unwrap().to_str().unwrap(), "/etc/xdg");
+//!
+//! if let Some(config_dir) = vfs.config_dir("rivia.toml") {
+//!    let path = config_dir.mash("rivia.toml");
+//!    let config = vfs.read_all(&path).unwrap();
+//!    assert_eq!(config, "this is a test");
+//! }
 //! ```
 //!
 //! ## Rejected Considerations

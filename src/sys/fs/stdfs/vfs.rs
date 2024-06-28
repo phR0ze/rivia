@@ -1,24 +1,11 @@
 use std::{
-    fs::{self, File},
-    io::{BufRead, BufReader, Write},
-    os::unix::{self, fs::MetadataExt, fs::PermissionsExt},
-    path::{Component, Path, PathBuf},
-    time::SystemTime,
+    io::Write,
+    path::{Path, PathBuf},
 };
 
-use nix::sys::{
-    stat::{self, UtimensatFlags},
-    time::TimeSpec,
-};
-
-use super::{StdfsEntry, StdfsEntryIter};
 use crate::{
-    core::*,
     errors::*,
-    sys::{
-        self, Chmod, ChmodOpts, Chown, ChownOpts, Copier, CopyOpts, Entries, Entry, EntryIter, PathExt, ReadSeek,
-        Vfs, VfsEntry, VirtualFileSystem,
-    },
+    sys::{Chmod, Chown, Copier, Entries, ReadSeek, Vfs, VfsEntry, VirtualFileSystem},
 };
 
 use super::Stdfs;
@@ -328,6 +315,18 @@ impl VirtualFileSystem for Stdfs {
     /// ```
     /// use rivia::prelude::*;
     ///
+    /// let vfs = Vfs::memfs(); // replace this with Vfs::stdfs() for the real filesystem
+    /// let dir = PathBuf::from("/etc/xdg");
+    /// vfs.mkdir_p(&dir).unwrap();
+    /// let filepath = dir.mash("rivia.toml");
+    /// vfs.write_all(&filepath, "this is a test").unwrap();
+    /// assert_eq!(vfs.config_dir("rivia.toml").unwrap().to_str().unwrap(), "/etc/xdg");
+    ///
+    /// if let Some(config_dir) = vfs.config_dir("rivia.toml") {
+    ///    let path = config_dir.mash("rivia.toml");
+    ///    let config = vfs.read_all(&path).unwrap();
+    ///    assert_eq!(config, "this is a test");
+    /// }
     /// ```
     fn config_dir<T: AsRef<str>>(&self, config: T) -> Option<PathBuf> {
         Stdfs::config_dir(config)
@@ -1360,6 +1359,23 @@ mod tests {
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
 
+    #[test]
+    fn test_stdfs_config_dir() {
+        let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());
+        let dir = tmpdir.mash(".config");
+        assert_eq!(&vfs.mkdir_p(&dir).unwrap(), &dir);
+        let file1 = dir.mash("file1");
+        assert_vfs_write_all!(vfs, &file1, "this is a test");
+
+        // Won't return anything as no well known dirs were used
+        assert_eq!(vfs.config_dir("file1"), None);
+
+        // Override the XDG_CONFIG_HOME value then check again
+        std::env::set_var("XDG_CONFIG_HOME", &dir);
+        assert_eq!(vfs.config_dir("file1").unwrap(), dir);
+
+        assert_vfs_remove_all!(vfs, &tmpdir);
+    }
     #[test]
     fn test_stdfs_copy() {
         let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs());

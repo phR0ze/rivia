@@ -1,18 +1,26 @@
 use rivia::prelude::*;
 
-fn main()
-{
-    // Write data to a file and read it back using Stdfs and Memfs
-    vfs_read_write_all(assert_vfs_setup!(Vfs::memfs(), "vfs_memfs_read_write_example")).unwrap();
-    vfs_read_write_all(assert_vfs_setup!(Vfs::stdfs(), "vfs_stdfs_read_write_example")).unwrap();
+fn main() {
+    // Simply replace this line with `let vfs = Vfs::stdfs();` for the real filesystem
+    let vfs = Vfs::memfs();
+    let config = load_config(vfs);
+    assert_eq!(config, "this is a test");
+    println!("VFS test passed");
 }
 
-fn vfs_read_write_all((vfs, tmpdir): (Vfs, PathBuf)) -> RvResult<()>
-{
-    let file1 = tmpdir.mash("file1");
-    vfs.write_all(&file1, b"this is a test")?;
-    assert_eq!(vfs.read_all(&file1)?, "this is a test".to_string());
+// Load an example application configuration file using VFS.
+// This allows you to test with a memory backed VFS implementation during testing and with
+// the real filesystem during production.
+fn load_config(vfs: Vfs) -> String {
+    let dir = PathBuf::from("/etc/xdg");
+    vfs.mkdir_p(&dir).unwrap();
+    let filepath = dir.mash("rivia.toml");
+    vfs.write_all(&filepath, "this is a test").unwrap();
+    assert_eq!(vfs.config_dir("rivia.toml").unwrap().to_str().unwrap(), "/etc/xdg");
 
-    assert_vfs_remove_all!(vfs, &tmpdir);
-    Ok(())
+    if let Some(config_dir) = vfs.config_dir("rivia.toml") {
+        let path = config_dir.mash("rivia.toml");
+        return vfs.read_all(&path).unwrap();
+    }
+    "".into()
 }
