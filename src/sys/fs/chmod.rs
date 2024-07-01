@@ -45,8 +45,7 @@ use crate::{
 /// assert!(vfs.chmod_b(&file).unwrap().sym("f:a+x").exec().is_ok());
 /// assert_eq!(vfs.is_exec(&file), true);
 /// ```
-pub struct Chmod
-{
+pub struct Chmod {
     pub(crate) opts: ChmodOpts,
     pub(crate) exec: Box<dyn Fn(ChmodOpts) -> RvResult<()>>, // provider callback
 }
@@ -54,8 +53,7 @@ pub struct Chmod
 // Internal type used to encapsulate just the options. This separates the provider implementation
 // from the options allowing for sharing options between different vfs providers.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ChmodOpts
-{
+pub(crate) struct ChmodOpts {
     pub(crate) path: PathBuf,   // path to chmod
     pub(crate) dirs: u32,       // mode to use for dirs
     pub(crate) files: u32,      // mode to use for files
@@ -64,8 +62,7 @@ pub(crate) struct ChmodOpts
     pub(crate) sym: String,     // add permissions via symbols
 }
 
-impl Chmod
-{
+impl Chmod {
     /// Set the permissions to use for both directories and files
     ///
     /// * Uses the standard linux octal form
@@ -85,8 +82,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
     /// ```
-    pub fn all(mut self, mode: u32) -> Self
-    {
+    pub fn all(mut self, mode: u32) -> Self {
         self.opts.dirs = mode;
         self.opts.files = mode;
         self
@@ -111,8 +107,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
     /// ```
-    pub fn dirs(mut self, mode: u32) -> Self
-    {
+    pub fn dirs(mut self, mode: u32) -> Self {
         self.opts.dirs = mode;
         self
     }
@@ -136,8 +131,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
-    pub fn files(mut self, mode: u32) -> Self
-    {
+    pub fn files(mut self, mode: u32) -> Self {
         self.opts.files = mode;
         self
     }
@@ -159,8 +153,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&link).unwrap(), 0o120777);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
-    pub fn follow(mut self) -> Self
-    {
+    pub fn follow(mut self) -> Self {
         self.opts.follow = true;
         self
     }
@@ -180,8 +173,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40755);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100444);
     /// ```
-    pub fn readonly(mut self) -> Self
-    {
+    pub fn readonly(mut self) -> Self {
         self.opts.sym = "f:a+r,f:a-wx".to_string();
         self
     }
@@ -203,8 +195,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100777);
     /// ```
-    pub fn recurse(mut self) -> Self
-    {
+    pub fn recurse(mut self) -> Self {
         self.opts.recursive = true;
         self
     }
@@ -226,8 +217,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40777);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100644);
     /// ```
-    pub fn no_recurse(mut self) -> Self
-    {
+    pub fn no_recurse(mut self) -> Self {
         self.opts.recursive = false;
         self
     }
@@ -247,8 +237,7 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40700);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
-    pub fn secure(mut self) -> Self
-    {
+    pub fn secure(mut self) -> Self {
         self.opts.sym = "a:go-rwx".to_string();
         self
     }
@@ -279,9 +268,8 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40700);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
-    pub fn sym(mut self, symbolic: &str) -> Self
-    {
-        self.opts.sym = symbolic.to_owned();
+    pub fn sym(mut self, symbolic: &str) -> Self {
+        self.opts.sym = symbolic.into();
         self
     }
 
@@ -301,16 +289,14 @@ impl Chmod
     /// assert_eq!(vfs.mode(&dir).unwrap(), 0o40700);
     /// assert_eq!(vfs.mode(&file).unwrap(), 0o100600);
     /// ```
-    pub fn exec(&self) -> RvResult<()>
-    {
+    pub fn exec(&self) -> RvResult<()> {
         (self.exec)(self.opts.clone())
     }
 }
 
 // Symbolic mode state machine states
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum State
-{
+enum State {
     Target,
     Group,
     Perms,
@@ -327,8 +313,7 @@ enum State
 /// * The 3rd seg calls out the operation to perform `-` subtractive, `+` addative, or `=` an
 ///   assignment
 /// * The fourth segment calls out the permission to subtract, add or assign
-pub(crate) fn mode(entry: &VfsEntry, octal: u32, sym: &str) -> RvResult<u32>
-{
+pub(crate) fn mode(entry: &VfsEntry, octal: u32, sym: &str) -> RvResult<u32> {
     // Octal mode takes priority
     if octal != 0 {
         return Ok(octal);
@@ -346,8 +331,7 @@ pub(crate) fn mode(entry: &VfsEntry, octal: u32, sym: &str) -> RvResult<u32>
     let mut chars: Vec<char> = sym.chars().rev().collect();
 
     let mut state = State::Target;
-    while !chars.is_empty() {
-        let mut c = chars.pop().unwrap();
+    while let Some(mut c) = chars.pop() {
         match state {
             State::Target => {
                 group = 0; // reset group for next chmod
@@ -432,38 +416,33 @@ pub(crate) fn mode(entry: &VfsEntry, octal: u32, sym: &str) -> RvResult<u32>
 }
 
 // handle pop gracefully
-fn _pop(chars: &mut Vec<char>, sym: &str) -> RvResult<char>
-{
+fn _pop(chars: &mut Vec<char>, sym: &str) -> RvResult<char> {
     if !chars.is_empty() {
-        return Ok(chars.pop().unwrap());
+        Ok(chars.pop().unwrap())
     } else {
-        return Err(VfsError::InvalidChmod(sym.to_string()).into());
+        Err(VfsError::InvalidChmod(sym.to_string()).into())
     }
 }
 
 // Returns true if the new mode is revoking permissions as compared to the old mode as pertains
 // directory read/execute permissions. This is useful when recursively modifying file
 // permissions.
-pub(crate) fn revoking_mode(old: u32, new: u32) -> bool
-{
+pub(crate) fn revoking_mode(old: u32, new: u32) -> bool {
     old & 0o0500 > new & 0o0500 || old & 0o0050 > new & 0o0050 || old & 0o0005 > new & 0o0005
 }
 
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn test_vfs_chmod()
-    {
+    fn test_vfs_chmod() {
         test_chmod(assert_vfs_setup!(Vfs::memfs()));
         test_chmod(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_chmod((vfs, tmpdir): (Vfs, PathBuf))
-    {
+    fn test_chmod((vfs, tmpdir): (Vfs, PathBuf)) {
         let file1 = tmpdir.mash("file1");
         assert_vfs_mkfile!(vfs, &file1);
         assert!(vfs.chmod(&file1, 0o644).is_ok());
@@ -475,13 +454,11 @@ mod tests
     }
 
     #[test]
-    fn test_vfs_chmod_b()
-    {
+    fn test_vfs_chmod_b() {
         test_chmod_b(assert_vfs_setup!(Vfs::memfs()));
         test_chmod_b(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_chmod_b((vfs, tmpdir): (Vfs, PathBuf))
-    {
+    fn test_chmod_b((vfs, tmpdir): (Vfs, PathBuf)) {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -531,13 +508,11 @@ mod tests
     }
 
     #[test]
-    fn test_vfs_chmod_b_symbolic()
-    {
+    fn test_vfs_chmod_b_symbolic() {
         test_chmod_b_symbolic(assert_vfs_setup!(Vfs::memfs()));
         test_chmod_b_symbolic(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_chmod_b_symbolic((vfs, tmpdir): (Vfs, PathBuf))
-    {
+    fn test_chmod_b_symbolic((vfs, tmpdir): (Vfs, PathBuf)) {
         let file1 = tmpdir.mash("file1");
 
         // setup
@@ -588,13 +563,11 @@ mod tests
     }
 
     #[test]
-    fn test_vfs_chmod_follow()
-    {
+    fn test_vfs_chmod_follow() {
         test_chmod_follow(assert_vfs_setup!(Vfs::memfs()));
         test_chmod_follow(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_chmod_follow((vfs, tmpdir): (Vfs, PathBuf))
-    {
+    fn test_chmod_follow((vfs, tmpdir): (Vfs, PathBuf)) {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let link1 = tmpdir.mash("link1");
@@ -627,13 +600,11 @@ mod tests
     }
 
     #[test]
-    fn test_vfs_chmod_recurse()
-    {
+    fn test_vfs_chmod_recurse() {
         test_chmod_recurse(assert_vfs_setup!(Vfs::memfs()));
         test_chmod_recurse(assert_vfs_setup!(Vfs::stdfs()));
     }
-    fn test_chmod_recurse((vfs, tmpdir): (Vfs, PathBuf))
-    {
+    fn test_chmod_recurse((vfs, tmpdir): (Vfs, PathBuf)) {
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -665,16 +636,15 @@ mod tests
     }
 
     #[test]
-    fn test_vfs_chmod_symbolic()
-    {
+    fn test_vfs_chmod_symbolic() {
         test_chmod_symbolic(
             Box::new(|m: u32| -> VfsEntry {
-                let mut entry = MemfsEntry::opts(PathBuf::new()).dir().new();
+                let mut entry = MemfsEntry::opts(PathBuf::new()).dir().build();
                 entry.mode = m;
                 entry.upcast()
             }),
             Box::new(|m: u32| -> VfsEntry {
-                let mut entry = MemfsEntry::opts(PathBuf::new()).file().new();
+                let mut entry = MemfsEntry::opts(PathBuf::new()).file().build();
                 entry.mode = m;
                 entry.upcast()
             }),
@@ -711,8 +681,7 @@ mod tests
             }),
         );
     }
-    fn test_chmod_symbolic(d: Box<dyn Fn(u32) -> VfsEntry>, f: Box<dyn Fn(u32) -> VfsEntry>)
-    {
+    fn test_chmod_symbolic(d: Box<dyn Fn(u32) -> VfsEntry>, f: Box<dyn Fn(u32) -> VfsEntry>) {
         assert_eq!(0o0700 & 0o0444 | 0o0000, 0o0400); // u+r
         assert_eq!(0o0770 & 0o0444 | 0o0000, 0o0440); // ug+r
         assert_eq!(!(0o0700 & 0o0444) & 0o0444, 0o0044); // u-r
@@ -816,8 +785,7 @@ mod tests
     }
 
     #[test]
-    fn test_revoking_mode()
-    {
+    fn test_revoking_mode() {
         // test other octet
         assert_eq!(sys::revoking_mode(0o0777, 0o0777), false);
         assert_eq!(sys::revoking_mode(0o0776, 0o0775), false);

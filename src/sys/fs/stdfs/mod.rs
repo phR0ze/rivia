@@ -26,7 +26,7 @@ use crate::{
 };
 
 /// Provides a wrapper around the `std::fs` module as a [`VirtualFileSystem`] backend implementation
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Stdfs;
 impl Stdfs {
     /// Create a new instance of the Stdfs Vfs backend implementation
@@ -218,7 +218,7 @@ impl Stdfs {
         // Ensure the file exists as the std functions don't do that
         Stdfs::mkfile(&path)?;
 
-        Ok(Box::new(File::options().write(true).append(true).open(Stdfs::abs(path)?)?))
+        Ok(Box::new(File::options().append(true).open(Stdfs::abs(path)?)?))
     }
 
     /// Append the given data to to the target file
@@ -276,7 +276,7 @@ impl Stdfs {
     /// ```
     pub fn append_line<T: AsRef<Path>, U: AsRef<str>>(path: T, line: U) -> RvResult<()> {
         let line = line.as_ref().to_string();
-        if line != "" {
+        if !line.is_empty() {
             Stdfs::append_all(path, line + "\n")?;
         }
         Ok(())
@@ -306,7 +306,7 @@ impl Stdfs {
     /// ```
     pub fn append_lines<T: AsRef<Path>, U: AsRef<str>>(path: T, lines: &[U]) -> RvResult<()> {
         let lines = lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n");
-        if lines != "" {
+        if !lines.is_empty() {
             Stdfs::append_all(path, lines + "\n")?;
         }
         Ok(())
@@ -385,7 +385,7 @@ impl Stdfs {
 
         // Set the `max_depth` based on recursion
         entries = entries.max_depth(match opts.recursive {
-            true => std::usize::MAX,
+            true => usize::MAX,
             false => 0,
         });
 
@@ -474,11 +474,11 @@ impl Stdfs {
 
     // Execute chown with the given [`Chown`] options
     fn _chown(opts: ChownOpts) -> RvResult<()> {
-        let max_depth = if opts.recursive { std::usize::MAX } else { 0 };
+        let max_depth = if opts.recursive { usize::MAX } else { 0 };
         for entry in Stdfs::entries(&opts.path)?.max_depth(max_depth).follow(opts.follow) {
             let src = entry?;
-            let uid = opts.uid.map(|x| nix::unistd::Uid::from_raw(x));
-            let gid = opts.gid.map(|x| nix::unistd::Gid::from_raw(x));
+            let uid = opts.uid.map(nix::unistd::Uid::from_raw);
+            let gid = opts.gid.map(nix::unistd::Gid::from_raw);
             nix::unistd::chown(src.path(), uid, gid)?;
         }
         Ok(())
@@ -594,11 +594,11 @@ impl Stdfs {
 
         // Determine the given modes
         let dir_mode = match cp.mode {
-            Some(x) if cp.cdirs || (!cp.cfiles && !cp.cdirs) => Some(x),
+            Some(x) if cp.cdirs || !cp.cfiles => Some(x),
             _ => None,
         };
         let file_mode = match cp.mode {
-            Some(x) if cp.cfiles || (!cp.cfiles && !cp.cdirs) => Some(x),
+            Some(x) if cp.cfiles || !cp.cdirs => Some(x),
             _ => None,
         };
 
@@ -620,28 +620,26 @@ impl Stdfs {
             // Recreate links if were not following them
             if !cp.follow && src.is_symlink() {
                 Stdfs::symlink(dst_path, src.alt())?;
+            } else if src.is_dir() {
+                Stdfs::mkdir_m(&dst_path, dir_mode.unwrap_or(src.mode()))?;
             } else {
-                if src.is_dir() {
-                    Stdfs::mkdir_m(&dst_path, dir_mode.unwrap_or(src.mode()))?;
-                } else {
-                    // Copying into a directory might require creating it first
-                    if !Stdfs::exists(&dst_path.dir()?) {
-                        Stdfs::mkdir_m(
-                            &dst_path.dir()?,
-                            match dir_mode {
-                                Some(x) => x,
-                                None => StdfsEntry::from(src.path().dir()?)?.mode(),
-                            },
-                        )?;
-                    }
+                // Copying into a directory might require creating it first
+                if !Stdfs::exists(&dst_path.dir()?) {
+                    Stdfs::mkdir_m(
+                        &dst_path.dir()?,
+                        match dir_mode {
+                            Some(x) => x,
+                            None => StdfsEntry::from(src.path().dir()?)?.mode(),
+                        },
+                    )?;
+                }
 
-                    // Copy over the file/link
-                    fs::copy(&src.path(), &dst_path)?;
+                // Copy over the file/link
+                fs::copy(src.path(), &dst_path)?;
 
-                    // Optionally set new mode
-                    if let Some(mode) = file_mode {
-                        fs::set_permissions(&dst_path, fs::Permissions::from_mode(mode))?;
-                    }
+                // Optionally set new mode
+                if let Some(mode) = file_mode {
+                    fs::set_permissions(&dst_path, fs::Permissions::from_mode(mode))?;
                 }
             }
         }
@@ -722,7 +720,7 @@ impl Stdfs {
             files: Default::default(),
             follow: false,
             min_depth: 0,
-            max_depth: std::usize::MAX,
+            max_depth: usize::MAX,
             max_descriptors: sys::DEFAULT_MAX_DESCRIPTORS,
             dirs_first: false,
             files_first: false,
@@ -1275,7 +1273,7 @@ impl Stdfs {
     /// ```
     /// use rivia::prelude::*;
     ///
-    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_read");
+    /// let (vfs, tmpdir) = assert_vfs_setup!(Vfs::stdfs(), "stdfs_func_read_all");
     /// let file1 = tmpdir.mash("file1");
     /// assert!(Stdfs::write_all(&file1, "this is a test").is_ok());
     /// assert_eq!(Stdfs::read_all(&file1).unwrap(), "this is a test");
@@ -1621,7 +1619,7 @@ impl Stdfs {
     /// ```
     pub fn write_lines<T: AsRef<Path>, U: AsRef<str>>(path: T, lines: &[U]) -> RvResult<()> {
         let lines = lines.iter().map(|x| x.as_ref()).collect::<Vec<&str>>().join("\n");
-        if lines != "" {
+        if !lines.is_empty() {
             Stdfs::write_all(path, lines + "\n")?;
         }
         Ok(())

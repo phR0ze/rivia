@@ -13,8 +13,7 @@ use crate::{
 // MemfsEntryOpts implements the builder pattern to provide advanced options for creating
 // MemfsEntry instances
 #[derive(Debug)]
-pub(crate) struct MemfsEntryOpts
-{
+pub(crate) struct MemfsEntryOpts {
     path: PathBuf, // path of the entry
     alt: PathBuf,  // abs path to target link is pointing to
     rel: PathBuf,  // relative path to target link is pointing to
@@ -26,11 +25,9 @@ pub(crate) struct MemfsEntryOpts
     uid: u32,      // user id of the entry
 }
 
-impl MemfsEntryOpts
-{
+impl MemfsEntryOpts {
     // Create a MemfsEntry instance from the MemfsEntryOpts instance
-    pub(crate) fn new(self) -> MemfsEntry
-    {
+    pub(crate) fn build(self) -> MemfsEntry {
         // Default entry to be a directory if not specified
         let opts = if !self.dir && !self.file && !self.link { self.dir() } else { self };
 
@@ -50,16 +47,14 @@ impl MemfsEntryOpts
         }
     }
 
-    pub(crate) fn dir(mut self) -> Self
-    {
+    pub(crate) fn dir(mut self) -> Self {
         self.dir = true;
         self.file = false;
         let mode = if self.mode == 0 { None } else { Some(self.mode) };
         self.mode(mode)
     }
 
-    pub(crate) fn file(mut self) -> Self
-    {
+    pub(crate) fn file(mut self) -> Self {
         self.file = true;
         self.dir = false;
         let mode = if self.mode == 0 { None } else { Some(self.mode) };
@@ -67,8 +62,7 @@ impl MemfsEntryOpts
     }
 
     // Options allow for being a file/dir and link
-    pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> RvResult<Self>
-    {
+    pub(crate) fn link_to<T: Into<PathBuf>>(mut self, path: T) -> RvResult<Self> {
         self.link = true;
         self.alt = path.into();
         self.rel = self.alt.relative(self.path.dir()?)?;
@@ -76,15 +70,13 @@ impl MemfsEntryOpts
     }
 
     // no safty checks only useful for testing
-    pub(crate) fn _mode(mut self, mode: u32) -> Self
-    {
+    pub(crate) fn _mode(mut self, mode: u32) -> Self {
         self.mode = mode;
         self
     }
 
     // provides some safty checks
-    pub(crate) fn mode(mut self, mode: Option<u32>) -> Self
-    {
+    pub(crate) fn mode(mut self, mode: Option<u32>) -> Self {
         // Given or default mode
         let mode = mode.unwrap_or(if self.link {
             0o120777
@@ -121,8 +113,7 @@ impl MemfsEntryOpts
 /// assert_eq!(entry.path(), &file);
 /// ```
 #[derive(Debug)]
-pub struct MemfsEntry
-{
+pub struct MemfsEntry {
     pub(crate) path: PathBuf,                  // abs path
     pub(crate) alt: PathBuf,                   // abs path link is pointing to
     pub(crate) rel: PathBuf,                   // relative path link is pointing to
@@ -137,13 +128,11 @@ pub struct MemfsEntry
     pub(crate) files: Option<HashSet<String>>, // file or directory names
 }
 
-impl MemfsEntry
-{
+impl MemfsEntry {
     /// Create a new MemfsEntryOpts to allow for more advanced Memfs creation
     ///
     /// * `abs` - target path expected to already be in absolute form
-    pub(crate) fn opts<T: Into<PathBuf>>(path: T) -> MemfsEntryOpts
-    {
+    pub(crate) fn opts<T: Into<PathBuf>>(path: T) -> MemfsEntryOpts {
         MemfsEntryOpts {
             path: path.into(),
             alt: PathBuf::new(),
@@ -163,8 +152,7 @@ impl MemfsEntry
     /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
     /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
     /// entry's path
-    pub(crate) fn add<T: Into<String>>(&mut self, entry: T) -> RvResult<bool>
-    {
+    pub(crate) fn add<T: Into<String>>(&mut self, entry: T) -> RvResult<bool> {
         let name = entry.into();
 
         // Ensure this is a valid directory
@@ -186,8 +174,7 @@ impl MemfsEntry
 
     /// Convert the given VfsEntry to a MemfsEntry or fail
     #[allow(dead_code)]
-    pub(crate) fn downcast(vfs: VfsEntry) -> RvResult<MemfsEntry>
-    {
+    pub(crate) fn downcast(vfs: VfsEntry) -> RvResult<MemfsEntry> {
         match vfs {
             VfsEntry::Memfs(x) => Ok(x),
             _ => Err(VfsError::WrongProvider.into()),
@@ -202,8 +189,7 @@ impl MemfsEntry
     /// * PathError::IsNotDir(PathBuf) when this entry is not a directory.
     /// * PathError::ExistsAlready(PathBuf) when the given entry already exists.
     /// entry's path
-    pub(crate) fn remove<T: Into<String>>(&mut self, entry: T) -> RvResult<()>
-    {
+    pub(crate) fn remove<T: Into<String>>(&mut self, entry: T) -> RvResult<()> {
         let name = entry.into();
 
         // Ensure this is a valid directory
@@ -220,8 +206,7 @@ impl MemfsEntry
     }
 
     /// Set the given mode taking into account physical file querks
-    pub(crate) fn set_mode(&mut self, mode: Option<u32>)
-    {
+    pub(crate) fn set_mode(&mut self, mode: Option<u32>) {
         // Calculate the new mode
         let opts = MemfsEntryOpts {
             path: PathBuf::new(),
@@ -241,8 +226,7 @@ impl MemfsEntry
     }
 
     /// Set the owner
-    pub(crate) fn set_owner(&mut self, uid: Option<u32>, gid: Option<u32>)
-    {
+    pub(crate) fn set_owner(&mut self, uid: Option<u32>, gid: Option<u32>) {
         if let Some(uid) = uid {
             self.uid = uid;
         }
@@ -252,8 +236,7 @@ impl MemfsEntry
     }
 }
 
-impl Entry for MemfsEntry
-{
+impl Entry for MemfsEntry {
     /// Returns the actual file or directory path when `is_symlink` reports false
     ///
     /// * When `is_symlink` returns true and `following` returns true `path` will return the actual
@@ -271,8 +254,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&file).unwrap();
     /// assert_eq!(entry.path(), &file);
     /// ```
-    fn path(&self) -> &Path
-    {
+    fn path(&self) -> &Path {
         &self.path
     }
 
@@ -288,8 +270,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&file).unwrap();
     /// assert_eq!(entry.path_buf(), file);
     /// ```
-    fn path_buf(&self) -> PathBuf
-    {
+    fn path_buf(&self) -> PathBuf {
         self.path.clone()
     }
 
@@ -312,8 +293,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&link).unwrap();
     /// assert_eq!(entry.alt(), &file);
     /// ```
-    fn alt(&self) -> &Path
-    {
+    fn alt(&self) -> &Path {
         &self.alt
     }
 
@@ -331,8 +311,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&link).unwrap();
     /// assert_eq!(entry.alt_buf(), file);
     /// ```
-    fn alt_buf(&self) -> PathBuf
-    {
+    fn alt_buf(&self) -> PathBuf {
         self.alt.clone()
     }
 
@@ -350,8 +329,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&link).unwrap();
     /// assert_eq!(entry.rel(), Path::new("file"));
     /// ```
-    fn rel(&self) -> &Path
-    {
+    fn rel(&self) -> &Path {
         &self.rel
     }
 
@@ -369,8 +347,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&link).unwrap();
     /// assert_eq!(entry.rel_buf(), PathBuf::from("file"));
     /// ```
-    fn rel_buf(&self) -> PathBuf
-    {
+    fn rel_buf(&self) -> PathBuf {
         self.rel.clone()
     }
 
@@ -388,13 +365,10 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&link).unwrap();
     /// let entry = entry.follow(false);
     /// ```
-    fn follow(mut self, follow: bool) -> VfsEntry
-    {
+    fn follow(mut self, follow: bool) -> VfsEntry {
         if follow && self.link && !self.follow {
             self.follow = true;
-            let path = self.path;
-            self.path = self.alt;
-            self.alt = path;
+            std::mem::swap(&mut self.path, &mut self.alt);
         }
         self.upcast()
     }
@@ -414,8 +388,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&link).unwrap();
     /// assert_eq!(entry.following(), false);
     /// ```
-    fn following(&self) -> bool
-    {
+    fn following(&self) -> bool {
         self.follow
     }
 
@@ -432,8 +405,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&file).unwrap();
     /// assert_eq!(entry.is_dir(), false);
     /// ```
-    fn is_dir(&self) -> bool
-    {
+    fn is_dir(&self) -> bool {
         self.dir
     }
 
@@ -449,8 +421,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&file).unwrap();
     /// assert_eq!(entry.is_file(), true);
     /// ```
-    fn is_file(&self) -> bool
-    {
+    fn is_file(&self) -> bool {
         self.file
     }
 
@@ -466,8 +437,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&file).unwrap();
     /// assert_eq!(entry.is_symlink(), false);
     /// ```
-    fn is_symlink(&self) -> bool
-    {
+    fn is_symlink(&self) -> bool {
         self.link
     }
 
@@ -483,8 +453,7 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&file).unwrap();
     /// assert_ne!(entry.mode(), 0o40644);
     /// ```
-    fn mode(&self) -> u32
-    {
+    fn mode(&self) -> u32 {
         self.mode
     }
 
@@ -500,16 +469,13 @@ impl Entry for MemfsEntry
     /// let entry = vfs.entry(&file).unwrap().upcast();
     /// assert_eq!(entry.is_file(), true);
     /// ```
-    fn upcast(self) -> VfsEntry
-    {
+    fn upcast(self) -> VfsEntry {
         VfsEntry::Memfs(self)
     }
 }
 
-impl Clone for MemfsEntry
-{
-    fn clone(&self) -> Self
-    {
+impl Clone for MemfsEntry {
+    fn clone(&self) -> Self {
         Self {
             path: self.path.clone(),
             alt: self.alt.clone(),
@@ -527,21 +493,18 @@ impl Clone for MemfsEntry
     }
 }
 
-pub(crate) struct MemfsEntryIter
-{
-    iter: Box<dyn Iterator<Item=PathBuf>>,
+pub(crate) struct MemfsEntryIter {
+    iter: Box<dyn Iterator<Item = PathBuf>>,
     entries: Arc<MemfsEntries>,
 }
 
-impl MemfsEntryIter
-{
+impl MemfsEntryIter {
     /// Create a new memfs iterator for the given directory only
     ///
     /// # Arguments
     /// * `entry` - target entry to read the directory from
     /// * `memfs` - shared copy of the memory filessystem
-    pub(crate) fn new<T: AsRef<Path>>(path: T, entries: Arc<MemfsEntries>) -> RvResult<Self>
-    {
+    pub(crate) fn new<T: AsRef<Path>>(path: T, entries: Arc<MemfsEntries>) -> RvResult<Self> {
         let path = path.as_ref();
         if let Some(entry) = entries.get(path) {
             // Create an iterator over Vec<PathBuf>
@@ -561,14 +524,12 @@ impl MemfsEntryIter
     }
 }
 
-impl Iterator for MemfsEntryIter
-{
+impl Iterator for MemfsEntryIter {
     type Item = RvResult<VfsEntry>;
 
-    fn next(&mut self) -> Option<RvResult<VfsEntry>>
-    {
+    fn next(&mut self) -> Option<RvResult<VfsEntry>> {
         if let Some(value) = self.iter.next() {
-            if let Some(x) = self.entries.get(&value).clone() {
+            if let Some(x) = self.entries.get(&value) {
                 return Some(Ok(x.clone().upcast()));
             }
         }
@@ -579,15 +540,13 @@ impl Iterator for MemfsEntryIter
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn test_uid()
-    {
+    fn test_uid() {
         // Default
-        let mut entry = MemfsEntry::opts("").new();
+        let mut entry = MemfsEntry::opts("").build();
         assert_eq!(entry.gid, 1000);
         assert_eq!(entry.uid, 1000);
 
@@ -599,14 +558,13 @@ mod tests
     }
 
     #[test]
-    fn test_follow()
-    {
+    fn test_follow() {
         let memfs = Memfs::new();
 
         // Check that follow switchs the path and alt path
         let path = memfs.root().mash("link");
         let target = memfs.root().mash("target");
-        let entry = MemfsEntry::opts(&path).link_to(&target).unwrap().new();
+        let entry = MemfsEntry::opts(&path).link_to(&target).unwrap().build();
         assert_eq!(entry.path(), &path);
         assert_eq!(entry.alt(), &target);
         assert_eq!(entry.rel(), Path::new("target"));
@@ -617,11 +575,10 @@ mod tests
     }
 
     #[test]
-    fn test_file()
-    {
+    fn test_file() {
         let vfs = Memfs::new();
         let path = vfs.root().mash("file");
-        let entry = MemfsEntry::opts(&path).file().new();
+        let entry = MemfsEntry::opts(&path).file().build();
 
         assert_eq!(&entry.path, &path);
         assert_eq!(&entry.alt, &PathBuf::new());
@@ -636,11 +593,10 @@ mod tests
     }
 
     #[test]
-    fn test_dir()
-    {
+    fn test_dir() {
         let vfs = Memfs::new();
         let path = vfs.root().mash("dir");
-        let entry = MemfsEntry::opts(&path).dir().new();
+        let entry = MemfsEntry::opts(&path).dir().build();
 
         assert_eq!(&entry.path, &path);
         assert_eq!(&entry.alt, &PathBuf::new());

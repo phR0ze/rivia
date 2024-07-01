@@ -9,19 +9,16 @@ use super::Memfs;
 /// use rivia::prelude::*;
 /// ```
 #[derive(Debug, Default)]
-pub(crate) struct MemfsFile
-{
+pub(crate) struct MemfsFile {
     pub(crate) pos: u64,              // position in the memory file
     pub(crate) data: Vec<u8>,         // datastore for the memory file
     pub(crate) path: Option<PathBuf>, // optional path to write to
     pub(crate) fs: Option<Memfs>,     // optional sharable filesystem for writes
 }
 
-impl MemfsFile
-{
+impl MemfsFile {
     /// Returns the length of the file remaining from the current position
-    pub(crate) fn len(&self) -> u64
-    {
+    pub(crate) fn len(&self) -> u64 {
         self.data.len() as u64 - self.pos
     }
 
@@ -29,14 +26,13 @@ impl MemfsFile
     ///
     /// ### Errors
     /// * PathError::DoesNotExist(PathBuf) when the target entry or file don't exist
-    pub(crate) fn sync(&mut self) -> io::Result<()>
-    {
+    pub(crate) fn sync(&mut self) -> io::Result<()> {
         if let Some(ref fs) = self.fs {
             if let Some(ref path) = self.path {
                 let mut guard = fs.write_guard();
                 if guard.contains_entry(path) {
                     if let Some(f) = guard.get_file_mut(path) {
-                        f.data = self.data.clone();
+                        f.data.clone_from(&self.data);
                     }
                 } else {
                     return Err(io::Error::new(
@@ -50,27 +46,20 @@ impl MemfsFile
     }
 }
 
-impl Clone for MemfsFile
-{
-    fn clone(&self) -> Self
-    {
+impl Clone for MemfsFile {
+    fn clone(&self) -> Self {
         Self {
             pos: self.pos,
             data: self.data.clone(),
             path: self.path.clone(),
-            fs: match self.fs {
-                Some(ref fs) => Some(fs.clone()),
-                None => None,
-            },
+            fs: self.fs.as_ref().map(|x| x.clone()),
         }
     }
 }
 
 // Implement the Read trait for the MemfsFile
-impl io::Read for MemfsFile
-{
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
-    {
+impl io::Read for MemfsFile {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let pos = self.pos as usize;
 
         // Determine max data to read from the file
@@ -88,10 +77,8 @@ impl io::Read for MemfsFile
 }
 
 // Implement the Seek trait for the MemfsFile
-impl io::Seek for MemfsFile
-{
-    fn seek(&mut self, pos: io::SeekFrom) -> std::io::Result<u64>
-    {
+impl io::Seek for MemfsFile {
+    fn seek(&mut self, pos: io::SeekFrom) -> std::io::Result<u64> {
         match pos {
             io::SeekFrom::Start(offset) => self.pos = offset,
             io::SeekFrom::Current(offset) => self.pos = (self.pos as i64 + offset) as u64,
@@ -102,24 +89,19 @@ impl io::Seek for MemfsFile
 }
 
 // Implement the Write trait for the MemfsFile
-impl io::Write for MemfsFile
-{
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize>
-    {
+impl io::Write for MemfsFile {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.data.write(buf)
     }
 
-    fn flush(&mut self) -> io::Result<()>
-    {
+    fn flush(&mut self) -> io::Result<()> {
         self.sync()
     }
 }
 
 // Use custom drop implementation to write data to the shared filesystem
-impl Drop for MemfsFile
-{
-    fn drop(&mut self)
-    {
+impl Drop for MemfsFile {
+    fn drop(&mut self) {
         // Sync data to storage
         let _result = self.sync();
 
@@ -133,14 +115,12 @@ impl Drop for MemfsFile
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use super::MemfsFile;
     use crate::prelude::*;
 
     #[test]
-    fn test_read_write_seek_len()
-    {
+    fn test_read_write_seek_len() {
         let mut memfile = MemfsFile::default();
 
         // Write using the function

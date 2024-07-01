@@ -33,13 +33,12 @@ lazy_static! {
 /// Doesn't catch aborts, that may occur while executing the given closure. Any panics captured will
 /// be converted into a RvResult with the SimpleError::Msg type returned containing the panic
 /// output.
-pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()>
-{
+pub fn capture_panic(f: impl FnOnce() + panic::UnwindSafe) -> RvResult<()> {
     {
         // Lock and increment the panic handler tracker within a block to trigger unlock
         let arc = USE_PANIC_HANDLER.clone();
         let mut count = arc.lock().map_err(|_| CoreError::PanicCaptureFailure)?;
-        *count = *count + 1;
+        *count += 1;
         panic::set_hook(Box::new(|_| {}));
     }
 
@@ -50,7 +49,7 @@ pub fn capture_panic(f: impl FnOnce()+panic::UnwindSafe) -> RvResult<()>
     let arc = USE_PANIC_HANDLER.clone();
     let mut count = arc.lock().map_err(|_| CoreError::PanicCaptureFailure)?;
     if *count != 0 {
-        *count = *count - 1;
+        *count -= 1;
     }
     if *count == 0 {
         let _ = panic::take_hook();

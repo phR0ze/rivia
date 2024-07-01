@@ -14,26 +14,22 @@ use crate::{
 /// Optionally all entries can be read into memory from the underlying VFS and yielded from there
 /// by invoking the `cache` method. In this way the number of open file descriptors can be
 /// controlled at the cost of memory consumption.
-pub(crate) struct EntryIter
-{
+pub(crate) struct EntryIter {
     pub(crate) path: PathBuf,
     pub(crate) cached: bool,
     pub(crate) following: bool,
-    pub(crate) iter: Box<dyn Iterator<Item=RvResult<VfsEntry>>>,
+    pub(crate) iter: Box<dyn Iterator<Item = RvResult<VfsEntry>>>,
 }
 
-impl EntryIter
-{
+impl EntryIter {
     /// Return a reference to the internal path being iterated over
-    pub fn path(&self) -> &Path
-    {
+    pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Reads the remaining portion of the VFS backend iterator into memory then creates a new
     /// EntryIter that will iterate over the new cached entries.
-    pub fn cache(&mut self)
-    {
+    pub fn cache(&mut self) {
         if !self.cached {
             self.cached = true;
             self.iter = Box::new(self.collect::<Vec<_>>().into_iter());
@@ -41,8 +37,7 @@ impl EntryIter
     }
 
     /// Return the current cached state
-    pub fn cached(&self) -> bool
-    {
+    pub fn cached(&self) -> bool {
         self.cached
     }
 
@@ -52,13 +47,12 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn dirs_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
+    pub fn dirs_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering) {
         self.cached = true;
         let (mut dirs, mut files) = self._split();
         self._sort(&mut dirs, &cmp);
         self._sort(&mut files, cmp);
-        self.iter = Box::new(dirs.into_iter().chain(files.into_iter()));
+        self.iter = Box::new(dirs.into_iter().chain(files));
     }
 
     /// Sort files first than directories according to the given sort function
@@ -67,13 +61,12 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn files_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
+    pub fn files_first(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering) {
         self.cached = true;
         let (mut dirs, mut files) = self._split();
         self._sort(&mut dirs, &cmp);
         self._sort(&mut files, cmp);
-        self.iter = Box::new(files.into_iter().chain(dirs.into_iter()));
+        self.iter = Box::new(files.into_iter().chain(dirs));
     }
 
     /// When `true` iterating results will have their `path` and `alt` values switched if
@@ -84,16 +77,14 @@ impl EntryIter
     /// use rivia::prelude::*;
     /// ```
     #[allow(dead_code)]
-    pub fn follow(mut self, follow: bool) -> Self
-    {
+    pub fn follow(mut self, follow: bool) -> Self {
         self.following = follow;
         self
     }
 
     /// Return the current following state
     #[allow(dead_code)]
-    pub fn following(&self) -> bool
-    {
+    pub fn following(&self) -> bool {
         self.following
     }
 
@@ -103,8 +94,7 @@ impl EntryIter
     /// ```
     /// use rivia::prelude::*;
     /// ```
-    pub fn sort(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
+    pub fn sort(&mut self, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering) {
         self.cached = true;
         let mut entries = self.collect::<Vec<_>>();
         self._sort(&mut entries, cmp);
@@ -112,10 +102,9 @@ impl EntryIter
     }
 
     /// Sort the given entries with the given sorter function
-    fn _sort(&mut self, entries: &mut Vec<RvResult<VfsEntry>>, cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering)
-    {
+    fn _sort(&mut self, entries: &mut [RvResult<VfsEntry>], cmp: impl Fn(&VfsEntry, &VfsEntry) -> Ordering) {
         entries.sort_by(|x, y| match (x, y) {
-            (&Ok(ref x), &Ok(ref y)) => cmp(x, y),
+            (Ok(x), Ok(y)) => cmp(x, y),
             (&Err(_), &Err(_)) => Ordering::Equal,
             (&Ok(_), &Err(_)) => Ordering::Greater,
             (&Err(_), &Ok(_)) => Ordering::Less,
@@ -123,8 +112,7 @@ impl EntryIter
     }
 
     /// Split the files and directories out
-    fn _split(&mut self) -> (Vec<RvResult<VfsEntry>>, Vec<RvResult<VfsEntry>>)
-    {
+    fn _split(&mut self) -> (Vec<RvResult<VfsEntry>>, Vec<RvResult<VfsEntry>>) {
         let mut dirs: Vec<RvResult<VfsEntry>> = vec![];
         let mut files: Vec<RvResult<VfsEntry>> = vec![];
         for x in self.collect::<Vec<_>>() {
@@ -143,12 +131,10 @@ impl EntryIter
     }
 }
 
-impl Iterator for EntryIter
-{
+impl Iterator for EntryIter {
     type Item = RvResult<VfsEntry>;
 
-    fn next(&mut self) -> Option<RvResult<VfsEntry>>
-    {
+    fn next(&mut self) -> Option<RvResult<VfsEntry>> {
         match self.iter.next() {
             Some(x) => Some(match x {
                 Ok(y) => Ok(if self.following {
@@ -167,14 +153,12 @@ impl Iterator for EntryIter
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
-mod tests
-{
+mod tests {
 
     use crate::prelude::*;
 
     #[test]
-    fn test_entry_iter_error()
-    {
+    fn test_entry_iter_error() {
         let vfs = Memfs::new();
         let tmpdir = PathBuf::new();
         let guard = vfs.read_guard();
@@ -184,8 +168,7 @@ mod tests
     }
 
     #[test]
-    fn test_entry_iter_dirs_first()
-    {
+    fn test_entry_iter_dirs_first() {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
         let dir1 = tmpdir.mash("dir1");
@@ -222,8 +205,7 @@ mod tests
     }
 
     #[test]
-    fn test_entry_sort()
-    {
+    fn test_entry_sort() {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
         let file1 = tmpdir.mash("file1");
@@ -244,8 +226,7 @@ mod tests
     }
 
     #[test]
-    fn test_entry_follow()
-    {
+    fn test_entry_follow() {
         let vfs = Memfs::new();
         let tmpdir = vfs.root().mash("tmpdir");
         let file1 = tmpdir.mash("file1");

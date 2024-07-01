@@ -172,7 +172,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> RvResult<PathBuf> {
                             chars.next_if_eq(&'{'); // drop {
                             let var = &chars.take_while_p(|&x| x != '$' && x != '}').collect::<String>();
                             chars.next_if_eq(&'}'); // drop }
-                            if var == "" {
+                            if var.is_empty() {
                                 return Err(PathError::invalid_expansion(seg).into());
                             }
                             str += &std::env::var(var)?;
@@ -356,7 +356,7 @@ pub fn parse_paths<T: AsRef<str>>(value: T) -> RvResult<Vec<PathBuf>> {
     let mut paths: Vec<PathBuf> = vec![];
     for dir in value.as_ref().split(':') {
         // Ignoring - Unix shell semantics: path element "" means "."
-        if dir != "" {
+        if !dir.is_empty() {
             paths.push(PathBuf::from(dir));
         }
     }
@@ -500,7 +500,7 @@ pub fn trim_protocol<T: AsRef<Path>>(path: T) -> PathBuf {
                 let lower = lower.trim_start_matches("ftp://");
                 let lower = lower.trim_start_matches("http://");
                 let lower = lower.trim_start_matches("https://");
-                if lower != "" {
+                if !lower.is_empty() {
                     PathBuf::from(format!("{}{}", prefix, suffix))
                 } else {
                     PathBuf::from(suffix)

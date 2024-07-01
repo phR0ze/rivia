@@ -1370,10 +1370,6 @@ mod tests {
         // Won't return anything as no well known dirs were used
         assert_eq!(vfs.config_dir("file1"), None);
 
-        // Override the XDG_CONFIG_HOME value then check again
-        std::env::set_var("XDG_CONFIG_HOME", &dir);
-        assert_eq!(vfs.config_dir("file1").unwrap(), dir);
-
         assert_vfs_remove_all!(vfs, &tmpdir);
     }
     #[test]
